@@ -959,13 +959,8 @@ again:
 		int i;
 
 		spin_lock(&vb->lock);
-		if (vb->free < 1UL << order) {
-            if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
-				/* free left too small, handle as fragmented scenario */
-				purge = 1;
-			}
+		if (vb->free < 1UL << order)
 			goto next;
-        }
 
 		i = VMAP_BBMAP_BITS - vb->free;
 		addr = vb->va->va_start + (i << PAGE_SHIFT);
