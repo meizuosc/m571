@@ -39,13 +39,8 @@ enum {
 	FLAT_BINDER_FLAG_ACCEPTS_FDS = 0x100,
 };
 
-#ifdef BINDER_IPC_32BIT
-typedef __u32 binder_size_t;
-typedef __u32 binder_uintptr_t;
-#else
 typedef __u64 binder_size_t;
 typedef __u64 binder_uintptr_t;
-#endif
 
 /*
  * This is the flattened representation of a Binder object for transfer
@@ -90,11 +85,7 @@ struct binder_version {
 };
 
 /* This is the current protocol version. */
-#ifdef BINDER_IPC_32BIT
-#define BINDER_CURRENT_PROTOCOL_VERSION 7
-#else
 #define BINDER_CURRENT_PROTOCOL_VERSION 8
-#endif
 
 #define BINDER_WRITE_READ		_IOWR('b', 1, struct binder_write_read)
 #define	BINDER_SET_IDLE_TIMEOUT		_IOW('b', 3, __s64)
