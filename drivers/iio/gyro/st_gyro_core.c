@@ -343,6 +343,9 @@ int st_gyro_common_probe(struct iio_dev *indio_dev,
 	if (err)
 		goto st_gyro_device_register_error;
 
+	dev_info(&indio_dev->dev, "registered gyroscope %s\n",
+		 indio_dev->name);
+
 	return err;
 
 st_gyro_device_register_error:

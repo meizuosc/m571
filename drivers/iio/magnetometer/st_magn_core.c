@@ -393,6 +393,9 @@ int st_magn_common_probe(struct iio_dev *indio_dev,
 	if (err)
 		goto st_magn_device_register_error;
 
+	dev_info(&indio_dev->dev, "registered magnetometer %s\n",
+		 indio_dev->name);
+
 	return err;
 
 st_magn_device_register_error:
