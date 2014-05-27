@@ -373,7 +373,6 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks \
 		   -std=gnu89 -Werror=format \
 		   -Werror=int-to-pointer-cast -Werror=pointer-to-int-cast
 
@@ -577,6 +576,11 @@ endif # $(dot-config)
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
+include $(srctree)/arch/$(SRCARCH)/Makefile
+
+KBUILD_CFLAGS  += $(call cc-option,-fno-delete-null-pointer-checks,)
+
+
 KBUILD_CFLAGS	+= $(call cc-disable-warning,maybe-uninitialized,)
 
 # Disable unused-constant-variable warnings
@@ -593,8 +597,6 @@ KBUILD_CFLAGS	+= -Os
 else
 KBUILD_CFLAGS	+= -O2
 endif
-
-include $(srctree)/arch/$(SRCARCH)/Makefile
 
 ifdef CONFIG_READABLE_ASM
 # Disable optimizations that make assembler listings hard to read.
