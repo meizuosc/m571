@@ -1161,6 +1161,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
 		if (is_migrate_cma(migratetype))
 			area->nr_free_cma--;
 		expand(zone, page, order, current_order, area, migratetype);
+		set_freepage_migratetype(page, migratetype);
 		return page;
 	}
 
@@ -1443,6 +1444,12 @@ no_move:
 			       (is_migrate_mtkpasr(start_migratetype) || is_migrate_mtkpasr(migratetype))
 #endif
 			     ? migratetype : start_migratetype);
+			/* The freepage_migratetype may differ from pageblock's
+			 * migratetype depending on the decisions in
+			 * try_to_steal_freepages. This is OK as long as it does
+			 * not differ for MIGRATE_CMA type.
+			 */
+			set_freepage_migratetype(page, new_type);
 
 			trace_mm_page_alloc_extfrag(page, order, current_order,
 				start_migratetype, new_type);
@@ -1493,7 +1500,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			unsigned long count, struct list_head *list,
 			int migratetype, int cold)
 {
-	int mt = migratetype, i;
+	int i;
 
 	spin_lock(&zone->lock);
 	for (i = 0; i < count; ++i) {
@@ -1514,15 +1521,6 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			list_add(&page->lru, list);
 		else
 			list_add_tail(&page->lru, list);
-		if (IS_ENABLED(CONFIG_CMA)) {
-			mt = get_pageblock_migratetype(page);
-#if !defined(CONFIG_CMA) || !defined(CONFIG_MTK_SVP) // SVP 16
-			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt))
-#else
-			if (!is_migrate_isolate(mt))
-#endif
-				mt = migratetype;
-		}
 		
 		if (IS_ENABLED(CONFIG_MTKPASR)) {
 			mt = get_pageblock_migratetype(page);
@@ -1531,10 +1529,9 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 				mt = migratetype;
 		}
 
-		set_freepage_migratetype(page, mt);
 		list = &page->lru;
 #if !defined(CONFIG_CMA) || !defined(CONFIG_MTK_SVP) // SVP 16
-		if (is_migrate_cma(mt))
+		if (is_migrate_cma(get_freepage_migratetype(page)))
 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
 					      -(1 << order));
 #endif
@@ -1920,7 +1917,7 @@ again:
 			goto failed;
 #if !defined(CONFIG_CMA) || !defined(CONFIG_MTK_SVP) // SVP 16
 		__mod_zone_freepage_state(zone, -(1 << order),
-					  get_pageblock_migratetype(page));
+					  get_freepage_migratetype(page));
 #else
 		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
 #endif
