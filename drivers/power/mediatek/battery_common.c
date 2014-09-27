@@ -294,6 +294,7 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CAPACITY,
+    POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	#ifdef MEIZU_M81
             POWER_SUPPLY_PROP_CURRENT_NOW,
 	#endif
@@ -642,6 +643,9 @@ static int battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = data->BAT_CAPACITY;
 		break;
+    case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+        val->intval = data->BAT_batt_vol * 1000; /* uV */
+        break;
 #ifdef MEIZU_M81
         case POWER_SUPPLY_PROP_CURRENT_NOW:
 	    is_charging = battery_meter_get_battery_current_sign();
