@@ -1023,6 +1023,11 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		EXIT_TRACE : EXIT_DEAD;
 	if (cmpxchg(&p->exit_state, EXIT_ZOMBIE, state) != EXIT_ZOMBIE)
 		return 0;
+	/*
+	 * We own this thread, nobody else can reap it.
+	 */
+	read_unlock(&tasklist_lock);
+	sched_annotate_sleep();
 
 	/*
 	 * Check thread_group_leader() to exclude the traced sub-threads.
@@ -1080,13 +1085,6 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		task_io_accounting_add(&psig->ioac, &sig->ioac);
 		spin_unlock_irq(&p->real_parent->sighand->siglock);
 	}
-
-	/*
-	 * Now we are sure this task is interesting, and no other
-	 * thread can reap it because we its state == DEAD/TRACE.
-	 */
-	read_unlock(&tasklist_lock);
-	sched_annotate_sleep();
 
 	retval = wo->wo_rusage
 		? getrusage(p, RUSAGE_BOTH, wo->wo_rusage) : 0;
