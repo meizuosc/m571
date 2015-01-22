@@ -322,6 +322,12 @@ sb_bread_unmovable(struct super_block *sb, sector_t block)
 }
 #endif
 
+static inline struct buffer_head *
+sb_bread_unmovable(struct super_block *sb, sector_t block)
+{
+	return sb_bread(sb, block);
+}
+
 static inline void
 sb_breadahead(struct super_block *sb, sector_t block)
 {
