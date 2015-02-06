@@ -3626,9 +3626,9 @@ retry:
 			pr_err("read put err2 %u to user %pK, thread error %u:%u\n",
 					thread->return_error2, ptr, thread->return_error, thread->return_error2);
 			binder_stat_br(proc, thread, thread->return_error2);
+			thread->return_error2 = BR_OK;
 			if (ptr == end)
 				goto done;
-			thread->return_error2 = BR_OK;
 		}
 		if (put_user(thread->return_error, (uint32_t __user *)ptr))
 			return -EFAULT;
