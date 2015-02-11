@@ -281,8 +281,6 @@ void __meminit set_pageblock_mobility(struct page *page, int mobility)
 }
 #endif
 
-bool oom_killer_disabled __read_mostly;
-
 #ifdef CONFIG_DEBUG_VM
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 {
@@ -2531,9 +2529,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 
 	*did_some_progress = 0;
 
-	if (oom_killer_disabled)
-		return NULL;
-
 	/*
 	 * Acquire the per-zone oom lock for each zone.  If that
 	 * fails, somebody else is making progress for us.
@@ -2543,14 +2538,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 		schedule_timeout_uninterruptible(1);
 		return NULL;
 	}
-
-	/*
-	 * PM-freezer should be notified that there might be an OOM killer on
-	 * its way to kill and wake somebody up. This is too early and we might
-	 * end up not killing anything but false positives are acceptable.
-	 * See freeze_processes.
-	 */
-	note_oom_kill();
 
 	/*
 	 * Go through the zonelist yet one more time, keep very high watermark
@@ -2588,8 +2575,8 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 			goto out;
 	}
 	/* Exhausted what can be done so it's blamo time */
-	out_of_memory(zonelist, gfp_mask, order, nodemask, false);
-	*did_some_progress = 1;
+	if (out_of_memory(zonelist, gfp_mask, order, nodemask, false))
+		*did_some_progress = 1;
 out:
 	oom_zonelist_unlock(zonelist, gfp_mask);
 	return page;
