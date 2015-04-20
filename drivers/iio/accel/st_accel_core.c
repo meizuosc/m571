@@ -458,6 +458,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev,
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &accel_info;
+	mutex_init(&adata->tb.buf_lock);
 
 	err = st_sensors_check_device_support(indio_dev,
 				ARRAY_SIZE(st_accel_sensors), st_accel_sensors);
