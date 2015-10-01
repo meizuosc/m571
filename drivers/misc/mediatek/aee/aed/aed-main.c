@@ -1840,6 +1840,7 @@ static void external_exception(const char *assert_type, const int *log, int log_
 
 	if (NULL == ee_log) {
 		LOGE("%s : memory alloc() fail\n", __func__);
+		kfree(eerec);
 		return;
 	}
 
