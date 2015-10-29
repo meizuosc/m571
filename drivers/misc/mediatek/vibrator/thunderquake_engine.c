@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014, Varun Chitre "varun.chitre15" <varun.chitre15@gmail.com>
+ * Copyright Â© 2014, Varun Chitre "varun.chitre15" <varun.chitre15@gmail.com>
  *
  * Vibration Intensity Controller for MTK Vibrator
  *
@@ -32,7 +32,7 @@
 #define ENGINE_VERSION  1
 #define ENGINE_VERSION_SUB 0
 
-extern void upmu_set_rg_vibr_vosel(kal_uint32 val);
+extern void pmic_set_register_value(kal_uint32 val);
 
 static ssize_t vibr_vtg_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -47,7 +47,7 @@ static ssize_t vibr_vtg_store(struct kobject *kobj, struct kobj_attribute *attr,
     struct vibrator_hw* hw = mt_get_cust_vibrator_hw();
 	sscanf(buf, "%u", &val);
 	if(val>=MIN_VIBR && val <=MAX_VIBR) {
-       upmu_set_rg_vibr_vosel(val);
+       pmic_set_register_value(val);
        hw->vib_vol=val;
     }
     
