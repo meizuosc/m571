@@ -635,7 +635,6 @@ out_unlock:
 	unix_state_unlock(sk);
 	put_pid(old_pid);
 out:
-   
 	return err;
 }
 
@@ -1035,8 +1034,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	atomic_set(&addr->refcnt, 1);
 
 	if (sun_path[0]) {
-		struct path path;      
-
+		struct path path = {0};
 		umode_t mode = S_IFSOCK |
 		       (SOCK_INODE(sock)->i_mode & ~current_umask());
 		err = unix_mknod(sun_path, mode, &path);
@@ -1184,7 +1182,6 @@ out_unlock:
 	unix_state_double_unlock(sk, other);
 	sock_put(other);
 out:
-     
 	return err;
 }
 
@@ -1377,7 +1374,6 @@ restart:
 
 	other->sk_data_ready(other, 0);
 	sock_put(other);
-       
 	return 0;
 
 out_unlock:
@@ -1390,7 +1386,6 @@ out:
 		unix_release_sock(newsk, 0);
 	if (other)
 		sock_put(other);
-    
 	return err;
 }
 
@@ -1442,7 +1437,7 @@ static int unix_accept(struct socket *sock, struct socket *newsock, int flags)
 	/* If socket state is TCP_LISTEN it cannot change (for now...),
 	 * so that no locks are necessary.
 	 */
-    
+
 	skb = skb_recv_datagram(sk, 0, flags&O_NONBLOCK, &err);
 	if (!skb) {
 		/* This means receive shutdown. */
@@ -1461,11 +1456,9 @@ static int unix_accept(struct socket *sock, struct socket *newsock, int flags)
 	unix_sock_inherit_flags(sock, newsock);
 	sock_graft(tsk, newsock);
 	unix_state_unlock(tsk);
-    
 	return 0;
 
 out:
-    
 	return err;
 }
 
@@ -1638,7 +1631,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	int max_level;
 	int data_len = 0;
 	int sk_locked;
-	 
+
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
 	wait_for_unix_gc();
@@ -1809,7 +1802,6 @@ restart_locked:
 	other->sk_data_ready(other, len);
 	sock_put(other);
 	scm_destroy(siocb->scm);
-    
 	return len;
 
 out_unlock:
@@ -1822,7 +1814,6 @@ out:
 	if (other)
 		sock_put(other);
 	scm_destroy(siocb->scm);
-      
 	return err;
 }
 
@@ -1847,7 +1838,6 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
-		
 	wait_for_unix_gc();
 	err = scm_send(sock, msg, siocb->scm, false);
 	if (err < 0)
@@ -1960,7 +1950,6 @@ pipe_err:
 out_err:
 	scm_destroy(siocb->scm);
 	siocb->scm = NULL;
-        
 	return sent ? : err;
 }
 
@@ -2102,7 +2091,6 @@ out_free:
 out_unlock:
 	mutex_unlock(&u->readlock);
 out:
-      
 	return err;
 }
 
@@ -2357,7 +2345,6 @@ again:
 	mutex_unlock(&u->readlock);
 	scm_recv(sock, msg, siocb->scm, flags);
 out:
-  
 	return copied ? : err;
 }
 
@@ -2527,14 +2514,13 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 		/* connection hasn't started yet? */
 		if (sk->sk_state == TCP_SYN_SENT)
     {
-        
 			return mask;
 	  }
   }
 
 	/* No write status requested, avoid expensive OUT tests. */
 	if (!(poll_requested_events(wait) & (POLLWRBAND|POLLWRNORM|POLLOUT)))
-  {     
+  {
 		return mask;
   }
 
