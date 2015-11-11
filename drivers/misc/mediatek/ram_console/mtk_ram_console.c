@@ -205,57 +205,6 @@ static const struct file_operations ram_console2_file_ops = {
 	.release = single_release,
 };
 
-static int emmc_read_last_kmsg(void *data)
-{
-	int ret;
-	struct file *filp;
-
-	struct proc_dir_entry *entry;
-	struct ram_console_buffer *bufp = NULL;
-	int timeout = 0;
-
-	ram_console2_log = kzalloc(ram_console_buffer->sz_buffer, GFP_KERNEL);
-	if (ram_console2_log == NULL) {
-		pr_err("ram_console: malloc size 2 error!\n");
-		return 1;
-	}
-	
-	do {
-		filp = expdb_open();
-		if (timeout++ > 60) {
-			pr_err("ram_console: open expdb partition error [%ld]!\n", PTR_ERR(filp));
-			return 1;
-		}
-		msleep(500);
-	} while (IS_ERR(filp));
-	ret = kernel_read(filp, EMMC_ADDR, ram_console2_log, ram_console_buffer->sz_buffer);
-	fput(filp);
-	if (IS_ERR(ERR_PTR(ret))) {
-		kfree(ram_console2_log);
-		ram_console2_log = NULL;
-		pr_err("ram_console: read emmc data 2 error!\n");
-		return 1;
-	}
-
-	bufp = (struct ram_console_buffer *)ram_console2_log;
-	if (bufp->sig != REBOOT_REASON_SIG) {
-		kfree(ram_console2_log);
-		ram_console2_log = NULL;
-		pr_err("ram_console: emmc read data sig is not match!\n");
-		return 1;
-	}
-
-	entry = proc_create("last_kmsg2", 0444, NULL, &ram_console2_file_ops);
-	if (!entry) {
-		pr_err("ram_console: failed to create proc entry\n");
-		kfree(ram_console2_log);
-		ram_console2_log = NULL;
-		return 1;
-	}
-	pr_err("ram_console: create last_kmsg2 ok.\n");
-	return 0;
-
-}
 #else
 void last_kmsg_store_to_emmc(void)
 {
