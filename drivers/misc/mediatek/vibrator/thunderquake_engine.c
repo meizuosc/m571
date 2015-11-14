@@ -25,6 +25,7 @@
 
 #include <cust_vibrator.h>
 #include <vibrator_hal.h>
+#include <mach/upmu_hw.h>
 
 #define MAX_VIBR 7
 #define MIN_VIBR 0
@@ -32,7 +33,7 @@
 #define ENGINE_VERSION  1
 #define ENGINE_VERSION_SUB 0
 
-extern void pmic_set_register_value(kal_uint32 val);
+extern void pmic_set_register_value(PMU_FLAGS_LIST_ENUM flagname, kal_uint32 val);
 
 static ssize_t vibr_vtg_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -47,7 +48,7 @@ static ssize_t vibr_vtg_store(struct kobject *kobj, struct kobj_attribute *attr,
     struct vibrator_hw* hw = mt_get_cust_vibrator_hw();
 	sscanf(buf, "%u", &val);
 	if(val>=MIN_VIBR && val <=MAX_VIBR) {
-       pmic_set_register_value(val);
+       pmic_set_register_value(PMIC_RG_VIBR_VOSEL,val);
        hw->vib_vol=val;
     }
     
