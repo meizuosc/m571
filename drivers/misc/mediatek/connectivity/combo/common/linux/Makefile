@@ -23,8 +23,4 @@ obj-y	+= stp_chrdev_bt.o
 
 obj-y	+= wmt_chrdev_wifi.o
 
-ifneq ($(filter "MT6630",$(CONFIG_MTK_COMBO_CHIP)),)
-	obj-y 	+= stp_chrdev_ant.o
-endif
-
 endif
