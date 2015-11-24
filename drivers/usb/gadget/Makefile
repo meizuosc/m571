@@ -1,6 +1,8 @@
 #
 # USB peripheral controller drivers
 #
+CFLAGS_KERNEL := -Wno-unused-label
+
 ccflags-$(CONFIG_USB_GADGET_DEBUG) := -DDEBUG
 include $(srctree)/drivers/misc/mediatek/Makefile.custom
 
