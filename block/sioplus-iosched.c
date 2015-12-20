@@ -21,7 +21,6 @@
 #include <linux/bio.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 
 enum { ASYNC, SYNC };
 
@@ -83,16 +82,6 @@ sio_add_request(struct request_queue *q, struct request *rq)
 	 */
 	rq_set_fifo_time(rq, jiffies + sd->fifo_expire[sync][data_dir]);
 	list_add_tail(&rq->queuelist, &sd->fifo_list[sync][data_dir]);
-}
-
-static int
-sio_queue_empty(struct request_queue *q)
-{
-	struct sio_data *sd = q->elevator->elevator_data;
-
-	/* Check if fifo lists are empty */
-	return list_empty(&sd->fifo_list[SYNC][READ]) && list_empty(&sd->fifo_list[SYNC][WRITE]) &&
-	       list_empty(&sd->fifo_list[ASYNC][READ]) && list_empty(&sd->fifo_list[ASYNC][WRITE]);
 }
 
 static struct request *
@@ -381,7 +370,6 @@ static struct elevator_type iosched_sioplus = {
 		.elevator_merge_req_fn		= sio_merged_requests,
 		.elevator_dispatch_fn		= sio_dispatch_requests,
 		.elevator_add_req_fn		= sio_add_request,
-		.elevator_queue_empty_fn	= sio_queue_empty,
 		.elevator_former_req_fn		= sio_former_request,
 		.elevator_latter_req_fn		= sio_latter_request,
 		.elevator_init_fn		= sio_init_queue,
@@ -396,9 +384,7 @@ static struct elevator_type iosched_sioplus = {
 static int __init sioplus_init(void)
 {
 	/* Register elevator */
-	elv_register(&iosched_sioplus);
-
-	return 0;
+	return elv_register(&iosched_sioplus);
 }
 
 static void __exit sioplus_exit(void)
