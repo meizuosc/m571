@@ -2499,6 +2499,8 @@ wlanNetCreate(
     init_completion(&prGlueInfo->rScanComp);
     init_completion(&prGlueInfo->rHaltComp);
     init_completion(&prGlueInfo->rPendComp);
+    init_completion(&prGlueInfo->rChannelReq);
+
 #if CFG_ENABLE_WIFI_DIRECT
     init_completion(&prGlueInfo->rSubModComp);
 #endif
