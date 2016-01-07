@@ -2290,6 +2290,16 @@ static struct rq *find_lock_lowest_rq_mtk(struct task_struct *task, struct rq *r
 
 	lowest_rq = cpu_rq(cpu);
 
+	if (lowest_rq->rt.highest_prio.curr <= task->prio) {
+		/*
+		 * Target rq has tasks of equal or higher priority,
+		 * retrying does not release any lock and is unlikely
+		 * to yield a different result.
+		 */
+		lowest_rq = NULL;
+		break;
+	}
+
 	/* if the prio of this runqueue changed, try again */
 	if (double_lock_balance(rq, lowest_rq)) {
 		/*
