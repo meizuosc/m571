@@ -279,6 +279,10 @@ config MTK_GPS_REGISTER_SETTING
 	help
 	   GPS register settings.
 
+config MTK_COMBO_AOSP_TETHERING_SUPPORT
+	bool "Multiplex wlan0 for both AP and STA"
+	default n
+
 config MTK_COMBO_DISABLE_5G_FOR_P2P
        bool "Disable 5Ghz bands from P2P negotiations"
        default n
