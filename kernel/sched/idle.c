@@ -93,6 +93,9 @@ void __weak arch_cpu_idle(void)
  */
 static void cpu_idle_loop(void)
 {
+	int cpu = smp_processor_id();
+
+
 #ifdef CONFIG_MT_LOAD_BALANCE_PROFILER
 	mt_lbprof_update_state(smp_processor_id(), MT_LBPROF_NO_TASK_STATE);
 #endif
@@ -104,7 +107,7 @@ static void cpu_idle_loop(void)
 			check_pgt_cache();
 			rmb();
 
-			if (cpu_is_offline(smp_processor_id()))
+			if (cpu_is_offline(cpu))
 				arch_cpu_idle_dead();
 
 #ifdef CONFIG_MT_LOAD_BALANCE_PROFILER
