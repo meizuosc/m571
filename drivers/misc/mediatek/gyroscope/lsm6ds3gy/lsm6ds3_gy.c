@@ -428,21 +428,21 @@ static int LSM6DS3_gyro_SetFullScale(struct i2c_client *client, u8 gyro_fs)
 	int res = 0;
 	GYRO_FUN();     
 	
-	if(hwmsen_read_byte(client, LSM6DS3_CTRL2_G, databuf))
+	if(hwmsen_read_byte(client, LSM6DS3_CTRL1_XL, databuf))
 	{
-		GYRO_ERR("read LSM6DS3_CTRL2_G err!\n");
+		GYRO_ERR("read LSM6DS3_CTRL1_XL err!\n");
 		return LSM6DS3_ERR_I2C;
 	}
 	else
 	{
-		GYRO_LOG("read  LSM6DS3_CTRL2_G register: 0x%x\n", databuf[0]);
+		GYRO_LOG("read  LSM6DS3_CTRL1_XL register: 0x%x\n", databuf[0]);
 	}
 
 	databuf[0] &= ~LSM6DS3_GYRO_RANGE_MASK;//clear 
 	databuf[0] |= gyro_fs;
 	
 	databuf[1] = databuf[0];
-	databuf[0] = LSM6DS3_CTRL2_G; 
+	databuf[0] = LSM6DS3_CTRL1_XL; 
 	
 	
 	res = i2c_master_send(client, databuf, 0x2);
