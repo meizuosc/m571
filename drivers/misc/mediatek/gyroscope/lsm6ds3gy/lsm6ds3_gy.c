@@ -29,6 +29,7 @@
 #include <linux/hwmsen_dev.h>
 #include <linux/sensors_io.h>
 #include "lsm6ds3_gy.h"
+#include "lsm6ds3a.h"
 #include <linux/hwmsen_helper.h>
 #include <linux/kernel.h>
 #include <mach/mt_pm_ldo.h>
@@ -338,6 +339,13 @@ static int LSM6DS3_CheckDeviceID(struct i2c_client *client)
 	return LSM6DS3_SUCCESS;
 }
 
+int lsm6ds3_gyro_mode(void)
+{
+	return sensor_power;
+}
+EXPORT_SYMBOL(lsm6ds3_gyro_mode);
+
+
 //----------------------------------------------------------------------------//
 static int LSM6DS3_gyro_SetPowerMode(struct i2c_client *client, bool enable)
 {
@@ -360,19 +368,22 @@ static int LSM6DS3_gyro_SetPowerMode(struct i2c_client *client, bool enable)
 	if(true == enable)
 	{
 		databuf[0] &= ~LSM6DS3_GYRO_ODR_MASK;//clear lsm6ds3 gyro ODR bits
-		databuf[0] |= LSM6DS3_GYRO_ODR_104HZ; //default set 100HZ for LSM6DS3 gyro
+		databuf[0] |= 0x58;/*2000dps*///LSM6DS3_GYRO_ODR_104HZ; //default set 100HZ for LSM6DS3 gyro
 
 
 	}
 	else
 	{
 		// do nothing
-		databuf[0] &= ~LSM6DS3_GYRO_ODR_MASK;//clear lsm6ds3 gyro ODR bits
-		databuf[0] |= LSM6DS3_GYRO_ODR_POWER_DOWN; //POWER DOWN
+		if (lsm6ds3_acc_mode() == false){
+			databuf[0] &= ~LSM6DS3_GYRO_ODR_MASK;//clear lsm6ds3 gyro ODR bits
+			databuf[0] |= LSM6DS3_GYRO_ODR_POWER_DOWN; //POWER DOWN
+		}
 	}
 	databuf[1] = databuf[0];
 	databuf[0] = LSM6DS3_CTRL2_G;	 
 	res = i2c_master_send(client, databuf, 0x2);
+
 	if(res <= 0)
 	{
 		GYRO_LOG("LSM6DS3 set power mode: ODR 100hz failed!\n");

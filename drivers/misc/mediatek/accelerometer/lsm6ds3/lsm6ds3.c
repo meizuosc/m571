@@ -31,6 +31,7 @@
 #include <linux/hwmsen_dev.h>
 #include <linux/sensors_io.h>
 #include "lsm6ds3.h"
+#include "lsm6ds3gy.h"
 #include <linux/hwmsen_helper.h>
 #include <linux/kernel.h>
 #include <mach/mt_pm_ldo.h>
@@ -563,6 +564,12 @@ static int LSM6DS3_enable_pedo(struct i2c_client *client, bool enable)
 }
 #endif
 
+int lsm6ds3_acc_mode(void)
+{
+	return sensor_power;
+}
+EXPORT_SYMBOL(lsm6ds3_acc_mode);
+
 static int LSM6DS3_acc_SetPowerMode(struct i2c_client *client, bool enable)
 {
 	u8 databuf[2] = {0};    
@@ -591,8 +598,10 @@ static int LSM6DS3_acc_SetPowerMode(struct i2c_client *client, bool enable)
 	else
 	{
 		// do nothing
-		databuf[0] &= ~LSM6DS3_ACC_ODR_MASK;//clear lsm6ds3 acc ODR bits
-		databuf[0] |= LSM6DS3_ACC_ODR_POWER_DOWN;
+		if (lsm6ds3_gyro_mode() == false){
+			databuf[0] &= ~LSM6DS3_ACC_ODR_MASK;//clear lsm6ds3 acc ODR bits
+			databuf[0] |= LSM6DS3_ACC_ODR_POWER_DOWN;
+		}
 	}
 	databuf[1] = databuf[0];
 	databuf[0] = LSM6DS3_CTRL1_XL;    
