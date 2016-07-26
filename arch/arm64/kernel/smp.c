@@ -180,6 +180,10 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	if (cpu_ops[cpu]->cpu_postboot)
 		cpu_ops[cpu]->cpu_postboot();
     aee_rr_rec_hoplug(cpu, 8, 0);
+	/*
+	 * Log the CPU info before it is marked online and might get read.
+	 */
+	cpuinfo_store_cpu();
 
 	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
