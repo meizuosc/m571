@@ -49,7 +49,7 @@
 #include "primary_display.h"
 #include "ddp_dump.h"
 #include "display_recorder.h"
-#include "fbconfig_kdebug_k2.h"
+#include <video/fbconfig_kdebug_k2.h>
 
 #include "mtk_ovl.h"
 #include <linux/ion_drv.h>

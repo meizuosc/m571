@@ -13,7 +13,7 @@
 #include "debug.h"
 #include "lcm_drv.h"
 #include "ddp_path.h"
-#include "fbconfig_kdebug_k2.h"
+#include <video/fbconfig_kdebug_k2.h>
 #include "primary_display.h"
 #include "ddp_ovl.h"
 #include "ddp_dsi.h"

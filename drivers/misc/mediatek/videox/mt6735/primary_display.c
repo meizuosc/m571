@@ -33,7 +33,7 @@
 #include "disp_utils.h"
 #include "disp_drv_platform.h"
 #include "display_recorder.h"
-#include "fbconfig_kdebug_k2.h"
+#include <video/fbconfig_kdebug_k2.h>
 #include "primary_display.h"
 
 #include "ddp_hal.h"
