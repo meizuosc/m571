@@ -1,0 +1,18 @@
+#
+# Industrial I/O standalone triggers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Triggers - standalone"
+
+config IIO_HRTIMER_TRIGGER
+	tristate "HRTIMER trigger"
+	select IRQ_WORK
+	help
+	  Provides support for using HRTIMER entries as IIO triggers.
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iio-trig-hrtimer.
+
+endmenu

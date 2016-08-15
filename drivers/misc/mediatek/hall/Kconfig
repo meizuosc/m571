@@ -1,0 +1,10 @@
+#
+# hall switch driver
+#
+menu "Meizu hall driver"
+
+config MEIZU_HALL_SWITCH
+	bool "meizu hall switch"
+	default n
+
+endmenu
