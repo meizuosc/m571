@@ -12,9 +12,10 @@ HOW TO COMPILE
 
 ###2. Compiling###
 
-  <code>make m2note_defconfig</code>
-
-  <code>mkdir out && make -j8 ARCH=arm CROSS_COMPILE=aarch64-linux-android- -C `pwd` O=`pwd`/out</code>
+```
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-android- m2note_defconfig
+mkdir out && make -j8 ARCH=arm64 CROSS_COMPILE=aarch64-linux-android- -C `pwd` O=`pwd`/out
+```
 
   Note:
   + Make sure you have arm cross tool chain, maybe you can download [here](http://www.linaro.org/downloads)
