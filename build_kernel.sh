@@ -11,7 +11,7 @@
 # define path to android 6.X sources
 # Note: Set his value!
 ##############################################################################
-ANDROID_SOURCES=~/AndroidSources/OmniROM-6.0/master
+ANDROID_SOURCES=~/AndroidSources/OmniROM-5.1/master
 
 ##############################################################################
 # set toolchain
