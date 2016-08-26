@@ -1586,8 +1586,8 @@ static int touch_freq_up_task(void *data)
 
 	while (1) {
 		policy = cpufreq_cpu_get(0);
-		if (policy->cur < 820000)
-			dbs_freq_increase(policy, 820000);
+		if (policy->cur < 819000)
+			dbs_freq_increase(policy, 819000);
 		cpufreq_cpu_put(policy);
 		/* mt_cpufreq_set_ramp_down_count_const(0, 100); */
 		pr_debug("@%s():%d\n", __func__, __LINE__);
