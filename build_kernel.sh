@@ -19,7 +19,7 @@ ANDROID_SOURCES=~/AndroidSources/OmniROM-5.1/master
 export ARCH=arm64
 export SUBARCH=arm64
 export CROSS_COMPILE=$ANDROID_SOURCES/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
-export MY_CONFIG=m2note_defconfig
+export MY_CONFIG=cm_m2note_defconfig
 
 ##############################################################################
 # set variables
