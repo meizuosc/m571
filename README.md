@@ -8,7 +8,7 @@ HOW TO COMPILE
 
 ###1. Download source code###
 
-  <code>git clone https://github.com/ShevT/android_kernel_m2note.git</code>
+  <code>git clone https://github.com/Moyster/android_kernel_m2note.git</code>
 
 ###2. Compiling###
 
