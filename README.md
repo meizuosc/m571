@@ -1,7 +1,7 @@
 [M571](http://www.meizu.com)
 =================
 
-M571 repo is Linux kernel source code for Meizu M2 Note smartphones. With this repo, you can customize the source code and compile a Linux kernel image yourself. Enjoy it!
+Linux kernel source code for the Meizu M2 Note.
 
 HOW TO COMPILE
 -----------
@@ -12,7 +12,13 @@ HOW TO COMPILE
 
 ###2. Compiling###
 
+From within the Android Sources you want to build, do :  
+
 ```
-In the build_kernel.sh (or build_recovery_kernel.sh) script You need to set the value ANDROID_SOURCES
-Run script ;)
+. build/envsetup.sh && breakfast m2note  
+make -jX bootimage  
+(where -jX is your number of cores + 1, -j5 for a quadcore)  
 ```
+
+This will give you a flashable boot.img located in out/target/product/device-xyz/  
+
