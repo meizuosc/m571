@@ -137,6 +137,15 @@ static long wmt_detect_unlocked_ioctl(struct file *filp, unsigned int cmd, unsig
 				/*get soc chipid by HAL interface*/
 		break;
 			
+		case COMBO_IOCTL_MODULE_CLEANUP:
+			#if (MTK_WCN_REMOVE_KO)
+			/*deinit SDIO-DETECT module*/
+				retval = sdio_detect_exit();
+			#else
+				WMT_DETECT_INFO_FUNC("no MTK_WCN_REMOVE_KO defined\n");
+			#endif
+		break;
+			
 		case COMBO_IOCTL_DO_MODULE_INIT:
 			#if (MTK_WCN_REMOVE_KO)
 			/*deinit SDIO-DETECT module*/
@@ -270,6 +279,9 @@ static int wmt_detect_init(void)
 	
   WMT_DETECT_INFO_FUNC("driver(major %d) installed success\n", gWmtDetectMajor);
 	
+	/*init SDIO-DETECT module*/
+	sdio_detect_init();
+
     return 0;
 
 err2:
