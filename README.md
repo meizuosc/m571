@@ -12,6 +12,12 @@ HOW TO COMPILE
 
 ###2. Compiling###
 
+Make sure your device tree uses :  
+```
+TARGET_KERNEL_CONFIG := cmXX_m2note_defconfig
+```
+(where "XX" = cm version, currently supported : 12 / 13 / 14)  
+
 From within the Android Sources you want to build, do :  
 
 ```
