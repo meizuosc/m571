@@ -25,7 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>	/* udelay() */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/system.h>
 #endif
 #include "stp_core.h"

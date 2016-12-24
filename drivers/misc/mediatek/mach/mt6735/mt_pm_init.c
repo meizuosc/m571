@@ -12,7 +12,7 @@
 #include <linux/xlog.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "mach/irqs.h"
 #include "mach/sync_write.h"

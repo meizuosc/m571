@@ -5,7 +5,7 @@
 #include <linux/utsname.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/printk.h>
 
 #include <linux/platform_device.h>

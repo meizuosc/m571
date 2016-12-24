@@ -1,5 +1,5 @@
 #include <linux/vmalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/major.h>
 #include <linux/miscdevice.h>
 #include <linux/i2c.h>

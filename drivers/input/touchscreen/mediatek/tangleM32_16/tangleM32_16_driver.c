@@ -19,7 +19,7 @@
 #include <linux/rtpm_prio.h>
 
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 #include "tpd.h"

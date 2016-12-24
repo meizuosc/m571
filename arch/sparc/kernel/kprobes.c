@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <asm/signal.h>
 #include <asm/cacheflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* We do not have hardware single-stepping on sparc64.
  * So we implement software single-stepping with breakpoint

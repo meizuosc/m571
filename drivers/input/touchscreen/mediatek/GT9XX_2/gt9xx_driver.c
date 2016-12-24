@@ -256,7 +256,7 @@ static struct proc_dir_entry *gt91xx_config_proc = NULL;
 #ifdef VELOCITY_CUSTOM
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef TPD_VELOCITY_CUSTOM_X
 #define TPD_VELOCITY_CUSTOM_X 10

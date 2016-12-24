@@ -38,7 +38,7 @@
 #include <linux/kthread.h>
 
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/mt_gpt.h>

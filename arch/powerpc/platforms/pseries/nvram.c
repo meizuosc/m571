@@ -20,7 +20,7 @@
 #include <linux/kmsg_dump.h>
 #include <linux/ctype.h>
 #include <linux/zlib.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/nvram.h>
 #include <asm/rtas.h>
 #include <asm/prom.h>

@@ -43,7 +43,7 @@
 #include <linux/mm.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>

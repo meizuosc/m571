@@ -10,7 +10,7 @@
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/compat.h>
 
 #define STACK_SP(STACK)		*(STACK)

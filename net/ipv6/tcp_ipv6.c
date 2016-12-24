@@ -64,7 +64,7 @@
 #include <net/secure_seq.h>
 #include <net/tcp_memcontrol.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

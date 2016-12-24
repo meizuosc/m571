@@ -18,7 +18,7 @@
 
 #ifdef TPD_UPDATE_FIRMWARE
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/namei.h>
 #include <linux/vmalloc.h>
 

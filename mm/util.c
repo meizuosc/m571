@@ -8,7 +8,7 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/vmalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 

@@ -32,7 +32,7 @@
 #include "cust_gpio_usage.h"
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/proc_fs.h>  /*proc*/
 
 #include "tpd_custom_gt9xx.h"

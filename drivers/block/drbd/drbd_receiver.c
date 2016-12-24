@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/sock.h>
 
 #include <linux/drbd.h>

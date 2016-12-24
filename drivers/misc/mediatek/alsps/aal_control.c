@@ -4,7 +4,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "alsps.h"
 #include "aal_control.h"
 #include <linux/hwmsen_dev.h>

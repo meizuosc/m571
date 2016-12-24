@@ -31,7 +31,7 @@
 #include <linux/syscalls.h>
 #include <linux/fs.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 enum {
 	VERBOSE_STATUS = 1 /* make it zero to save 400 bytes kernel memory */

@@ -34,7 +34,7 @@
 #include <asm/oplib.h>
 #include <asm/iommu.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 #include <asm/dma.h>

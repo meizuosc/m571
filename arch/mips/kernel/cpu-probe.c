@@ -25,7 +25,7 @@
 #include <asm/watch.h>
 #include <asm/elf.h>
 #include <asm/spram.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int mips_fpu_disabled;
 

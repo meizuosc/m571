@@ -12,7 +12,7 @@
 #include <linux/cdev.h>
 #include <linux/delay.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "verify/vdec_verify_vdec.h"
 #include <linux/kthread.h>
 #include <linux/sched.h>

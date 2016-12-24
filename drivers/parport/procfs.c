@@ -22,7 +22,7 @@
 #include <linux/ctype.h>
 #include <linux/sysctl.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
 

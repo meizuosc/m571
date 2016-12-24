@@ -15,7 +15,7 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <asm/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 #define HID_SAY	"HID:"

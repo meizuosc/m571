@@ -41,7 +41,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "fs_enet.h"
 

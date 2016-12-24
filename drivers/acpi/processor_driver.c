@@ -50,7 +50,7 @@
 #include <asm/io.h>
 #include <asm/cpu.h>
 #include <asm/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <asm/smp.h>
 #include <asm/acpi.h>

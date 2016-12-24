@@ -33,7 +33,7 @@
 
 
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <mach/irqs.h>
 #include <mach/mt_reg_base.h>
 #include <mach/mt_typedefs.h>

@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/wakelock.h>
 #include <asm/current.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/skbuff.h>
 #if WMT_CREATE_NODE_DYNAMIC || REMOVE_MK_NODE
 #include <linux/device.h>

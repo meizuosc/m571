@@ -31,7 +31,7 @@
 #include <net/net_ratelimit.h>
 
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int net_msg_warn __read_mostly = 1;
 EXPORT_SYMBOL(net_msg_warn);

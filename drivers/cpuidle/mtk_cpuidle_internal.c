@@ -1,4 +1,4 @@
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/cpu.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>

@@ -38,7 +38,7 @@
 #include <asm/errno.h>
 #include <asm/ioctl.h>
 #include <asm/termios.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int hpux_ioctl_t(int fd, unsigned long cmd, unsigned long arg)
 {

@@ -55,7 +55,7 @@
 #include <linux/workqueue.h>
 #include <linux/i8042.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <acpi/acpi_drivers.h>
 

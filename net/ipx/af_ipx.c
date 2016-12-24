@@ -54,7 +54,7 @@
 #include <net/sock.h>
 #include <net/tcp_states.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_SYSCTL
 extern void ipx_register_sysctl(void);

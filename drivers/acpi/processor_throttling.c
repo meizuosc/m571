@@ -34,7 +34,7 @@
 #include <linux/cpufreq.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>

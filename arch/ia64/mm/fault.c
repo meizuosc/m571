@@ -14,7 +14,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 extern int die(char *, struct pt_regs *, long);
 

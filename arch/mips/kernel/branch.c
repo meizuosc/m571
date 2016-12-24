@@ -17,7 +17,7 @@
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Calculate and return exception PC in case of branch delay slot

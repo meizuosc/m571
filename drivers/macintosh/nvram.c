@@ -13,7 +13,7 @@
 #include <linux/fcntl.h>
 #include <linux/nvram.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/nvram.h>
 
 #define NVRAM_SIZE	8192

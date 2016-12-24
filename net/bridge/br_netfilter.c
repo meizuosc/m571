@@ -36,7 +36,7 @@
 #include <net/ipv6.h>
 #include <net/route.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>

@@ -42,7 +42,7 @@
 #include <linux/slab.h>
 #include <linux/hash.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 
 #include <net/icmp.h>

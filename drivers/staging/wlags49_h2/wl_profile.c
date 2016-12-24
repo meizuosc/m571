@@ -84,7 +84,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/unistd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <limits.h>
 
 #define BIN_DL 1

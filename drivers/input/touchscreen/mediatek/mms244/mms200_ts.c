@@ -41,7 +41,7 @@
 #include <linux/completion.h>
 #include <linux/init.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <cust_eint.h>
 #include <asm/unaligned.h>
 #include <mach/eint.h>

@@ -16,7 +16,7 @@
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <asm/asm-offsets.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace-s390.h"

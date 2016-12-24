@@ -62,7 +62,7 @@
 #include <linux/rtpm_prio.h>
 
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef MT6575
 #include <mach/mt6575_pm_ldo.h>
 #include <mach/mt6575_typedefs.h>

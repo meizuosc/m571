@@ -23,7 +23,7 @@
 #include <linux/of_address.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <mach/mt_typedefs.h>
 #include <mach/hardware.h>
 #include <mach/mt_boot.h>

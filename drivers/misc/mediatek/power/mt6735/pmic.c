@@ -46,7 +46,7 @@
 #include <linux/of_fdt.h>
 
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/regulator/driver.h>   
 #include <linux/regulator/machine.h>   

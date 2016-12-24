@@ -23,7 +23,7 @@
 #include <linux/fcntl.h>
 #include <linux/aio.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 
 #include "internal.h"

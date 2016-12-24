@@ -34,7 +34,7 @@
 #include <linux/tty.h>
 #include <linux/serial.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>

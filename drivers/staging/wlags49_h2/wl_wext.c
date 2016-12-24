@@ -63,7 +63,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <debug.h>
 #include <hcf.h>

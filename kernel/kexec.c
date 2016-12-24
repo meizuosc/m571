@@ -34,7 +34,7 @@
 #include <linux/syscore_ops.h>
 
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/sections.h>
 

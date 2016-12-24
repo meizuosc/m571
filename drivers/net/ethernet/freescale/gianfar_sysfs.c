@@ -31,7 +31,7 @@
 #include <linux/mm.h>
 #include <linux/device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 
 #include "gianfar.h"

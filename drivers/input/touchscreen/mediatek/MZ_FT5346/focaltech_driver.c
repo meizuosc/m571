@@ -196,7 +196,7 @@ static int tpd_def_calmat_local[8] = TPD_CALIBRATION_MATRIX;
 #ifdef VELOCITY_CUSTOM_FT5206
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 // for magnify velocity********************************************
 

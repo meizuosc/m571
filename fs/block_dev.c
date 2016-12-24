@@ -28,7 +28,7 @@
 #include <linux/log2.h>
 #include <linux/cleancache.h>
 #include <linux/aio.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 struct bdev_inode {

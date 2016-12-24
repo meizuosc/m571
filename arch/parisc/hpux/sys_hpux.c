@@ -35,7 +35,7 @@
 
 #include <asm/errno.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 unsigned long hpux_brk(unsigned long addr)
 {

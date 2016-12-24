@@ -25,7 +25,7 @@
 #include <linux/random.h>
 #include <linux/export.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/utrap.h>
 #include <asm/unistd.h>
 

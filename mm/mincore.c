@@ -16,7 +16,7 @@
 #include <linux/swapops.h>
 #include <linux/hugetlb.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 
 static void mincore_hugetlb_page_range(struct vm_area_struct *vma,

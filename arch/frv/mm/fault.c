@@ -21,7 +21,7 @@
 #include <linux/hardirq.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/gdb-stub.h>
 
 /*****************************************************************************/

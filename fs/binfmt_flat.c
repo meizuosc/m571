@@ -37,7 +37,7 @@
 #include <linux/syscalls.h>
 
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 #include <asm/cacheflush.h>
 #include <asm/page.h>

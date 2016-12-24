@@ -12,7 +12,7 @@
 #include <linux/init.h>             //module_init, module_exit
 #include <linux/proc_fs.h>          //proc_mkdir, proc_create
 #include <linux/seq_file.h>         //seq_printf, single_open
-#include <asm/uaccess.h>            //copy_from_user
+#include <linux/uaccess.h>            //copy_from_user
 
 // project includes
 #include <mach/hotplug.h>

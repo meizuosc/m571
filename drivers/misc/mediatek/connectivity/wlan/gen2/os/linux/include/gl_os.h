@@ -562,7 +562,7 @@
 
 #include <linux/rtnetlink.h>	/* for rtnl_lock() and rtnl_unlock() */
 #include <linux/kthread.h>	/* kthread_should_stop(), kthread_run() */
-#include <asm/uaccess.h>	/* for copy_from_user() */
+#include <linux/uaccess.h>	/* for copy_from_user() */
 #include <linux/fs.h>		/* for firmware download */
 #include <linux/vmalloc.h>
 

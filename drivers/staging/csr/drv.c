@@ -33,7 +33,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/jiffies.h>
 #include <linux/version.h>
 

@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/poll.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>

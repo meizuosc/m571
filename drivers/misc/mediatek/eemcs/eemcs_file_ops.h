@@ -5,7 +5,7 @@
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <asm/segment.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct file* file_open(const char* path, int flags, int rights);
 void file_close(struct file* file);

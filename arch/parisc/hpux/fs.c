@@ -29,7 +29,7 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <asm/errno.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int hpux_execve(struct pt_regs *regs)
 {

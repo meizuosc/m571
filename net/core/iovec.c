@@ -22,7 +22,7 @@
 #include <linux/mm.h>
 #include <linux/net.h>
 #include <linux/in6.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include <net/checksum.h>
 #include <net/sock.h>

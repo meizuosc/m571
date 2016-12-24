@@ -6,7 +6,7 @@
  *  INCLUDE LINUX HEADER
  ******************************************************************************/
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ioctl.h>
 
 /******************************************************************************

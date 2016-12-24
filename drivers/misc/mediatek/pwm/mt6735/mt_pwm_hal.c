@@ -23,7 +23,7 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <asm/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #include <mach/mt_pwm_hal_pub.h>

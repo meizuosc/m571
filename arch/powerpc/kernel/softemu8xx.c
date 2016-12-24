@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 /* Eventually we may need a look-up table, but this works for now.

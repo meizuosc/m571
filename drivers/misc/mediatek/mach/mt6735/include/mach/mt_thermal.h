@@ -8,7 +8,7 @@
 #include <linux/interrupt.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "mach/sync_write.h"
 #include "mach/mt_reg_base.h"

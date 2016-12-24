@@ -42,7 +42,7 @@
 #include <linux/rwsem.h>
 #include <linux/pm_runtime.h>
 #include <linux/acpi.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "i2c-core.h"
 

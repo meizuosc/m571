@@ -8,7 +8,7 @@
 #define _EFS_EFS_H_
 
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define EFS_VERSION "1.0a"
 

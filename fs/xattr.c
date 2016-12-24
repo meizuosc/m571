@@ -22,7 +22,7 @@
 #include <linux/vmalloc.h>
 #include <linux/posix_acl_xattr.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Check permissions for extended attribute access.  This is a bit complicated

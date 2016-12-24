@@ -67,7 +67,7 @@ static struct vfsmount *shm_mnt;
 #include <linux/seq_file.h>
 #include <linux/magic.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 
 #define BLOCKS_PER_PAGE  (PAGE_CACHE_SIZE/512)

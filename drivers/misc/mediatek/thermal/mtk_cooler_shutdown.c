@@ -20,7 +20,7 @@
 #include <linux/version.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/pid.h>
 #include <linux/signal.h>
 #include <linux/sched.h>

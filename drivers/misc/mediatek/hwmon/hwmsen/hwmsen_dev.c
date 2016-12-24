@@ -22,7 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>

@@ -2,7 +2,7 @@
 #include <linux/thermal.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 //#include "wmt_tm.h"
 #include <mach/mtk_thermal_monitor.h>
 #include <linux/timer.h>

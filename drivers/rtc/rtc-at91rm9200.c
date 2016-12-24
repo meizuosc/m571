@@ -32,7 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "rtc-at91rm9200.h"
 

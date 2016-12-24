@@ -48,7 +48,7 @@
 #include <linux/mmc/ffu.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "queue.h"
 #include <mach/mtk_meminfo.h>

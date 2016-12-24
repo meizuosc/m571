@@ -25,7 +25,7 @@
 
 #include <asm/fpsimd.h>
 #include <asm/signal32.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 struct compat_sigcontext {

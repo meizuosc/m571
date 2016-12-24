@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/leds-mt65xx.h>
 #include <linux/aal_api.h>

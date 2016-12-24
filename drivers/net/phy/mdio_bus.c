@@ -39,7 +39,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /**
  * mdiobus_alloc_size - allocate a mii_bus structure

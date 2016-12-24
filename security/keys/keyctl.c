@@ -23,7 +23,7 @@
 #include <linux/vmalloc.h>
 #include <linux/security.h>
 #include <linux/uio.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 static int key_get_type_from_user(char *type,

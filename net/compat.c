@@ -28,7 +28,7 @@
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/compat.h>
 
 static inline int iov_from_user_compat_to_kern(struct iovec *kiov,

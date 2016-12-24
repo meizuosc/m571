@@ -40,7 +40,7 @@
 #include <linux/freezer.h>
 #include <linux/crc32.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "nfs4_fs.h"
 #include "callback.h"

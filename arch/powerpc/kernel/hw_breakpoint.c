@@ -34,7 +34,7 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/processor.h>
 #include <asm/sstep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Stores the breakpoints currently in use on each breakpoint address

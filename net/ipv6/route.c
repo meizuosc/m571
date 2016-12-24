@@ -59,7 +59,7 @@
 #include <net/netlink.h>
 #include <net/nexthop.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>

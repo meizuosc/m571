@@ -7,7 +7,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/tracehook.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <skas_ptrace.h>
 
 

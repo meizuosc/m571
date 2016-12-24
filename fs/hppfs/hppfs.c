@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/pid_namespace.h>
 #include <linux/namei.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <os.h>
 
 static struct inode *get_inode(struct super_block *, struct dentry *);

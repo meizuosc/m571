@@ -65,7 +65,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define DRIVER_NAME	"pktcdvd"
 

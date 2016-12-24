@@ -1,5 +1,5 @@
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "extd_factory.h"
 #include "external_display.h"

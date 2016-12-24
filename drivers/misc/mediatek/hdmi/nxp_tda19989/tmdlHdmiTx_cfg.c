@@ -61,7 +61,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <mach/mt_gpio.h>
 #include <linux/slab.h>
 #include "tmNxCompId.h"

@@ -18,7 +18,7 @@
 #include <linux/xlog.h>
 #include <linux/jiffies.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/seq_file.h>
 
 #include "mach/sync_write.h"

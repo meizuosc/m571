@@ -4,7 +4,7 @@
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 extern const struct exception_table_entry __attribute__((aligned(8))) __start___ex_table[];
 extern const struct exception_table_entry __attribute__((aligned(8))) __stop___ex_table[];

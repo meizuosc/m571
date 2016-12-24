@@ -8,7 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/wait.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <arch/system.h>
 
 extern int find_fixup_code(struct pt_regs *);

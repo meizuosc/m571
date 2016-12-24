@@ -24,7 +24,7 @@
 #include <linux/init.h>
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/hardirq.h>
 #include <asm/cpu-regs.h>

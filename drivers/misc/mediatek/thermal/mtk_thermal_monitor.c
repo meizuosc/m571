@@ -3,7 +3,7 @@
 #endif
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/printk.h>

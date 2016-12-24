@@ -16,7 +16,7 @@
 #include <linux/module.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <arch/system.h>
 
 extern void arch_enable_nmi(void);

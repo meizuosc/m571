@@ -23,7 +23,7 @@
 
 #include <asm/ebcdic.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define MAX_CMDLEN 240
 #define MIN_INTERVAL 15

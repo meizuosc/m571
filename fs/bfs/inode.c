@@ -15,7 +15,7 @@
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/writeback.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "bfs.h"
 
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");

@@ -50,7 +50,7 @@
 #include <linux/mt_sched_mon.h>
 #include <linux/aee.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>

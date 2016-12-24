@@ -32,7 +32,7 @@
 #include <linux/of_address.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "mach/mt_typedefs.h"
 #include "mach/mt_clkmgr.h"

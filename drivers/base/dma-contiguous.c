@@ -875,7 +875,7 @@ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/dma-mapping.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/sh_svp.h>
 
 #define SVP_STATE_NULL		0x00

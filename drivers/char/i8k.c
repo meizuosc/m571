@@ -29,7 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #include <linux/i8k.h>

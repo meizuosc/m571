@@ -19,7 +19,7 @@
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
 #include <asm/user.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/xsave.h>
 #include <asm/smap.h>
 

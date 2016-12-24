@@ -18,7 +18,7 @@
 #include <asm/mmu_context.h>
 #include <asm/sysreg.h>
 #include <asm/tlb.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_KPROBES
 static inline int notify_page_fault(struct pt_regs *regs, int trap)

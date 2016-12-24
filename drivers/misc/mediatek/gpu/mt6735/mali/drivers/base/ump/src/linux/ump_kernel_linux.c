@@ -20,7 +20,7 @@
 #include <linux/ump-ioctl.h>
 #include <linux/ump.h>
 
-#include <asm/uaccess.h>	         /* copy_*_user */
+#include <linux/uaccess.h>	         /* copy_*_user */
 #include <linux/compat.h>
 #include <linux/module.h>            /* kernel module definitions */
 #include <linux/fs.h>                /* file system operations */

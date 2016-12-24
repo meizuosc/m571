@@ -21,7 +21,7 @@
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/platform.h>
 
 static unsigned int cached_irq_mask;

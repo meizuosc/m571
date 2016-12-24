@@ -22,7 +22,7 @@
 #include <linux/rtpm_prio.h>
 #include <mach/eint.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <cust_eint.h>
 #include <linux/jiffies.h>
 

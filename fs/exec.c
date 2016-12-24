@@ -57,7 +57,7 @@
 #include <linux/compat.h>
 #include <linux/random.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 

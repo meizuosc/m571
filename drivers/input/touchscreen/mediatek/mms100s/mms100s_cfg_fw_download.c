@@ -16,7 +16,7 @@
 #include <linux/completion.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 //#include <mach/mt_gpio.h>
 #include "tpd.h"

@@ -16,7 +16,7 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "kd_camera_hw.h"
 #include <cust_gpio_usage.h>
 #include <linux/hrtimer.h>

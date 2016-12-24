@@ -74,7 +74,7 @@
 #include <scsi/sg.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/if_bonding.h>

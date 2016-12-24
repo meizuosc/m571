@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <asm/setup.h>
 #include <linux/version.h>

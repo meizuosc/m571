@@ -24,7 +24,7 @@
 #include <linux/sched.h>
 #include <linux/poll.h>
 #include <asm/current.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>

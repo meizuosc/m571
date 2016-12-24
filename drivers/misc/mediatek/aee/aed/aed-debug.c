@@ -9,7 +9,7 @@
 #include <linux/cpumask.h>
 #include <linux/slab.h>
 #include <linux/kdebug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #if defined(CONFIG_ARM_PSCI) || (CONFIG_ARM64)
 #include <mach/mt_secure_api.h>
 #endif

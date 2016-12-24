@@ -59,7 +59,7 @@
 #include <net/ip.h>
 #include <net/tcp_memcontrol.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <trace/events/vmscan.h>
 

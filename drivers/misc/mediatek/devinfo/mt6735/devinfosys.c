@@ -19,7 +19,7 @@
 #include <linux/cdev.h>
 #include <linux/mm.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ioctl.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>

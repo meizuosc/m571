@@ -81,7 +81,7 @@
 #include <linux/baycom.h>
 #include <linux/jiffies.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 

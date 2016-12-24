@@ -30,7 +30,7 @@
 #include <linux/gfp.h>
 #include <linux/swap.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "delegation.h"
 #include "internal.h"

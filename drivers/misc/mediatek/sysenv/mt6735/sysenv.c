@@ -6,7 +6,7 @@
 #include <linux/proc_fs.h>    /*proc_create API*/
 #include <linux/statfs.h>     /* kstatfs struct */
 #include <linux/file.h>       /*kernel write and kernel read*/
-#include <asm/uaccess.h>      /*copy_to_user copy_from_user */
+#include <linux/uaccess.h>      /*copy_to_user copy_from_user */
 #include <mach/env.h>
 
 static char env_get_char(int index);

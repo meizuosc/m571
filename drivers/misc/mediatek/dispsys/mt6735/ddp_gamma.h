@@ -1,7 +1,7 @@
 #ifndef __DDP_GAMMA_H__
 #define __DDP_GAMMA_H__
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 typedef enum {

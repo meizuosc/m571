@@ -29,7 +29,7 @@
 #include <linux/sched/rt.h>
 #include <linux/freezer.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 /*

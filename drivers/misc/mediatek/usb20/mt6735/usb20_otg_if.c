@@ -43,7 +43,7 @@
 #include <linux/io.h>
 //#include <asm/system.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/completion.h>
 #include <mach/eint.h>
 #include <linux/gpio.h>

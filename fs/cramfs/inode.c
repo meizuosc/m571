@@ -23,7 +23,7 @@
 #include <linux/vfs.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static const struct super_operations cramfs_ops;
 static const struct inode_operations cramfs_dir_inode_operations;

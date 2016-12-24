@@ -21,7 +21,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "mt_sd.h"
 #include "emmc_otp.h"

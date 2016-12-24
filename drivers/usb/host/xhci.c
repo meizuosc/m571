@@ -31,7 +31,7 @@
 #include "xhci.h"
 
 #ifdef CONFIG_MTK_XHCI
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/xhci/xhci-mtk-scheduler.h>
@@ -40,7 +40,7 @@
 
 #ifdef CONFIG_USBIF_COMPLIANCE
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/kobject.h>
 #include <linux/miscdevice.h>

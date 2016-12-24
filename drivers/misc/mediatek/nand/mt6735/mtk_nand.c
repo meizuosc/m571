@@ -34,7 +34,7 @@
 #include <linux/mm.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <mach/mtk_nand.h>
 #include <mach/dma.h>

@@ -11,7 +11,7 @@
 #include <linux/kobject.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "mach/mtk_thermal_monitor.h"
 
 #define MAX_NUM_INSTANCE_MTK_COOLER_VRT  1

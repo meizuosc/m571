@@ -33,7 +33,7 @@
 #include <linux/cdev.h>
 #include <linux/errno.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 /* #include <linux/xlog.h> */
 #include <linux/printk.h>
 #include <linux/semaphore.h>

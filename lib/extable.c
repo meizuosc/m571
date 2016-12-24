@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sort.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef ARCH_HAS_SORT_EXTABLE
 /*

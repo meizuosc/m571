@@ -11,7 +11,7 @@
 #include <linux/kernel-page-flags.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 #define KPMSIZE sizeof(u64)

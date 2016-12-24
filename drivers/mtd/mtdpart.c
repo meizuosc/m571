@@ -36,7 +36,7 @@
 #define DYNAMIC_CHANGE_MTD_WRITEABLE
 #ifdef DYNAMIC_CHANGE_MTD_WRITEABLE //wschen 2011-01-05
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 static struct mtd_info *my_mtd = NULL;
 int mtd_writeable_proc_write(struct file *file, const char *buffer, unsigned long count, void *data);
 

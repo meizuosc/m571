@@ -2619,7 +2619,7 @@ static int android_create_device(struct android_dev *dev)
 #ifdef CONFIG_USBIF_COMPLIANCE
 
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/seq_file.h>
 
 

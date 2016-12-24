@@ -11,7 +11,7 @@
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/power_supply.h>
 #include <linux/kthread.h>
 #include <linux/wakelock.h>

@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/module.h>

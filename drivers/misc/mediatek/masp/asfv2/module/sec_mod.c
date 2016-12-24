@@ -23,7 +23,7 @@
 #include <linux/unistd.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/version.h>
 #include <linux/spinlock.h>
 #include <linux/semaphore.h>

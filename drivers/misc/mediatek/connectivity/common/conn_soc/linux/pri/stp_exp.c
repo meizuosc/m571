@@ -39,7 +39,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>	/* udelay() */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 #include "osal_typedef.h"

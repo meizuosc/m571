@@ -16,7 +16,7 @@
 #include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ctype.h>
 #include "unifi_priv.h"
 #include <linux/rtnetlink.h>

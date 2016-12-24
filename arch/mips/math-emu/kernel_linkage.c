@@ -22,7 +22,7 @@
 #include <linux/sched.h>
 #include <asm/processor.h>
 #include <asm/signal.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>

@@ -127,7 +127,7 @@
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
 #define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)

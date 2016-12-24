@@ -58,7 +58,7 @@
 #include <net/ipv6.h>
 #include <net/ip.h>
 #include <net/dsa.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 __setup("ether=", netdev_boot_setup);
 

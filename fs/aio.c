@@ -38,7 +38,7 @@
 #include <linux/personality.h>
 
 #include <asm/kmap_types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define AIO_RING_MAGIC			0xa10a10a1
 #define AIO_RING_COMPAT_FEATURES	1

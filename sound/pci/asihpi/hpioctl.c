@@ -31,7 +31,7 @@ Common Linux HPI ioctl and module probe/remove functions
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/pci.h>
 #include <linux/stringify.h>
 #include <linux/module.h>

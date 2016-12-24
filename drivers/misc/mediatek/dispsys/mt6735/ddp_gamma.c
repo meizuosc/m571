@@ -1,5 +1,5 @@
 #include <linux/kernel.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <mach/mt_clkmgr.h>

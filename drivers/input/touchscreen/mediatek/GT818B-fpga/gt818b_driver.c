@@ -21,7 +21,7 @@
 #include <linux/rtpm_prio.h>
 
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "tpd_custom_GT818B.h"
 #include <mach/mt_pm_ldo.h>
@@ -173,7 +173,7 @@ static struct proc_dir_entry *gt818_config_proc = NULL;
 #ifdef VELOCITY_CUSTOM_GT818B
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef TPD_VELOCITY_CUSTOM_X
 #define TPD_VELOCITY_CUSTOM_X 10

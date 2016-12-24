@@ -25,7 +25,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/sched_clock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <mach/time.h>

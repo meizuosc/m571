@@ -25,7 +25,7 @@
 #include <linux/jhash.h>
 #include <linux/ima.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/exportfs.h>
 #include <linux/writeback.h>
 

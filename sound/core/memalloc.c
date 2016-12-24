@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>

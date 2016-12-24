@@ -28,7 +28,7 @@
 #include <asm/oplib.h>
 #include <asm/smp.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int show_unhandled_signals = 1;
 

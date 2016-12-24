@@ -9,7 +9,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Calculating the exact fault address when using
  * block loads and stores can be very complicated.

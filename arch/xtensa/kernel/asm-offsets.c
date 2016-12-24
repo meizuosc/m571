@@ -23,7 +23,7 @@
 #include <linux/kbuild.h>
 
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int main(void)
 {

@@ -20,7 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/dma-buf.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 //#include <asm/mach-types.h>
 #include <asm/cacheflush.h>

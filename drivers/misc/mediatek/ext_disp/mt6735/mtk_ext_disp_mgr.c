@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/switch.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 //#include <asm/mach-types.h>
 #include <mach/mt_typedefs.h>

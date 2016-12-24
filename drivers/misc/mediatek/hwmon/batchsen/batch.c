@@ -2,7 +2,7 @@
 #include <linux/batch.h>
 #include <linux/time.h>
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static DEFINE_MUTEX(batch_data_mutex);
 static DEFINE_MUTEX(batch_hw_mutex);

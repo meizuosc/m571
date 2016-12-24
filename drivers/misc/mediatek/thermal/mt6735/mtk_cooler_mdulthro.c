@@ -3,7 +3,7 @@
 #include <linux/types.h>
 #include <linux/kobject.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/err.h>
 #include <linux/syscalls.h>
 #include <linux/timer.h>

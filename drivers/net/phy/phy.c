@@ -40,7 +40,7 @@
 #include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /**
  * phy_print_status - Convenience function to print out the current phy status

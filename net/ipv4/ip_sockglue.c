@@ -43,7 +43,7 @@
 #include <net/ip_fib.h>
 
 #include <linux/errqueue.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define IP_CMSG_PKTINFO		1
 #define IP_CMSG_TTL		2

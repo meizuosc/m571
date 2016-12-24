@@ -36,7 +36,7 @@
 #include <linux/elfcore.h>
 #include <linux/coredump.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/param.h>
 #include <asm/pgalloc.h>
 

@@ -34,7 +34,7 @@
 #include <linux/oom.h>
 #include <linux/compat.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 #include <asm/exec.h>

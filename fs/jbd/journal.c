@@ -41,7 +41,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/jbd.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 
 EXPORT_SYMBOL(journal_start);

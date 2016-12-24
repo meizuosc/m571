@@ -50,7 +50,7 @@
 
 #ifdef __LINUX_KERNEL_DRIVER__
 #include <linux/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 

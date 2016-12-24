@@ -6,7 +6,7 @@
 #include <linux/dma-mapping.h>
 #include <mach/memory.h>
 #include "ddp_wdma.h"
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <mach/mt_irq.h>
 #include <mach/mt_clkmgr.h>
 #include <mach/mt_typedefs.h>

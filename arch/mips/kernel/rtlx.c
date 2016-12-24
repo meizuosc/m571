@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 #include <linux/elf.h>

@@ -3,7 +3,7 @@
 #include <linux/export.h>
 #include <linux/suspend.h>
 #include <linux/bcd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>

@@ -25,7 +25,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/completion.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <mach/mt_pm_ldo.h>
 #include <mach/mt_typedefs.h>

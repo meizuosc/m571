@@ -80,7 +80,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>

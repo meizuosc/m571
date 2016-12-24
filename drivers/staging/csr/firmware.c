@@ -19,7 +19,7 @@
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_unifi_udi.h"
 #include "unifiio.h"

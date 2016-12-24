@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "prismcompat.h"
 #include "isl_ioctl.h"

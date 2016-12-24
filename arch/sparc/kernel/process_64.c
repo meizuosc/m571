@@ -32,7 +32,7 @@
 #include <linux/sysrq.h>
 #include <linux/nmi.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>

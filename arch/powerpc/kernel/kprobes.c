@@ -34,7 +34,7 @@
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 #define MSR_SINGLESTEP	(MSR_DE)

@@ -31,7 +31,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
 #include "ft1000.h"

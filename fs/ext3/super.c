@@ -28,7 +28,7 @@
 #include <linux/log2.h>
 #include <linux/cleancache.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define CREATE_TRACE_POINTS
 

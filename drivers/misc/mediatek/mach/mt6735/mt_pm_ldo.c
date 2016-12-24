@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
     
 #include <mach/mt_typedefs.h>
 #include <mach/mt_pm_ldo.h>

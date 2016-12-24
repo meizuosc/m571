@@ -20,7 +20,7 @@
  */
 
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include "gt1x_generic.h"
 

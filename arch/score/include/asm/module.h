@@ -2,7 +2,7 @@
 #define _ASM_SCORE_MODULE_H
 
 #include <linux/list.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm-generic/module.h>
 
 struct mod_arch_specific {

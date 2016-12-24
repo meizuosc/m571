@@ -69,7 +69,7 @@
 #include <net/checksum.h>
 #include <net/xfrm.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <trace/events/skb.h>
 #include <linux/highmem.h>
 

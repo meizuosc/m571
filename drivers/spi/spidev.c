@@ -37,7 +37,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 /*

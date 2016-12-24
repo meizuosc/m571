@@ -21,7 +21,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "pmcc4_sysdep.h"
 #include "sbecom_inline_linux.h"
 #include "pmcc4_private.h"

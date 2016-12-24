@@ -10,7 +10,7 @@
 #include <linux/errno.h>
 #define __FRAME_OFFSETS
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * determines which flags the user has access to.

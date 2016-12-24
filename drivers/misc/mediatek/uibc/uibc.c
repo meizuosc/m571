@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <asm/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/input/mt.h>
 #include <linux/version.h>
 #include <linux/slab.h>

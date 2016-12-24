@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 
 #define PRINT_USER_FAULTS /* (turn this on if you want user faults to be */

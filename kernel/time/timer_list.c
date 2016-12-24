@@ -18,7 +18,7 @@
 #include <linux/kallsyms.h>
 #include <linux/tick.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 struct timer_list_iter {
