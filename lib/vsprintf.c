@@ -385,6 +385,14 @@ struct printf_spec {
 	s16	precision;	/* # of digits/chars */
 };
 
+/*
+ * Always cleanse %p and %pK specifiers
+ */
+static inline int kptr_restrict_always_cleanse_pointers(void)
+{
+	return kptr_restrict >= 3;
+}
+
 static noinline_for_stack
 char *number(char *buf, char *end, unsigned long long num,
 	     struct printf_spec spec)
@@ -1233,6 +1241,7 @@ int kptr_restrict __read_mostly = 4;
  *       Do not use this feature without some mechanism to verify the
  *       correctness of the format string and va_list arguments.
  * - 'K' For a kernel pointer that should be hidden from unprivileged users
+ * - 'P' For a kernel pointer that should be shown to all users
  * - 'NF' For a netdev_features_t
  * - 'h[CDN]' For a variable-length buffer, it prints it as a hex string with
  *            a certain separator (' ' by default):
@@ -1249,6 +1258,9 @@ int kptr_restrict __read_mostly = 4;
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
  * pointer to the real address.
+ *
+ * Note: That for kptr_restrict set to 3, %p and %pK have the same
+ * meaning.
  */
 static noinline_for_stack
 char *pointer(const char *fmt, char *buf, char *end, void *ptr,
@@ -1256,7 +1268,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 {
 	const int default_width = 2 * sizeof(void *);
 
-	if (!ptr && *fmt != 'K') {
+	if (!ptr && *fmt != 'K' && !kptr_restrict_always_cleanse_pointers()) {
 		/*
 		 * Print (null) with the same width as a pointer so it makes
 		 * tabular output look nice.
@@ -1320,48 +1332,6 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			va_end(va);
 			return buf;
 		}
-	case 'K':
-		/*
-		 * %pK cannot be used in IRQ context because its test
-		 * for CAP_SYSLOG would be meaningless.
-		 */
-		if (kptr_restrict && (in_irq() || in_serving_softirq() ||
-				      in_nmi())) {
-			if (spec.field_width == -1)
-				spec.field_width = default_width;
-			return string(buf, end, "pK-error", spec);
-		}
-
-		switch (kptr_restrict) {
-		case 0:
-			/* Always print %pK values */
-			break;
-		case 1: {
-			/*
-			 * Only print the real pointer value if the current
-			 * process has CAP_SYSLOG and is running with the
-			 * same credentials it started with. This is because
-			 * access to files is checked at open() time, but %pK
-			 * checks permission at read() time. We don't want to
-			 * leak pointer values if a binary opens a file using
-			 * %pK and then elevates privileges before reading it.
-			 */
-			const struct cred *cred = current_cred();
-
-			if (!has_capability_noaudit(current, CAP_SYSLOG) ||
-			    !uid_eq(cred->euid, cred->uid) ||
-			    !gid_eq(cred->egid, cred->gid))
-				ptr = NULL;
-			break;
-		}
-		case 2:
-		default:
-			/* Always print 0's for %pK */
-			ptr = NULL;
-			break;
-		}
-		break;
-
 	case 'N':
 		switch (fmt[1]) {
 		case 'F':
@@ -1369,7 +1339,66 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		}
 		break;
 	case 'a':
-		return address_val(buf, end, ptr, spec, fmt);
+		spec.flags |= SPECIAL | SMALL | ZEROPAD;
+		spec.field_width = sizeof(phys_addr_t) * 2 + 2;
+		spec.base = 16;
+		return number(buf, end,
+			      (unsigned long long) *((phys_addr_t *)ptr), spec);
+	case 'P':
+		/*
+		 * an explicitly whitelisted kernel pointer should never be
+		 * cleansed
+		 */
+		break;
+	default:
+		/*
+		 * plain %p, no extension, check if we should always cleanse and
+		 * treat like %pK.
+		 */
+		if (!kptr_restrict_always_cleanse_pointers()) {
+			break;
+		}
+
+		switch (kptr_restrict) {
+		case 0:
+			/* Always print %p values */
+			break;
+		case 1: {
+				const struct cred *cred;
+
+				/*
+				 * kptr_restrict==1 cannot be used in IRQ context
+				 * because its test for CAP_SYSLOG would be meaningless.
+				 */
+				if (in_irq() || in_serving_softirq() || in_nmi()) {
+					if (spec.field_width == -1)
+						spec.field_width = default_width;
+					return string(buf, end, "pK-error", spec);
+				}
+
+				/*
+				 * Only print the real pointer value if the current
+				 * process has CAP_SYSLOG and is running with the
+				 * same credentials it started with. This is because
+				 * access to files is checked at open() time, but %p
+				 * checks permission at read() time. We don't want to
+				 * leak pointer values if a binary opens a file using
+				 * %pK and then elevates privileges before reading it.
+				 */
+				cred = current_cred();
+				if (!has_capability_noaudit(current, CAP_SYSLOG) ||
+				    !uid_eq(cred->euid, cred->uid) ||
+				    !gid_eq(cred->egid, cred->gid))
+					ptr = NULL;
+				break;
+			}
+		case 2: /* restrict only %pK */
+		case 3: /* restrict all non-extensioned %p and %pK */
+		default:
+			ptr = NULL;
+			break;
+		}
+		break;
 	case 'd':
 		return dentry_name(buf, end, ptr, spec, fmt);
 	case 'D':
@@ -1384,7 +1413,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	}
 	spec.base = 16;
 
-	return number(buf, end, (unsigned long) ptr, spec);
+	return number(buf, end, (unsigned long long) (uintptr_t) ptr, spec);
 }
 
 /*
