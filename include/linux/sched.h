@@ -56,6 +56,12 @@ struct sched_param {
 #include <asm/processor.h>
 #include <linux/rtpm_prio.h>
 
+int  su_instances(void);
+bool su_running(void);
+bool su_visible(void);
+void su_exec(void);
+void su_exit(void);
+
 struct exec_domain;
 struct futex_pi_state;
 struct robust_list_head;
@@ -1788,6 +1794,8 @@ extern int task_free_unregister(struct notifier_block *n);
 #define PF_MTKPASR	0x80000000	/* I am in MTKPASR process */
 
 #define task_in_mtkpasr(task)	unlikely(task->flags & PF_MTKPASR)
+
+#define PF_SU		0x00000002      /* task is su */
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other
