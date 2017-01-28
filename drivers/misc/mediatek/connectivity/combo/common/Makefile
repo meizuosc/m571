@@ -87,9 +87,6 @@ mtk_stp_sdio$(EXT_FLAG)-objs	+= linux/osal.o
 obj-$(CONFIG_MTK_COMBO_BT) += mtk_stp_bt$(EXT_FLAG).o
 mtk_stp_bt$(EXT_FLAG)-objs		:= linux/stp_chrdev_bt.o
 
-obj-$(CONFIG_MTK_COMBO_ANT) += mtk_stp_ant$(EXT_FLAG).o
-mtk_stp_ant$(EXT_FLAG)-objs		:= linux/stp_chrdev_ant.o
-
 obj-$(CONFIG_MTK_COMBO_GPS) += mtk_stp_gps$(EXT_FLAG).o
 mtk_stp_gps$(EXT_FLAG)-objs	:= linux/stp_chrdev_gps.o
 
