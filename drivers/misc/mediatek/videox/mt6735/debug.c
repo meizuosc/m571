@@ -1214,29 +1214,6 @@ else if (0 == strncmp(opt, "ata",3))
     {
         dump_layer_info();
     }
-    else if (0 == strncmp(opt, "regw:", 5))
-    {
-        char *p = (char *)opt + 5;
-        unsigned long addr = simple_strtoul(p, &p, 16);
-        unsigned long val  = simple_strtoul(p + 1, &p, 16);
-
-        if (addr) {
-            OUTREG32(addr, val);
-        } else {
-            goto Error;
-        }
-    }
-    else if (0 == strncmp(opt, "regr:", 5))
-    {
-        char *p = (char *)opt + 5;
-        unsigned int addr = (unsigned int) simple_strtoul(p, &p, 16);
-
-        if (addr) {
-            pr_info("DISP/DBG " "Read register 0x%08x: 0x%08x\n", addr, INREG32(addr));
-        } else {
-            goto Error;
-        }
-    }
     else if(0 == strncmp(opt, "dither:", 7))
     {
         unsigned lrs, lgs, lbs, dbr, dbg, dbb;
