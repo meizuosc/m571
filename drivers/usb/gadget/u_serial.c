@@ -808,7 +808,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 		spin_lock_irq(&port->port_lock);
 
 		if (status) {
-			pr_debug("gs_open: ttyGS%d (%p,%p) no buffer\n",
+			pr_debug("gs_open: ttyGS%d (%pK,%pK) no buffer\n",
 				port->port_num, tty, file);
 			port->openclose = false;
 			goto exit_unlock_port;
@@ -838,10 +838,10 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 			gser->connect(gser);
 	}
 
-	pr_debug("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
+	pr_debug("gs_open: ttyGS%d (%pK,%pK)\n", port->port_num, tty, file);
 
 	printk( ACM_LOG \
-		"gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
+		"gs_open: ttyGS%d (%pK,%pK)\n", port->port_num, tty, file);
 
 	status = 0;
 
@@ -877,10 +877,10 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 		goto exit;
 	}
 
-	pr_debug("gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
+	pr_debug("gs_close: ttyGS%d (%pK,%pK) ...\n", port->port_num, tty, file);
 
 	printk( ACM_LOG \
-		"gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
+		"gs_close: ttyGS%d (%pK,%pK) ...\n", port->port_num, tty, file);
 
 	/* mark port as closing but in use; we can drop port lock
 	 * and sleep if necessary
@@ -918,7 +918,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 
 	port->openclose = false;
 
-	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
+	pr_debug("gs_close: ttyGS%d (%pK,%pK) done!\n",
 			port->port_num, tty, file);
 
 	wake_up(&port->port.close_wait);
@@ -934,13 +934,13 @@ static int gs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	//ALPS00423739
 	if(!port)
 	{
-		printk("ERROR!!! port is closed!! %s, line %d: port = %p\n", __func__, __LINE__, port);
+		printk("ERROR!!! port is closed!! %s, line %d: port = %pK\n", __func__, __LINE__, port);
 		/*abort immediately after disconnect */
 		return -EINVAL;
 	}
 	//ALPS00423739
 
-	pr_vdebug("gs_write: ttyGS%d (%p) writing %d bytes\n",
+	pr_vdebug("gs_write: ttyGS%d (%pK) writing %d bytes\n",
 			port->port_num, tty, count);
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -963,13 +963,13 @@ static int gs_put_char(struct tty_struct *tty, unsigned char ch)
 	//ALPS00423739
 	if(!port)
 	{
-		printk("ERROR!!! port is closed!! %s, line %d: port = %p\n", __func__, __LINE__, port);
+		printk("ERROR!!! port is closed!! %s, line %d: port = %pK\n", __func__, __LINE__, port);
 		/*abort immediately after disconnect */
 		return -EINVAL;
 	}
 	//ALPS00423739
 
-	pr_vdebug("gs_put_char: (%d,%p) char=0x%x, called from %pf\n",
+	pr_vdebug("gs_put_char: (%d,%pK) char=0x%x, called from %pf\n",
 		port->port_num, tty, ch, __builtin_return_address(0));
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -987,13 +987,13 @@ static void gs_flush_chars(struct tty_struct *tty)
 	//ALPS00423739
 	if(!port)
 	{
-		printk("ERROR!!! port is closed!! %s, line %d: port = %p\n", __func__, __LINE__, port);
+		printk("ERROR!!! port is closed!! %s, line %d: port = %pK\n", __func__, __LINE__, port);
 		/*abort immediately after disconnect */
 		return;
 	}
 	//ALPS00423739
 
-	pr_vdebug("gs_flush_chars: (%d,%p)\n", port->port_num, tty);
+	pr_vdebug("gs_flush_chars: (%d,%pK)\n", port->port_num, tty);
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	if (port->port_usb)
@@ -1010,7 +1010,7 @@ static int gs_write_room(struct tty_struct *tty)
 	//ALPS00423739
 	if(!port)
 	{
-		printk("ERROR!!! port is closed!! %s, line %d: port = %p\n", __func__, __LINE__, port);
+		printk("ERROR!!! port is closed!! %s, line %d: port = %pK\n", __func__, __LINE__, port);
 		/*abort immediately after disconnect */
 		return -EINVAL;
 	}
@@ -1021,7 +1021,7 @@ static int gs_write_room(struct tty_struct *tty)
 		room = gs_buf_space_avail(&port->port_write_buf);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	pr_vdebug("gs_write_room: (%d,%p) room=%d\n",
+	pr_vdebug("gs_write_room: (%d,%pK) room=%d\n",
 		port->port_num, tty, room);
 
 	return room;
@@ -1036,7 +1036,7 @@ static int gs_chars_in_buffer(struct tty_struct *tty)
 	//ALPS00423739
 	if(!port)
 	{
-		printk("ERROR!!! port is closed!! %s, line %d: port = %p\n", __func__, __LINE__, port);
+		printk("ERROR!!! port is closed!! %s, line %d: port = %pK\n", __func__, __LINE__, port);
 		/*abort immediately after disconnect */
 		return -EINVAL;
 	}
@@ -1046,7 +1046,7 @@ static int gs_chars_in_buffer(struct tty_struct *tty)
 	chars = gs_buf_data_avail(&port->port_write_buf);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	pr_vdebug("gs_chars_in_buffer: (%d,%p) chars=%d\n",
+	pr_vdebug("gs_chars_in_buffer: (%d,%pK) chars=%d\n",
 		port->port_num, tty, chars);
 
 	return chars;
@@ -1061,7 +1061,7 @@ static void gs_unthrottle(struct tty_struct *tty)
 	//ALPS00423739
 	if(!port)
 	{
-		printk("ERROR!!! port is closed!! %s, line %d: port = %p\n", __func__, __LINE__, port);
+		printk("ERROR!!! port is closed!! %s, line %d: port = %pK\n", __func__, __LINE__, port);
 		/*abort immediately after disconnect */
 		return;
 	}
@@ -1088,7 +1088,7 @@ static int gs_break_ctl(struct tty_struct *tty, int duration)
 	//ALPS00423739
 	if(!port)
 	{
-		printk("ERROR!!! port is closed!! %s, line %d: port = %p\n", __func__, __LINE__, port);
+		printk("ERROR!!! port is closed!! %s, line %d: port = %pK\n", __func__, __LINE__, port);
 		/*abort immediately after disconnect */
 		return -EINVAL;
 	}

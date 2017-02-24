@@ -762,7 +762,7 @@ static int mtp_create_bulk_endpoints(struct mtp_dev *dev,
 	struct usb_ep *ep;
 	int i;
 
-	DBG(cdev, "create_bulk_endpoints dev: %p\n", dev);
+	DBG(cdev, "create_bulk_endpoints dev: %pK\n", dev);
 
 	ep = usb_ep_autoconfig(cdev->gadget, in_desc);
 	if (!ep) {
@@ -943,7 +943,7 @@ requeue_req:
 		r = -EIO;
 		goto done;
 	} else {
-		DBG(cdev, "rx %p queue\n", req);
+		DBG(cdev, "rx %pK queue\n", req);
 	}
 
 	/* wait for a request to complete */
@@ -968,7 +968,7 @@ requeue_req:
 		if (req->actual == 0)
 			goto requeue_req;
 
-		DBG(cdev, "rx %p %d\n", req, req->actual);
+		DBG(cdev, "rx %pK %d\n", req, req->actual);
 		xfer = (req->actual < count) ? req->actual : count;
 		r = xfer;
 		if (copy_to_user(buf, req->buf, xfer))
@@ -978,7 +978,7 @@ requeue_req:
 		if (req->actual == 0)
 			goto requeue_req;
 
-		DBG(dev->cdev,   "rx %p %d\n", req, req->actual);
+		DBG(dev->cdev,   "rx %pK %d\n", req, req->actual);
 		xfer = (req->actual < count) ? req->actual : count;
 		r = xfer;
 		if (copy_to_user(buf, req->buf, xfer))
@@ -1261,7 +1261,7 @@ static void send_file_work(struct work_struct *data)
 	}
 
 
-	DBG(dev->cdev, "%s, line = %d: req = 0x%p \n", __func__, __LINE__, req);
+	DBG(dev->cdev, "%s, line = %d: req = 0x%pK \n", __func__, __LINE__, req);
 
 	if (req)
 		mtp_req_put(dev, &dev->tx_idle, req);
@@ -1367,7 +1367,7 @@ static void receive_file_work(struct work_struct *data)
 		}
 
 		if (write_req) {
-			DBG(cdev, "rx %p %d\n", write_req, write_req->actual);
+			DBG(cdev, "rx %pK %d\n", write_req, write_req->actual);
 			do_gettimeofday(&tv_begin);
 			ret = vfs_write(filp, write_req->buf, write_req->actual,
 				&offset);
@@ -1464,7 +1464,7 @@ static void receive_file_work(struct work_struct *data)
 	}
 
 	if (dev->state == STATE_ERROR || dev->state == STATE_OFFLINE) {
-		DBG(dev->cdev,      "%s, line %d: read_req = %p \n", __func__, __LINE__, read_req);
+		DBG(dev->cdev,      "%s, line %d: read_req = %pK \n", __func__, __LINE__, read_req);
 		if (read_req) {
 		    read_req->short_not_ok = 0;
 		}
@@ -2088,8 +2088,8 @@ mtp_function_bind(struct usb_configuration *c, struct usb_function *f)
 	int			ret;
 
 	dev->cdev = cdev;
-	DBG(cdev, "mtp_function_bind dev: %p\n", dev);
-	printk("mtp_function_bind dev: %p\n", dev);
+	DBG(cdev, "mtp_function_bind dev: %pK\n", dev);
+	printk("mtp_function_bind dev: %pK\n", dev);
 
 	/* allocate interface ID(s) */
 	id = usb_interface_id(c, f);

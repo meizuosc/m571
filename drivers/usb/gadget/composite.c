@@ -197,7 +197,7 @@ int usb_add_function(struct usb_configuration *config,
 	
 	pr_debug("[XLOG_DEBUG][USB][COM]%s: \n", __func__);
 
-	INFO(config->cdev, "adding '%s'/%p to config '%s'/%p\n",
+	INFO(config->cdev, "adding '%s'/%pK to config '%s'/%pK\n",
 			function->name, function,
 			config->label, config);
 
@@ -231,7 +231,7 @@ int usb_add_function(struct usb_configuration *config,
 
 done:
 	if (value)
-		INFO(config->cdev, "adding '%s'/%p --> %d\n",
+		INFO(config->cdev, "adding '%s'/%pK --> %d\n",
 				function->name, function, value);
 	return value;
 }
@@ -240,14 +240,14 @@ EXPORT_SYMBOL_GPL(usb_add_function);
 void usb_remove_function(struct usb_configuration *c, struct usb_function *f)
 {
 	if (f->disable) {
-		INFO(c->cdev, "disable function '%s'/%p\n", f->name, f);
+		INFO(c->cdev, "disable function '%s'/%pK\n", f->name, f);
 		f->disable(f);
 	}
 
 	bitmap_zero(f->endpoints, 32);
 	list_del(&f->list);
 	if (f->unbind) {
-		INFO(c->cdev, "unbind function '%s'/%p\n", f->name, f);
+		INFO(c->cdev, "unbind function '%s'/%pK\n", f->name, f);
 		f->unbind(c, f);
 	}
 }
@@ -611,7 +611,7 @@ static void reset_config(struct usb_composite_dev *cdev)
 	DBG(cdev, "reset config\n");
 
 	list_for_each_entry(f, &cdev->config->functions, list) {
-		INFO(cdev, "disable function '%s'/%p\n", f->name, f);
+		INFO(cdev, "disable function '%s'/%pK\n", f->name, f);
 		if (f->disable)
 			f->disable(f);
 
@@ -701,7 +701,7 @@ static int set_config(struct usb_composite_dev *cdev,
 
 		result = f->set_alt(f, tmp, 0);
 		if (result < 0) {
-			DBG(cdev, "interface %d (%s/%p) alt 0 --> %d\n",
+			DBG(cdev, "interface %d (%s/%pK) alt 0 --> %d\n",
 					tmp, f->name, f, result);
 
 			reset_config(cdev);
@@ -776,7 +776,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	if (!bind)
 		goto done;
 
-	DBG(cdev, "adding config #%u '%s'/%p\n",
+	DBG(cdev, "adding config #%u '%s'/%pK\n",
 			config->bConfigurationValue,
 			config->label, config);
 
@@ -793,7 +793,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 					struct usb_function, list);
 			list_del(&f->list);
 			if (f->unbind) {
-				INFO(cdev, "unbind function '%s'/%p\n",
+				INFO(cdev, "unbind function '%s'/%pK\n",
 					f->name, f);
 				f->unbind(config, f);
 				/* may free memory for "f" */
@@ -805,7 +805,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	} else {
 		unsigned	i;
 
-		INFO(cdev, "cfg %d/%p speeds:%s%s%s\n",
+		INFO(cdev, "cfg %d/%pK speeds:%s%s%s\n",
 			config->bConfigurationValue, config,
 			config->superspeed ? " super" : "",
 			config->highspeed ? " high" : "",
@@ -820,7 +820,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 
 			if (!f)
 				continue;
-			DBG(cdev, "  interface %d = %s/%p\n",
+			DBG(cdev, "  interface %d = %s/%pK\n",
 				i, f->name, f);
 		}
 	}
@@ -848,13 +848,13 @@ static void unbind_config(struct usb_composite_dev *cdev,
 				struct usb_function, list);
 		list_del(&f->list);
 		if (f->unbind) {
-			INFO(cdev, "unbind function '%s'/%p\n", f->name, f);
+			INFO(cdev, "unbind function '%s'/%pK\n", f->name, f);
 			f->unbind(config, f);
 			/* may free memory for "f" */
 		}
 	}
 	if (config->unbind) {
-		INFO(cdev, "unbind config '%s'/%p\n", config->label, config);
+		INFO(cdev, "unbind config '%s'/%pK\n", config->label, config);
 		config->unbind(config);
 			/* may free memory for "c" */
 	}

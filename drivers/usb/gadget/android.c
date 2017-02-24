@@ -269,7 +269,7 @@ static void android_work(struct work_struct *data)
 		kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE, uevent_envp);
 		pr_notice("[USB]%s: sent uevent %s\n", __func__, uevent_envp[0]);
 	} else {
-		pr_notice("[USB]%s: did not send uevent (%d %d %p)\n", __func__,
+		pr_notice("[USB]%s: did not send uevent (%d %d %pK)\n", __func__,
 			 dev->connected, dev->sw_connected, cdev->config);
 	}
 
@@ -705,7 +705,7 @@ static void acm_function_unbind_config(struct android_usb_function *f,
 /*
 	if (config->instances_on != 0) {
 		for (i = 0; i < config->instances_on; i++) {
-			pr_notice("%s f_acm[%d]=%p\n", __func__, i, config->f_acm[i]);
+			pr_notice("%s f_acm[%d]=%pK\n", __func__, i, config->f_acm[i]);
 			usb_remove_function(c, config->f_acm[i]);
 		}
 	} else {
@@ -1999,7 +1999,7 @@ android_bind_enabled_functions(struct android_dev *dev,
 	/* Added for USB Develpment debug, more log for more debuging help */
 
 	list_for_each_entry(f, &dev->enabled_functions, enabled_list) {
-		pr_notice("[USB]bind_config function '%s'/%p\n", f->name, f);
+		pr_notice("[USB]bind_config function '%s'/%pK\n", f->name, f);
 		ret = f->bind_config(f, c);
 		if (ret) {
 			pr_err("%s: %s failed", __func__, f->name);
@@ -2016,7 +2016,7 @@ android_unbind_enabled_functions(struct android_dev *dev,
 	struct android_usb_function *f;
 
 	list_for_each_entry(f, &dev->enabled_functions, enabled_list) {
-		pr_notice("[USB]unbind_config function '%s'/%p\n", f->name, f);
+		pr_notice("[USB]unbind_config function '%s'/%pK\n", f->name, f);
 		if (f->unbind_config)
 			f->unbind_config(f, c);
 	}
@@ -2214,7 +2214,7 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		}
 
 		list_for_each_entry(f, &dev->enabled_functions, enabled_list) {
-			pr_notice("[USB]enable function '%s'/%p\n", f->name, f);
+			pr_notice("[USB]enable function '%s'/%pK\n", f->name, f);
 			if (f->enable)
 				f->enable(f);
 		}
@@ -2233,7 +2233,7 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 
 		android_disable(dev);
 		list_for_each_entry(f, &dev->enabled_functions, enabled_list) {
-			pr_notice("[USB]disable function '%s'/%p\n", f->name, f);
+			pr_notice("[USB]disable function '%s'/%pK\n", f->name, f);
 			if (f->disable) {
 				f->disable(f);
 			}
