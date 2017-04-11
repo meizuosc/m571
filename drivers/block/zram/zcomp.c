@@ -54,6 +54,7 @@ static struct zcomp_backend *backends[] = {
 static struct zcomp_backend *find_backend(const char *compress)
 {
 	int i = 0;
+
 	while (backends[i]) {
 		if (sysfs_streq(compress, backends[i]->name))
 			break;
@@ -77,6 +78,7 @@ static void zcomp_strm_free(struct zcomp *comp, struct zcomp_strm *zstrm)
 static struct zcomp_strm *zcomp_strm_alloc(struct zcomp *comp, gfp_t flags)
 {
 	struct zcomp_strm *zstrm = kmalloc(sizeof(*zstrm), flags);
+
 	if (!zstrm)
 		return NULL;
 
@@ -121,16 +123,16 @@ static struct zcomp_strm *zcomp_strm_multi_find(struct zcomp *comp)
 		zs->avail_strm++;
 		spin_unlock(&zs->strm_lock);
 
-        /*
-         * This function can be called in swapout/fs write path
-         * so we can't use GFP_FS|IO. And it assumes we already
-         * have at least one stream in zram initialization so we
-         * don't do best effort to allocate more stream in here.
-         * A default stream will work well without further multiple
-         * streams. That's why we use NORETRY | NOWARN.
-         */
-        zstrm = zcomp_strm_alloc(comp, GFP_NOIO | __GFP_NORETRY |
-                   __GFP_NOWARN);
+	/*
+	 * This function can be called in swapout/fs write path
+	 * so we can't use GFP_FS|IO. And it assumes we already
+	 * have at least one stream in zram initialization so we
+	 * don't do best effort to allocate more stream in here.
+	 * A default stream will work well without further multiple
+	 * streams. That's why we use NORETRY | NOWARN.
+	 */
+	zstrm = zcomp_strm_alloc(comp, GFP_NOIO | __GFP_NORETRY |
+			__GFP_NOWARN);
 		if (!zstrm) {
 			spin_lock(&zs->strm_lock);
 			zs->avail_strm--;
@@ -230,6 +232,7 @@ static int zcomp_strm_multi_create(struct zcomp *comp, int max_strm)
 static struct zcomp_strm *zcomp_strm_single_find(struct zcomp *comp)
 {
 	struct zcomp_strm_single *zs = comp->stream;
+
 	mutex_lock(&zs->strm_lock);
 	return zs->zstrm;
 }
@@ -238,6 +241,7 @@ static void zcomp_strm_single_release(struct zcomp *comp,
 		struct zcomp_strm *zstrm)
 {
 	struct zcomp_strm_single *zs = comp->stream;
+
 	mutex_unlock(&zs->strm_lock);
 }
 
@@ -250,7 +254,9 @@ static bool zcomp_strm_single_set_max_streams(struct zcomp *comp, int num_strm)
 static void zcomp_strm_single_destroy(struct zcomp *comp)
 {
 	struct zcomp_strm_single *zs = comp->stream;
+
 	zcomp_strm_free(comp, zs->zstrm);
+
 	kfree(zs);
 }
 

@@ -19,10 +19,10 @@ static void *zcomp_lz4_create(gfp_t flags)
 {
 	void *ret;
 
-    ret = kmalloc(LZ4_MEM_COMPRESS, flags);
+	ret = kmalloc(LZ4_MEM_COMPRESS, flags);
 	if (!ret)
 		ret = __vmalloc(LZ4_MEM_COMPRESS,
-                flags | __GFP_HIGHMEM,
+		flags | __GFP_HIGHMEM,
 				PAGE_KERNEL);
 	return ret;
 }
@@ -36,7 +36,7 @@ static int zcomp_lz4_compress(const unsigned char *src, unsigned char *dst,
 		size_t *dst_len, void *private)
 {
 	/* return  : Failed if return 0 */
-	if(!LZ4_compress_default(src, dst, PAGE_SIZE, *dst_len, private))
+	if (!LZ4_compress_default(src, dst, PAGE_SIZE, *dst_len, private))
 		return -EIO;
 	return 0;
 }
