@@ -114,7 +114,8 @@ struct inode *sdcardfs_iget(struct super_block *sb, struct inode *lower_inode, u
 	if (!(inode->i_state & I_NEW)) {
 		/* There can only be one alias, as we don't permit hard links
 		 * This ensures we do not keep stale dentries that would later
-		 * cause confusion. */
+		 * cause confusion.
+		 */
 		d_prune_aliases(inode);
 		return inode;
 	}

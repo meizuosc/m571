@@ -594,6 +594,7 @@ static void sdcardfs_put_link(struct dentry *dentry, struct nameidata *nd,
 			    void *cookie)
 {
 	char *buf = nd_get_link(nd);
+
 	if (!IS_ERR(buf))	/* free the char* */
 		kfree(buf);
 }

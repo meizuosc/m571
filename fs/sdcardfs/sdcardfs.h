@@ -409,15 +409,17 @@ static inline int get_mode(struct vfsmount *mnt, struct sdcardfs_inode_info *inf
 
 
 	if (info->perm == PERM_PRE_ROOT) {
-		/* Top of multi-user view should always be visible to ensure
-		* secondary users can traverse inside.
-		*/
+		/*
+		 * Top of multi-user view should always be visible to ensure
+		 * secondary users can traverse inside.
+		 */
 		visible_mode = 0711;
 	} else if (info->under_android) {
-		/* Block "other" access to Android directories, since only apps
-		* belonging to a specific user should be in there; we still
-		* leave +x open for the default view.
-		*/
+		/*
+		 *  Block "other" access to Android directories, since only apps
+		 * belonging to a specific user should be in there; we still
+		 * leave +x open for the default view.
+		 */
 		if (opts->gid == AID_SDCARD_RW)
 			visible_mode = visible_mode & ~0006;
 		else
