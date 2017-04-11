@@ -558,7 +558,7 @@ config THUNDERQUAKE_ENGINE_GPL
    Vibrator Intensity Controller for MTK Vibrator v1.0
 
 config UID_SYS_STATS
-	tristate "Per-UID statistics"
+    bool "Per-UID statistics"
     depends on PROFILING && TASK_XACCT && TASK_IO_ACCOUNTING
 	help
 	  Per UID based cpu time statistics exported to /proc/uid_cputime
