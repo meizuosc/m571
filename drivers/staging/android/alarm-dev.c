@@ -38,10 +38,10 @@
 static int debug_mask = ANDROID_ALARM_PRINT_INFO;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-#define alarm_dbg(debug_level_mask, fmt, args...)				\
+#define alarm_dbg(debug_level_mask, fmt, args...)			\
 do {									\
 	if (debug_mask & ANDROID_ALARM_PRINT_##debug_level_mask)	\
-			pr_debug(LOG_MYTAG fmt, ##args); \
+		pr_debug(LOG_MYTAG fmt, ##args);			\
 } while (0)
 
 #define ANDROID_ALARM_WAKEUP_MASK ( \
@@ -133,8 +133,8 @@ static void alarm_set(enum android_alarm_type alarm_type,
 	uint32_t alarm_type_mask = 1U << alarm_type;
 	unsigned long flags;
 
-        alarm_dbg(INFO, "alarm %d set %ld.%09ld\n",
-                        alarm_type, ts->tv_sec, ts->tv_nsec);
+	alarm_dbg(INFO, "alarm %d set %ld.%09ld\n",
+				alarm_type, ts->tv_sec, ts->tv_nsec);
 	if (alarm_type == ANDROID_ALARM_POWER_ON) {
 		alarm_set_power_on(*ts, false);
 		return;
@@ -232,7 +232,7 @@ static int alarm_get_time(enum android_alarm_type alarm_type,
 }
 
 static long alarm_do_ioctl(struct file *file, unsigned int cmd,
-							struct timespec *ts, struct rtc_wkalrm *alm)
+				struct timespec *ts, struct rtc_wkalrm *alm)
 {
 	int rv = 0;
 	unsigned long flags;
@@ -244,9 +244,9 @@ static long alarm_do_ioctl(struct file *file, unsigned int cmd,
 		return -EINVAL;
 	}
 
-        if (ANDROID_ALARM_BASE_CMD(cmd) != ANDROID_ALARM_GET_TIME(0)
-                && ANDROID_ALARM_BASE_CMD(cmd)!= ANDROID_ALARM_SET_IPO(0)
-                                && ANDROID_ALARM_BASE_CMD(cmd) != ANDROID_ALARM_GET_POWER_ON_IPO) {
+	if (ANDROID_ALARM_BASE_CMD(cmd) != ANDROID_ALARM_GET_TIME(0)
+		&& ANDROID_ALARM_BASE_CMD(cmd) != ANDROID_ALARM_SET_IPO(0)
+			&& ANDROID_ALARM_BASE_CMD(cmd) != ANDROID_ALARM_GET_POWER_ON_IPO) {
 		if ((file->f_flags & O_ACCMODE) == O_RDONLY)
 			return -EPERM;
 		if (file->private_data == NULL &&

@@ -155,7 +155,7 @@ static ktime_t timerfd_get_remaining(struct timerfd_ctx *ctx)
 	else
 		remaining = hrtimer_expires_remaining(&ctx->t.tmr);
 
-	return remaining.tv64 < 0 ? ktime_set(0, 0): remaining;
+	return remaining.tv64 < 0 ? ktime_set(0, 0) : remaining;
 }
 
 static int timerfd_setup(struct timerfd_ctx *ctx, int flags,
@@ -166,7 +166,7 @@ static int timerfd_setup(struct timerfd_ctx *ctx, int flags,
 	int clockid = ctx->clockid;
 
 	htmode = (flags & TFD_TIMER_ABSTIME) ?
-		HRTIMER_MODE_ABS: HRTIMER_MODE_REL;
+		HRTIMER_MODE_ABS : HRTIMER_MODE_REL;
 
 	texp = timespec_to_ktime(ktmr->it_value);
 	ctx->expired = 0;
@@ -283,7 +283,7 @@ static ssize_t timerfd_read(struct file *file, char __user *buf, size_t count,
 	}
 	spin_unlock_irq(&ctx->wqh.lock);
 	if (ticks)
-		res = put_user(ticks, (u64 __user *) buf) ? -EFAULT: sizeof(ticks);
+		res = put_user(ticks, (u64 __user *) buf) ? -EFAULT : sizeof(ticks);
 	return res;
 }
 
@@ -362,6 +362,7 @@ static const struct file_operations timerfd_fops = {
 static int timerfd_fget(int fd, struct fd *p)
 {
 	struct fd f = fdget(fd);
+
 	if (!f.file)
 		return -EBADF;
 	if (f.file->f_op != &timerfd_fops) {
@@ -414,7 +415,7 @@ SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 	return ufd;
 }
 
-static int do_timerfd_settime(int ufd, int flags, 
+static int do_timerfd_settime(int ufd, int flags,
 		const struct itimerspec *new,
 		struct itimerspec *old)
 {
@@ -483,6 +484,7 @@ static int do_timerfd_gettime(int ufd, struct itimerspec *t)
 	struct fd f;
 	struct timerfd_ctx *ctx;
 	int ret = timerfd_fget(ufd, &f);
+
 	if (ret)
 		return ret;
 	ctx = f.file->private_data;
@@ -532,9 +534,10 @@ SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
 {
 	struct itimerspec kotmr;
 	int ret = do_timerfd_gettime(ufd, &kotmr);
+
 	if (ret)
 		return ret;
-	return copy_to_user(otmr, &kotmr, sizeof(kotmr)) ? -EFAULT: 0;
+	return copy_to_user(otmr, &kotmr, sizeof(kotmr)) ? -EFAULT : 0;
 }
 
 #ifdef CONFIG_COMPAT
@@ -560,8 +563,9 @@ COMPAT_SYSCALL_DEFINE2(timerfd_gettime, int, ufd,
 {
 	struct itimerspec kotmr;
 	int ret = do_timerfd_gettime(ufd, &kotmr);
+
 	if (ret)
 		return ret;
-	return put_compat_itimerspec(otmr, &kotmr) ? -EFAULT: 0;
+	return put_compat_itimerspec(otmr, &kotmr) ? -EFAULT : 0;
 }
 #endif
