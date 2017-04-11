@@ -52,7 +52,7 @@ static ssize_t zram_attr_##name##_show(struct device *d,		\
 		(u64)atomic64_read(&zram->stats.name));			\
 }									\
 static struct device_attribute dev_attr_##name =			\
-	__ATTR(name, S_IRUGO, zram_attr_##name##_show, NULL);
+	__ATTR(name, 0444, zram_attr_##name##_show, NULL);
 
 static inline int init_done(struct zram *zram)
 {
@@ -834,15 +834,15 @@ static const struct block_device_operations zram_devops = {
 	.owner = THIS_MODULE
 };
 
-static DEVICE_ATTR(disksize, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(disksize, 0644,
 		disksize_show, disksize_store);
-static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
-static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
-static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
-static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
-static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(initstate, 0444, initstate_show, NULL);
+static DEVICE_ATTR(reset, 0200, NULL, reset_store);
+static DEVICE_ATTR(orig_data_size, 0444, orig_data_size_show, NULL);
+static DEVICE_ATTR(mem_used_total, 0444, mem_used_total_show, NULL);
+static DEVICE_ATTR(max_comp_streams, 0644,
 		max_comp_streams_show, max_comp_streams_store);
-static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(comp_algorithm, 0644,
 		comp_algorithm_show, comp_algorithm_store);
 
 ZRAM_ATTR_RO(num_reads);
