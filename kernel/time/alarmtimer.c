@@ -134,8 +134,8 @@ void alarm_set_power_on(struct timespec new_pwron_time, bool logo)
 	struct rtc_wkalrm alm;
 	struct rtc_device *alarm_rtc_dev;
 //	ktime_t now;
-	
-	printk("alarm set power on\n");
+
+	pr_info("alarm set power on\n");
 
 #define RTC_PWRON_SEC -90
 #ifdef RTC_PWRON_SEC
@@ -154,7 +154,7 @@ void alarm_set_power_on(struct timespec new_pwron_time, bool logo)
 	}
 	alarm_rtc_dev = alarmtimer_get_rtcdev();
 	rtc_time_to_tm(pwron_time, &alm.time);
-/*	
+/*
 	rtc_timer_cancel(alarm_rtc_dev, &rtctimer);
 	now = rtc_tm_to_ktime(alm.time);
 	rtc_timer_start(alarm_rtc_dev, &rtctimer, now, ktime_set(0, 0));
@@ -251,6 +251,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 ktime_t alarm_expires_remaining(const struct alarm *alarm)
 {
 	struct alarm_base *base = &alarm_bases[alarm->type];
+
 	return ktime_sub(alarm->node.expires, base->gettime());
 }
 EXPORT_SYMBOL_GPL(alarm_expires_remaining);
@@ -442,6 +443,7 @@ int alarm_cancel(struct alarm *alarm)
 {
 	for (;;) {
 		int ret = alarm_try_to_cancel(alarm);
+
 		if (ret >= 0)
 			return ret;
 		cpu_relax();
@@ -812,6 +814,7 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 	/* Convert (if necessary) to absolute time */
 	if (flags != TIMER_ABSTIME) {
 		ktime_t now = alarm_bases[type].gettime();
+
 		exp = ktime_add(now, exp);
 	}
 
