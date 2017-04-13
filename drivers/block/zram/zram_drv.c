@@ -346,7 +346,7 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
 
 	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
 		read_unlock(&meta->tb_lock);
-		clear_page(mem);
+		memset(mem, 0, PAGE_SIZE);
 		return 0;
 	}
 
