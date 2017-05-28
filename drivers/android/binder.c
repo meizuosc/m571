@@ -45,9 +45,6 @@
 #include <linux/rtc.h>
 #include <linux/aee.h>
 
-#ifdef CONFIG_MT_PRIO_TRACER
-#include <linux/prio_tracer.h>
-#endif
 
 #include <uapi/linux/android/binder.h>
 #include "binder_trace.h"
@@ -66,7 +63,6 @@ static struct binder_node *binder_context_mgr_node;
 static kuid_t binder_context_mgr_uid = INVALID_UID;
 static int binder_last_id;
 static struct workqueue_struct *binder_deferred_workqueue;
-static pid_t system_server_pid;
 
 #define RT_PRIO_INHERIT			"v1.7"
 #ifdef RT_PRIO_INHERIT
@@ -112,7 +108,7 @@ static pid_t system_server_pid;
 #define MAGIC_SERVICE_NAME_OFFSET	68
 
 #define MAX_ENG_TRANS_LOG_BUFF_LEN	10240
-
+static pid_t system_server_pid;
 static int binder_check_buf_pid;
 static int binder_check_buf_tid;
 static unsigned long binder_log_level = 0;
@@ -826,7 +822,7 @@ static void binder_queue_bwdog(struct binder_transaction *t, time_t budget)
 		else if (ret > 0)
 			p = &(*p)->rb_right;
 		else {
-			pr_info("%d found same key\n",
+			pr_debug("%d found same key\n",
 					 t->debug_id);
 			t->bark_time.tv_nsec += 1;
 			p = &(*p)->rb_right;
@@ -1182,7 +1178,7 @@ static void binder_print_buf(struct binder_buffer *buffer, char *dest, int succe
 	}
 	pr_debug("%s", str);
 	if (dest != NULL)
-		strncat(dest, str, sizeof(str));
+		strncat(dest, str, sizeof(str) - strlen(dest) - 1);
 }
 
 /**
@@ -1211,10 +1207,11 @@ static void binder_check_buf(struct binder_proc *target_proc,
 	struct binder_buffer *buffer;
 	int i;
 	int large_buffer_count = 0;
+	unsigned int name_size = 256;
 	size_t tmp_size, threshold;
 	struct task_struct *sender;
 	struct task_struct *larger;
-	char sender_name[256], rec_name[256];
+	char *sender_name, *rec_name;
 	struct timespec exp_timestamp;
 	struct timeval tv;
 	struct rtc_time tm;
@@ -1229,6 +1226,16 @@ static void binder_check_buf(struct binder_proc *target_proc,
 			is_async ? "async" : "call ",
 			binder_check_buf_pid, binder_check_buf_tid, size);
 
+	sender_name = kzalloc(size, GFP_KERNEL);
+	rec_name = kzalloc(size, GFP_KERNEL);
+	if (sender_name == NULL) {
+		kfree(sender_name);
+		return -ENOMEM;
+	}
+	if (rec_name == NULL) {
+		kfree(rec_name);
+		return -ENOMEM;
+	}
 	if (binder_check_buf_checked())
 		return;
 	/* check blocked service for async call */
@@ -1373,6 +1380,8 @@ static void binder_check_buf(struct binder_proc *target_proc,
 
 	binder_check_buf_pid = -1;
 	binder_check_buf_tid = -1;
+	kfree(sender_name);
+	kfree(rec_name);
 	aee_kernel_warning_api(__FILE__, __LINE__, db_flag, &aee_word[0],&aee_msg[0]);
 
 }
@@ -1443,22 +1452,15 @@ static void binder_set_nice(long nice)
 {
 	long min_nice;
 	if (can_nice(current, nice)) {
-#ifdef CONFIG_MT_PRIO_TRACER
-		set_user_nice_binder(current, nice);
-#else
 		set_user_nice(current, nice);
-#endif
 		return;
 	}
 	min_nice = 20 - current->signal->rlim[RLIMIT_NICE].rlim_cur;
 	binder_debug(BINDER_DEBUG_PRIORITY_CAP,
 		     "%d: nice value %ld not allowed use %ld instead\n",
 		      current->pid, nice, min_nice);
-#ifdef CONFIG_MT_PRIO_TRACER
-	set_user_nice_binder(current, min_nice);
-#else
+
 	set_user_nice(current, min_nice);
-#endif
 	if (min_nice < 20)
 		return;
 	binder_user_error("%d RLIMIT_NICE not set\n", current->pid);
@@ -2386,11 +2388,7 @@ static void mt_sched_setscheduler_nocheck(struct task_struct *p, int policy, str
 	if (policy == SCHED_FIFO || policy == SCHED_RR)
 		param->sched_priority |= MT_ALLOW_RT_PRIO_BIT;
 
- #ifdef CONFIG_MT_PRIO_TRACER
-	ret = sched_setscheduler_nocheck_binder(p, policy, param);
- #else
 	ret = sched_setscheduler_nocheck(p, policy, param);
- #endif
 	if (ret)
 		pr_err("set scheduler fail, error code: %d\n", ret);
 }
@@ -3622,9 +3620,9 @@ retry:
 			pr_err("read put err2 %u to user %pK, thread error %u:%u\n",
 					thread->return_error2, ptr, thread->return_error, thread->return_error2);
 			binder_stat_br(proc, thread, thread->return_error2);
-			thread->return_error2 = BR_OK;
 			if (ptr == end)
 				goto done;
+			thread->return_error2 = BR_OK;
 		}
 		if (put_user(thread->return_error, (uint32_t __user *)ptr))
 			return -EFAULT;
@@ -4234,35 +4232,35 @@ static int binder_ioctl_write_read(struct file *filp,
             if (thread->proc != proc) {
                 int i;
                 unsigned int *p;
-                printk(KERN_ERR "binder: "
+                pr_debug(KERN_ERR "binder: "
                     "thread->proc != proc\n");
-                printk(KERN_ERR "binder: thread %pK\n",
+                pr_debug(KERN_ERR "binder: thread %pK\n",
                         thread);
                 p = (unsigned int *)thread - 32;
                 for (i = -4; i <= 3; i++, p+=8) {
-                    printk(KERN_ERR "%pK %08x %08x "
+                    pr_debug(KERN_ERR "%pK %08x %08x "
                             "%08x %08x  %08x %08x "
                             "%08x %08x\n",
                             p, *(p), *(p+1), *(p+2),
                             *(p+3), *(p+4), *(p+5),
                             *(p+6), *(p+7));
                 }
-                printk(KERN_ERR "binder: thread->proc "
+                pr_debug(KERN_ERR "binder: thread->proc "
                         "%pK\n", thread->proc);
                 p = (unsigned int *)thread->proc - 32;
                 for (i = -4; i <= 5; i++, p+=8) {
-                    printk(KERN_ERR "%pK %08x %08x "
+                    pr_debug(KERN_ERR "%pK %08x %08x "
                             "%08x %08x  %08x %08x "
                             "%08x %08x\n",
                             p, *(p), *(p+1), *(p+2),
                             *(p+3), *(p+4), *(p+5),
                             *(p+6), *(p+7));
                 }
-                printk(KERN_ERR "binder: proc %pK\n",
+                pr_debug(KERN_ERR "binder: proc %pK\n",
                         proc);
                 p = (unsigned int *)proc - 32;
                 for (i = -4; i <= 5; i++, p+=8) {
-                    printk(KERN_ERR "%pK %08x %08x "
+                    pr_debug(KERN_ERR "%pK %08x %08x "
                             "%08x %08x  %08x %08x "
                             "%08x %08x\n",
                             p, *(p), *(p+1), *(p+2),
@@ -5703,15 +5701,15 @@ static ssize_t binder_perf_evalue_write(struct file *filp, const char *ubuf,
 	if (copy_from_user(&buf, ubuf, copy_size))
 		return -EFAULT;
 
-	printk("[Binder] Set binder perf evalue:%u -> ", binder_perf_evalue);
+	pr_debug("[Binder] Set binder perf evalue:%u -> ", binder_perf_evalue);
 	ret = strict_strtoul(buf, 10, &val);
 	if (ret < 0 ) {
-		printk("Null\ninvalid string, need number foramt, err:%d \n",ret);
-		printk("perf evalue level:   0  ---- 3 \n");
-		printk("           	   Less ---- More\n");
+		pr_debug("Null\ninvalid string, need number foramt, err:%d \n",ret);
+		pr_debug("perf evalue level:   0  ---- 3 \n");
+		pr_debug("           	   Less ---- More\n");
 		return cnt; //string to unsined long fail
 	}
-	printk("%lu\n", val);
+	pr_debug("%lu\n", val);
 	if (val < 4) {
 		binder_perf_evalue = val;
 		if (0 == (val & BINDER_PERF_SEND_COUNTER))
@@ -5719,7 +5717,7 @@ static ssize_t binder_perf_evalue_write(struct file *filp, const char *ubuf,
 		if (0 == (val & BINDER_PERF_TIMEOUT_COUNTER))
 			binder_perf_stats_timeout_clean();
 	} else {
-		printk("invalid value:%lu, should be 0 ~ 3\n", val);
+		pr_debug("invalid value:%lu, should be 0 ~ 3\n", val);
 	}
 	pr_debug("%d (%s) set performance evaluate type %s %s\n",
 			 task_pid_nr(current), current->comm,
@@ -5752,15 +5750,15 @@ static ssize_t binder_log_level_write(struct file *filp, const char *ubuf,
 	if (copy_from_user(&buf, ubuf, copy_size))
 		return -EFAULT;
 
-	printk("[Binder] Set binder log level:%lu -> ", binder_log_level);
+	pr_debug("[Binder] Set binder log level:%lu -> ", binder_log_level);
 	ret = strict_strtoul(buf, 10, &val);
 	if (ret < 0) {
-		printk("Null\ninvalid string, need number foramt, err:%d \n",ret);
-		printk("Log Level:   0  ---- 4 \n");
-		printk("           Less ---- More\n");
+		pr_debug("Null\ninvalid string, need number foramt, err:%d \n",ret);
+		pr_debug("Log Level:   0  ---- 4 \n");
+		pr_debug("           Less ---- More\n");
 		return cnt; //string to unsined long fail
 	}
-	printk("%lu\n", val);
+	pr_debug("%lu\n", val);
 	if (val == 0) {
 		binder_debug_mask =
 			BINDER_DEBUG_USER_ERROR | BINDER_DEBUG_FAILED_TRANSACTION |
@@ -5799,7 +5797,7 @@ static ssize_t binder_log_level_write(struct file *filp, const char *ubuf,
 			BINDER_DEBUG_BUFFER_ALLOC ;
 		binder_log_level = val;
 	} else {
-		printk("invalid value:%lu, should be 0 ~ 4\n", val);
+		pr_debug("invalid value:%lu, should be 0 ~ 4\n", val);
 	}
 	return cnt;
 }
@@ -5919,7 +5917,7 @@ static ssize_t binder_transaction_log_enable_write(struct file *filp,
 
     	ret = strict_strtoul(buf, 10, &val);
 	if (ret < 0) {
-		pr_info("failed to switch logging, "
+		pr_debug("failed to switch logging, "
 				 "need number format\n");
 		return cnt;
 	}
@@ -5939,7 +5937,7 @@ static ssize_t binder_transaction_log_enable_write(struct file *filp,
 		log_disable |= BINDER_RT_LOG_ENABLE;
 	}
 #endif
-	pr_info("%d (%s) set transaction log %s %s %s"
+	pr_debug("%d (%s) set transaction log %s %s %s"
 #ifdef RT_PRIO_INHERIT
 			" %s"
 #endif
@@ -5954,7 +5952,7 @@ static ssize_t binder_transaction_log_enable_write(struct file *filp,
 #endif
 	      );
 #else
-	pr_info("%d (%s) set transaction log %s %s\n",
+	pr_debug("%d (%s) set transaction log %s %s\n",
 			 task_pid_nr(current), current->comm,
 			 log_disable ? "disabled" : "enabled",
 			 (log_disable & BINDER_LOG_RESUME) ?
