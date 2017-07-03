@@ -762,9 +762,6 @@ const char * const vmstat_text[] = {
 #if !defined(CONFIG_CMA) || !defined(CONFIG_MTK_SVP) // SVP 16
 	"nr_free_cma",
 #endif
-#ifdef CONFIG_UKSM
-	"nr_uksm_zero_pages",
-#endif
 	"nr_dirty_threshold",
 	"nr_dirty_background_threshold",
 
