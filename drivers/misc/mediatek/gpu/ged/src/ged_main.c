@@ -108,23 +108,36 @@ static long ged_dispatch(GED_BRIDGE_PACKAGE *psBridgePackageKM)
             }
         }
 
+		/* Make sure that the UM will never break the KM.
+		 * Check IO size are both matched the size of IO sturct.
+		 */
+#define SET_FUNC_AND_CHECK(func, struct_name) do { \
+	pFunc = (ged_bridge_func_type *) func; \
+	if (sizeof(GED_BRIDGE_IN_##struct_name) > psBridgePackageKM->i32InBufferSize || \
+			sizeof(GED_BRIDGE_OUT_##struct_name) > psBridgePackageKM->i32OutBufferSize) { \
+		GED_LOGE("GED_BRIDGE_COMMAND_##cmd fail io_size:%d/%d, expected: %zu/%zu", \
+				psBridgePackageKM->i32InBufferSize, psBridgePackageKM->i32OutBufferSize, \
+				sizeof(GED_BRIDGE_IN_##struct_name), sizeof(GED_BRIDGE_OUT_##struct_name)); \
+		goto dispatch_exit; \
+	} } while (0)
+
         // we will change the below switch into a function pointer mapping table in the future
         switch(GED_GET_BRIDGE_ID(psBridgePackageKM->ui32FunctionID))
         {
         case GED_BRIDGE_COMMAND_LOG_BUF_GET:
-            pFunc = (ged_bridge_func_type*)ged_bridge_log_buf_get;
+            SET_FUNC_AND_CHECK(ged_bridge_log_buf_get, LOGBUFGET);
             break;
         case GED_BRIDGE_COMMAND_LOG_BUF_WRITE:
-            pFunc = (ged_bridge_func_type*)ged_bridge_log_buf_write;
+            SET_FUNC_AND_CHECK(ged_bridge_log_buf_write, LOGBUFWRITE);
             break;
         case GED_BRIDGE_COMMAND_LOG_BUF_RESET:
-            pFunc = (ged_bridge_func_type*)ged_bridge_log_buf_reset;
+            SET_FUNC_AND_CHECK(ged_bridge_log_buf_reset, LOGBUFRESET);
             break;            
         case GED_BRIDGE_COMMAND_BOOST_GPU_FREQ:
-            pFunc = (ged_bridge_func_type*)ged_bridge_boost_gpu_freq;
+            SET_FUNC_AND_CHECK(ged_bridge_boost_gpu_freq, BOOSTGPUFREQ);
             break;
         case GED_BRIDGE_COMMAND_MONITOR_3D_FENCE:
-            pFunc = (ged_bridge_func_type*)ged_bridge_monitor_3D_fence;
+            SET_FUNC_AND_CHECK(ged_bridge_monitor_3D_fence, MONITOR3DFENCE);
             break;
         default:
             GED_LOGE("Unknown Bridge ID: %u\n", GED_GET_BRIDGE_ID(psBridgePackageKM->ui32FunctionID));
@@ -145,6 +158,7 @@ static long ged_dispatch(GED_BRIDGE_PACKAGE *psBridgePackageKM)
         }
     }
 
+dispatch_exit:
     return ret;
 }
 
