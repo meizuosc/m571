@@ -513,6 +513,11 @@ static long cmdq_ioctl(struct file *pFile, unsigned int code, unsigned long para
 			return -EFAULT;
 		}
 
+		if (job.command.regRequest.count > CMDQ_MAX_DUMP_REG_COUNT ||
+			!job.command.blockSize ||
+			job.command.blockSize > CMDQ_MAX_COMMAND_SIZE)
+			return -EINVAL;
+
 		/* not support secure path for async ioctl yet */
 		if (true == job.command.secData.isSecure) {
 			CMDQ_ERR("not support secure path for CMDQ_IOCTL_ASYNC_JOB_EXEC\n");
