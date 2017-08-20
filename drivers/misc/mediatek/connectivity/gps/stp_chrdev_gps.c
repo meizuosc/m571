@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/sched.h>
+#include <linux/wakelock.h>
 #include <asm/current.h>
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>
@@ -49,7 +50,7 @@ MODULE_LICENSE("GPL");
 #define COMBO_IOC_D1_EFUSE_GET       9
 #define COMBO_IOC_RTC_FLAG	     10
 #define COMBO_IOC_CO_CLOCK_FLAG	     11
-
+#define COMBO_IOC_TRIGGER_WMT_ASSERT 12
 
 static UINT32 gDbgLevel = GPS_LOG_DBG;
 
@@ -79,6 +80,9 @@ static int GPS_major = GPS_DEV_MAJOR;	/* dynamic allocation */
 module_param(GPS_major, uint, 0);
 static struct cdev GPS_cdev;
 
+static struct wakeup_source gps_wake_lock;
+static unsigned char wake_lock_acquired;   /* default: 0 */
+
 #if (defined(CONFIG_MTK_GMO_RAM_OPTIMIZE) && !defined(CONFIG_MT_ENG_BUILD))
 #define STP_GPS_BUFFER_SIZE 2048
 #else
@@ -92,6 +96,23 @@ static int flag;
 static volatile int retflag;
 
 static void GPS_event_cb(void);
+
+static void gps_hold_wake_lock(int hold)
+{
+	if (hold == 1) {
+		if (!wake_lock_acquired) {
+			GPS_DBG_FUNC("acquire gps wake_lock acquired = %d\n", wake_lock_acquired);
+			__pm_stay_awake(&gps_wake_lock);
+			wake_lock_acquired = 1;
+		}
+	} else if (hold == 0) {
+		if (wake_lock_acquired) {
+			GPS_DBG_FUNC("release gps wake_lock acquired = %d\n", wake_lock_acquired);
+			__pm_relax(&gps_wake_lock);
+			wake_lock_acquired = 0;
+		}
+	}
+}
 
 bool rtc_GPS_low_power_detected(void)
 {
@@ -232,7 +253,7 @@ ssize_t GPS_read(struct file *filp, char __user *buf, size_t count, loff_t *f_po
 	}
 #endif
 
-	if (retval) {
+	if (retval > 0) {
 		/* we got something from STP driver */
 		if (copy_to_user(buf, i_buf, retval)) {
 			retval = -EFAULT;
@@ -332,6 +353,19 @@ long GPS_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #endif
 		break;
 
+	case COMBO_IOC_TRIGGER_WMT_ASSERT:
+		/* Trigger FW assert for debug */
+		GPS_INFO_FUNC("%s: Host trigger FW assert......, reason:%lu\n", __func__, arg);
+		retval = mtk_wcn_wmt_assert(WMTDRV_TYPE_GPS, arg);
+		if (retval == MTK_WCN_BOOL_TRUE) {
+			GPS_INFO_FUNC("Host trigger FW assert succeed\n");
+			retval = 0;
+		} else {
+			GPS_ERR_FUNC("Host trigger FW assert Failed\n");
+			retval = (-EBUSY);
+		}
+		break;
+
 	default:
 		retval = -EFAULT;
 		GPS_DBG_FUNC("GPS_ioctl(): unknown cmd (%d)\n", cmd);
@@ -424,6 +458,8 @@ static int GPS_open(struct inode *inode, struct file *file)
 		/*return error code */
 		return -ENODEV;
 	}
+	gps_hold_wake_lock(1);
+	GPS_DBG_FUNC("gps_hold_wake_lock(1)\n");
 #if defined(CONFIG_ARCH_MT6580)
 	clk_buf_ctrl(CLK_BUF_AUDIO, 1);
 #endif
@@ -456,6 +492,10 @@ static int GPS_close(struct inode *inode, struct file *file)
 	}
 
 	GPS_DBG_FUNC("WMT turn off GPS OK!\n");
+
+	gps_hold_wake_lock(0);
+	GPS_DBG_FUNC("gps_hold_wake_lock(0)\n");
+
 #if defined(CONFIG_ARCH_MT6580)
 	clk_buf_ctrl(CLK_BUF_AUDIO, 0);
 #endif
@@ -551,6 +591,8 @@ static void GPS_exit(void)
 	unregister_chrdev_region(dev, GPS_devs);
 
 	pr_warn("%s driver removed.\n", GPS_DRIVER_NAME);
+
+	wakeup_source_trash(&gps_wake_lock);
 }
 
 #ifdef MTK_WCN_REMOVE_KERNEL_MODULE
