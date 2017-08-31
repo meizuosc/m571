@@ -490,7 +490,6 @@ static int GPS_close(struct inode *inode, struct file *file)
 		return -EIO;	/* mostly, native programer does not care this return vlaue,
 		but we still return error code. */
 	}
-
 	GPS_DBG_FUNC("WMT turn off GPS OK!\n");
 
 	gps_hold_wake_lock(0);
@@ -557,6 +556,8 @@ static int GPS_init(void)
 #endif
 	pr_warn("%s driver(major %d) installed.\n", GPS_DRIVER_NAME, GPS_major);
 
+	wakeup_source_init(&gps_wake_lock, "gpswakelock");
+
 	return 0;
 
 error:
@@ -589,7 +590,6 @@ static void GPS_exit(void)
 
 	cdev_del(&GPS_cdev);
 	unregister_chrdev_region(dev, GPS_devs);
-
 	pr_warn("%s driver removed.\n", GPS_DRIVER_NAME);
 
 	wakeup_source_trash(&gps_wake_lock);
