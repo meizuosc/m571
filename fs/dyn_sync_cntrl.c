@@ -18,24 +18,23 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/earlysuspend.h>
 #include <linux/mutex.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 #include <linux/writeback.h>
-#include <linux/fb.h>
 
 #define DYN_FSYNC_VERSION_MAJOR 1
-#define DYN_FSYNC_VERSION_MINOR 1
-
-struct notifier_block dyn_fsync_fb_notif;
+#define DYN_FSYNC_VERSION_MINOR 5
 
 /*
- * fsync_mutex protects dyn_fsync_active during fb suspend / resume
+ * fsync_mutex protects dyn_fsync_active during early suspend / late resume
  * transitions
  */
 static DEFINE_MUTEX(fsync_mutex);
-bool dyn_sync_scr_suspended = false;
-bool dyn_fsync_active __read_mostly = true;
 
-extern void dyn_fsync_suspend_actions(void);
+bool early_suspend_active __read_mostly = false;
+bool dyn_fsync_active __read_mostly = true;
 
 static ssize_t dyn_fsync_active_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
@@ -73,6 +72,12 @@ static ssize_t dyn_fsync_version_show(struct kobject *kobj,
 		DYN_FSYNC_VERSION_MINOR);
 }
 
+static ssize_t dyn_fsync_earlysuspend_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "early suspend active: %u\n", early_suspend_active);
+}
+
 static struct kobj_attribute dyn_fsync_active_attribute =
 	__ATTR(Dyn_fsync_active, 0666,
 		dyn_fsync_active_show,
@@ -81,10 +86,14 @@ static struct kobj_attribute dyn_fsync_active_attribute =
 static struct kobj_attribute dyn_fsync_version_attribute =
 	__ATTR(Dyn_fsync_version, 0444, dyn_fsync_version_show, NULL);
 
+static struct kobj_attribute dyn_fsync_earlysuspend_attribute =
+	__ATTR(Dyn_fsync_earlysuspend, 0444, dyn_fsync_earlysuspend_show, NULL);
+
 static struct attribute *dyn_fsync_active_attrs[] =
 	{
 		&dyn_fsync_active_attribute.attr,
 		&dyn_fsync_version_attribute.attr,
+		&dyn_fsync_earlysuspend_attribute.attr,
 		NULL,
 	};
 
@@ -95,54 +104,74 @@ static struct attribute_group dyn_fsync_active_attr_group =
 
 static struct kobject *dyn_fsync_kobj;
 
-static void dyn_fsync_suspend(void)
+extern void sync_filesystems(int wait);
+static void dyn_fsync_force_flush(void)
+{
+	sync_filesystems(0);
+	sync_filesystems(1);
+}
+
+static void dyn_fsync_suspend(struct early_suspend *p)
 {
 	mutex_lock(&fsync_mutex);
-	/* flush all outstanding buffers */
-	if (dyn_fsync_active)
-		dyn_fsync_suspend_actions();
-	mutex_unlock(&fsync_mutex);
-
-	pr_info("%s: flushing work finished.\n", __FUNCTION__);
-}
-
-static int dyn_fsync_fb_notifier_callback(struct notifier_block *self,
-				unsigned long event, void *data)
-{
-	struct fb_event *evdata = data;
-	int *blank;
-
-	if (event == FB_EVENT_BLANK) {
-		blank = evdata->data;
-
-		switch (*blank) {
-		case FB_BLANK_UNBLANK:
-			dyn_sync_scr_suspended = false;
-			break;
-		case FB_BLANK_POWERDOWN:
-			dyn_sync_scr_suspended = true;
-			if (dyn_fsync_active)
-				dyn_fsync_suspend();
-			break;
-		}
+	if (dyn_fsync_active) {
+		early_suspend_active = true;
+		dyn_fsync_force_flush();
 	}
-
-	return 0;
+	mutex_unlock(&fsync_mutex);
 }
 
-struct notifier_block dyn_fsync_fb_notif = {
-	.notifier_call = dyn_fsync_fb_notifier_callback,
+static void dyn_fsync_resume(struct early_suspend *p)
+{
+	mutex_lock(&fsync_mutex);
+	early_suspend_active = false;
+	mutex_unlock(&fsync_mutex);
+}
+
+static struct early_suspend dyn_fsync_early_suspend_handler =
+	{
+		.suspend = dyn_fsync_suspend,
+		.resume = dyn_fsync_resume,
+	};
+
+static int dyn_fsync_panic_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	early_suspend_active = true;
+	dyn_fsync_force_flush();
+	//pr_warn("dyn fsync: panic: force flush!\n");
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block dyn_fsync_panic_block = {
+	.notifier_call  = dyn_fsync_panic_event,
+	.priority       = INT_MAX,
 };
 
-static int __init dyn_fsync_init(void)
+static int dyn_fsync_notify_sys(struct notifier_block *this, unsigned long code,
+				void *unused)
 {
-	int ret;
-
-	ret = fb_register_client(&dyn_fsync_fb_notif);
-	if (ret) {
-		pr_info("%s fb register failed!\n", __FUNCTION__);
-		return ret;
+	if (code == SYS_DOWN || code == SYS_HALT) {
+		early_suspend_active = true;
+		dyn_fsync_force_flush();
+		//pr_warn("dyn fsync: reboot: force flush!\n");
 	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block dyn_fsync_notifier = {
+	.notifier_call = dyn_fsync_notify_sys,
+};
+
+static int dyn_fsync_init(void)
+{
+	int sysfs_result;
+
+	register_early_suspend(&dyn_fsync_early_suspend_handler);
+	register_reboot_notifier(&dyn_fsync_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list,
+		&dyn_fsync_panic_block);
 
 	dyn_fsync_kobj = kobject_create_and_add("dyn_fsync", kernel_kobj);
 	if (!dyn_fsync_kobj) {
@@ -150,22 +179,31 @@ static int __init dyn_fsync_init(void)
 		return -ENOMEM;
         }
 
-	ret = sysfs_create_group(dyn_fsync_kobj,
+	sysfs_result = sysfs_create_group(dyn_fsync_kobj,
 			&dyn_fsync_active_attr_group);
-	if (ret) {
+
+        if (sysfs_result) {
 		pr_info("%s dyn_fsync sysfs create failed!\n", __FUNCTION__);
 		kobject_put(dyn_fsync_kobj);
 	}
-
-	return ret;
+	return sysfs_result;
 }
 
-static void __exit dyn_fsync_exit(void)
+static void dyn_fsync_exit(void)
 {
+	unregister_early_suspend(&dyn_fsync_early_suspend_handler);
+	unregister_reboot_notifier(&dyn_fsync_notifier);
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+		&dyn_fsync_panic_block);
+
 	if (dyn_fsync_kobj != NULL)
 		kobject_put(dyn_fsync_kobj);
-	fb_unregister_client(&dyn_fsync_fb_notif);
 }
 
 module_init(dyn_fsync_init);
 module_exit(dyn_fsync_exit);
+
+MODULE_AUTHOR("Paul Reioux <reioux@gmail.com>");
+MODULE_DESCRIPTION("dynamic fsync - automatic fs sync optimizaition using"
+		"early_suspend driver!");
+MODULE_LICENSE("GPL v2");
