@@ -3164,57 +3164,6 @@ void do_chrdet_int_task(void)
 	}
 }
 
-#ifdef MEIZU_M81
-static inline int fuelgauge_info_dump(void)
-{
-	int ret, err;
-	static int i;
-	struct file *fp = NULL;
-	mm_segment_t pos;
-	char buf[48] = {0};
-	char time_buf[32] = {0};
-	struct timespec ts;
-	struct rtc_time tm;
-	static kal_bool done = KAL_FALSE;
-
-	/* get the system current time */
-	getnstimeofday(&ts);
-	rtc_time_to_tm(ts.tv_sec, &tm);
-	sprintf(time_buf, "%d-%02d-%02d %02d:%02d:%02d %s",
-			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-			tm.tm_hour + 8, tm.tm_min, tm.tm_sec, " ");
-
-	pos = get_fs();
-	set_fs(KERNEL_DS);
-
-	fp = filp_open("/data/fuelgauge_datalog.txt", O_RDWR | O_APPEND | O_CREAT, 0644);
-	if (IS_ERR(fp)) {
-		pr_info("create file failed******\n");
-		err = PTR_ERR(fp);
-		if (err != -ENOENT )
-			pr_err("%s:open the file failed\n", __func__);
-		set_fs(pos);
-		return err;
-	}
-
-	if (done == KAL_FALSE) {
-
-		done = KAL_TRUE;
-	}
-	/* record the current system time */
-	err = fp->f_op->write(fp, time_buf, 21, &fp->f_pos);
-
-	sprintf(buf, "%3d %4d %3d %2d %d %d\n", BMT_status.UI_SOC,BMT_status.ICharging, BMT_status.bat_vol,
-			BMT_status.temperature, BMT_status.charger_exist, BMT_status.charger_type);
-	err = fp->f_op->write(fp, buf, 30, &fp->f_pos);
-
-	set_fs(pos);
-	filp_close(fp, NULL);
-
-	return ret;
-}
-#endif
-
 extern void dodprint(void);
 
 void BAT_thread(void)
@@ -3254,9 +3203,6 @@ void BAT_thread(void)
 
 	mt_battery_update_status();
 	mt_kpoc_power_off_check();
-    #ifdef MEIZU_M81
-	fuelgauge_info_dump();
-    #endif
 }
 
 /* ///////////////////////////////////////////////////////////////////////////////////////// */
