@@ -257,12 +257,16 @@ u32 max77819_pmic_read_interface(kal_uint8 RegNum, kal_uint8 *val, kal_uint8 MAS
 
     ret = max77819_pmic_read_byte(RegNum, &max77819_reg);
 
+        #ifndef CONFIG_MEIZU_CLOSE_MTK_LOG
 	BLS_LOG("[max77819_pmic_read_interface] Reg[%x]=0x%x\n", RegNum, max77819_reg);
+	#endif
 
     max77819_reg &= (MASK << SHIFT);
     *val = (max77819_reg >> SHIFT);
 
+        #ifndef CONFIG_MEIZU_CLOSE_MTK_LOG
 	BLS_LOG("[max77819_pmic_read_interface] val=0x%x\n", *val);
+	#endif
 
     return ret;
 }
@@ -273,13 +277,17 @@ u32 max77819_pmic_config_interface(kal_uint8 RegNum, kal_uint8 val, kal_uint8 MA
     int ret = 0;
 
     ret = max77819_pmic_read_byte(RegNum, &max77819_pmic_reg);
+    #ifndef CONFIG_MEIZU_CLOSE_MTK_LOG
     BLS_LOG("[max77819_pmic_config_interface] Reg[%x]=0x%x\n", RegNum, max77819_pmic_reg);
+    #endif
 
     max77819_pmic_reg &= ~(MASK << SHIFT);
     max77819_pmic_reg |= (val << SHIFT);
 
     ret = max77819_pmic_write_byte(RegNum, max77819_pmic_reg);
+    #ifndef CONFIG_MEIZU_CLOSE_MTK_LOG
     BLS_LOG("[max77819_pmic_config_interface] write Reg[%x]=0x%x\n", RegNum, max77819_pmic_reg);
+    #endif
 
     return ret;
 }
