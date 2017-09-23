@@ -458,11 +458,15 @@ if (g_ged_gpu_boost_id == 0)
 		g_ged_gpu_boost_id = 1;
 	}
 
+    #ifndef CONFIG_MEIZU_CLOSE_MTK_LOG
     printk("[MALI] mtk_kbase_set_bottom_gpu_freq_fp() ui32FreqLevel=%d, g_custom_gpu_boost_id=%d  (GED boost)", ui32FreqLevel, g_ged_gpu_boost_id);
+    #endif
 
     if(g_ged_gpu_boost_id < mt_gpufreq_get_cur_freq_index())
     {
+	#ifndef CONFIG_MEIZU_CLOSE_MTK_LOG
         printk("[MALI] mtk_kbase_set_bottom_gpu_freq_fp set gpu freq to index=%d, cuurent index=%d  (GED boost)", g_ged_gpu_boost_id, mt_gpufreq_get_cur_freq_index());
+	#endif
         mt_gpufreq_target(g_ged_gpu_boost_id);
     }
 
