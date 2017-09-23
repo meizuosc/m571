@@ -38,7 +38,7 @@
     do {                                                                    \
         if (down_interruptible(&dal_sem)) {                                 \
             pr_warn("DISP/DAL " "Can't get semaphore in %s()\n",          \
-                   __FUNCTION__);                                           \
+                   __func__);                                           \
             return DAL_STATUS_LOCK_FAIL;                                    \
         }                                                                   \
     } while (0)
@@ -55,7 +55,7 @@
         if (MFC_STATUS_OK != ret) {                                         \
             pr_warn("DISP/DAL " "Warning: call MFC_XXX function failed "           \
                    "in %s(), line: %d, ret: %x\n",                          \
-                   __FUNCTION__, __LINE__, ret);                            \
+                   __func__, __LINE__, ret);                            \
             return ret;                                                     \
         }                                                                   \
     } while (0)
@@ -67,7 +67,7 @@
         if (DISP_STATUS_OK != ret) {                                        \
             pr_warn("DISP/DAL " "Warning: call DISP_XXX function failed "          \
                    "in %s(), line: %d, ret: %x\n",                          \
-                   __FUNCTION__, __LINE__, ret);                            \
+                   __func__, __LINE__, ret);                            \
             return ret;                                                     \
         }                                                                   \
     } while (0)

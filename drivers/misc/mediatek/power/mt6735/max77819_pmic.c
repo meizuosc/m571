@@ -113,8 +113,8 @@ static struct max77819_pmic_i2c_data *obj_i2c_data = NULL;
 
 /*----------------------------------------------------------------------------*/
 #define BLS_TAG                  "[MAX77819_PMIC] "
-#define BLS_FUN(f)               printk(KERN_ERR BLS_TAG"%s\n", __FUNCTION__)
-#define BLS_ERR(fmt, args...)    printk(KERN_ERR BLS_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define BLS_FUN(f)               printk(KERN_ERR BLS_TAG"%s\n", __func__)
+#define BLS_ERR(fmt, args...)    printk(KERN_ERR BLS_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define BLS_LOG(fmt, args...)    printk(KERN_ERR BLS_TAG fmt, ##args)
 /*----------------------------------------------------------------------------*/
 /*

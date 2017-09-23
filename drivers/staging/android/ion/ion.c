@@ -628,7 +628,7 @@ struct ion_handle *__ion_alloc(struct ion_client *client, size_t len,
     //add by k.zhang for sgtable_init KE bug
 	if ((len > 1024*1024*1024))
 	{
-		IONMSG("%s error: size (%zu) is more than 1G !!\n", __FUNCTION__,len);
+		IONMSG("%s error: size (%zu) is more than 1G !!\n", __func__,len);
 		return ERR_PTR(-EINVAL);
 	}
 	MMProfileLogEx(ION_MMP_Events[PROFILE_ALLOC], MMProfileFlagStart, len, 0);
@@ -2102,13 +2102,13 @@ struct ion_handle* ion_drv_get_handle(struct ion_client* client, int user_handle
 		handle = kernel_handle;
 
 		if (IS_ERR_OR_NULL(handle)) {
-			IONMSG("%s handle invalid, handle = 0x%pK.\n", __FUNCTION__, handle);
+			IONMSG("%s handle invalid, handle = 0x%pK.\n", __func__, handle);
 			return ERR_PTR(-EINVAL);
 		}
 
 		mutex_lock(&client->lock);
 		if (!ion_handle_validate(client, handle)) {
-			IONMSG("%s handle invalid, handle=0x%pK\n", __FUNCTION__, handle);
+			IONMSG("%s handle invalid, handle=0x%pK\n", __func__, handle);
 			mutex_unlock(&client->lock);
 			return ERR_PTR(-EINVAL);
 		}
@@ -2117,7 +2117,7 @@ struct ion_handle* ion_drv_get_handle(struct ion_client* client, int user_handle
 	} else {
 		handle = ion_handle_get_by_id(client, user_handle);
 		if (!handle) {
-			IONMSG("%s handle invalid, handle_id=%d\n", __FUNCTION__, user_handle);
+			IONMSG("%s handle invalid, handle_id=%d\n", __func__, user_handle);
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -2331,7 +2331,7 @@ static int ion_debugdb_show_backtrace(struct seq_file *s, struct ion_record_basi
 		backtrace_count = tmp->numEntries;
 	}
 
-	//printk("%s [%d] backtrace_count = (%d)\n",__FUNCTION__,__LINE__,backtrace_count);
+	//printk("%s [%d] backtrace_count = (%d)\n",__func__,__LINE__,backtrace_count);
 	if (backtrace_count != 0) {
 		seq_printf(s, "%19s\n", "[BACKTRACE]");
 	}

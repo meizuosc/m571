@@ -35,7 +35,7 @@
     do {                                                                    \
         if (down_interruptible(&ctxt->sem)) {                               \
             printk("[MFC] ERROR: Can't get semaphore in %s()\n",            \
-                   __FUNCTION__);                                           \
+                   __func__);                                           \
             ASSERT(0);                                                      \
             return MFC_STATUS_LOCK_FAIL;                                    \
         }                                                                   \
