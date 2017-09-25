@@ -10,35 +10,24 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/lz4.h>
-#include <linux/vmalloc.h>
-#include <linux/mm.h>
 
 #include "zcomp_lz4.h"
 
-static void *zcomp_lz4_create(gfp_t flags)
+static void *zcomp_lz4_create(void)
 {
-	void *ret;
-
-	ret = kmalloc(LZ4_MEM_COMPRESS, flags);
-	if (!ret)
-		ret = __vmalloc(LZ4_MEM_COMPRESS,
-		flags | __GFP_HIGHMEM,
-				PAGE_KERNEL);
-	return ret;
+	return kzalloc(LZ4_MEM_COMPRESS, GFP_KERNEL);
 }
 
 static void zcomp_lz4_destroy(void *private)
 {
-	kvfree(private);
+	kfree(private);
 }
 
 static int zcomp_lz4_compress(const unsigned char *src, unsigned char *dst,
 		size_t *dst_len, void *private)
 {
-	/* return  : Failed if return 0 */
-	if (!LZ4_compress_default(src, dst, PAGE_SIZE, *dst_len, private))
-		return -EIO;
-	return 0;
+	/* return  : Success if return 0 */
+	return lz4_compress(src, PAGE_SIZE, dst, dst_len, private);
 }
 
 static int zcomp_lz4_decompress(const unsigned char *src, size_t src_len,
@@ -46,7 +35,7 @@ static int zcomp_lz4_decompress(const unsigned char *src, size_t src_len,
 {
 	size_t dst_len = PAGE_SIZE;
 	/* return  : Success if return 0 */
-	return LZ4_decompress_safe(src, dst, src_len, dst_len);
+	return lz4_decompress_unknownoutputsize(src, src_len, dst, &dst_len);
 }
 
 struct zcomp_backend zcomp_lz4 = {

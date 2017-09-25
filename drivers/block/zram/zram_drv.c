@@ -52,7 +52,7 @@ static ssize_t zram_attr_##name##_show(struct device *d,		\
 		(u64)atomic64_read(&zram->stats.name));			\
 }									\
 static struct device_attribute dev_attr_##name =			\
-	__ATTR(name, 0444, zram_attr_##name##_show, NULL);
+	__ATTR(name, S_IRUGO, zram_attr_##name##_show, NULL);
 
 static inline int init_done(struct zram *zram)
 {
@@ -168,7 +168,6 @@ static ssize_t comp_algorithm_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct zram *zram = dev_to_zram(dev);
-
 	down_write(&zram->init_lock);
 	if (init_done(zram)) {
 		up_write(&zram->init_lock);
@@ -239,7 +238,6 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
 {
 	size_t num_pages;
 	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
-
 	if (!meta)
 		goto out;
 
@@ -346,7 +344,7 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
 
 	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
 		read_unlock(&meta->tb_lock);
-		memset(mem, 0, PAGE_SIZE);
+		clear_page(mem);
 		return 0;
 	}
 
@@ -375,7 +373,6 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
 	struct page *page;
 	unsigned char *user_mem, *uncmem = NULL;
 	struct zram_meta *meta = zram->meta;
-
 	page = bvec->bv_page;
 
 	read_lock(&meta->tb_lock);
@@ -609,7 +606,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
 	/* Free all pages that are still in this zram device */
 	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
 		unsigned long handle = meta->table[index].handle;
-
 		if (!handle)
 			continue;
 
@@ -627,16 +623,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
 	zram->disksize = 0;
 	if (reset_capacity)
 		set_capacity(zram->disk, 0);
-
 	up_write(&zram->init_lock);
-
-	/*
-	 * Revalidate disk out of the init_lock to avoid lockdep splat.
-	 * It's okay because disk's capacity is protected by init_lock
-	 * so that revalidate_disk always sees up-to-date capacity.
-	 */
-	if (reset_capacity)
-		revalidate_disk(zram->disk);
 }
 
 static ssize_t disksize_store(struct device *dev,
@@ -677,14 +664,6 @@ static ssize_t disksize_store(struct device *dev,
 	zram->disksize = disksize;
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 	up_write(&zram->init_lock);
-
-	/*
-	 * Revalidate disk out of the init_lock to avoid lockdep splat.
-	 * It's okay because disk's capacity is protected by init_lock
-	 * so that revalidate_disk always sees up-to-date capacity.
-	 */
-	revalidate_disk(zram->disk);
-
 	return len;
 
 out_destroy_comp:
@@ -834,15 +813,15 @@ static const struct block_device_operations zram_devops = {
 	.owner = THIS_MODULE
 };
 
-static DEVICE_ATTR(disksize, 0644,
+static DEVICE_ATTR(disksize, S_IRUGO | S_IWUSR,
 		disksize_show, disksize_store);
-static DEVICE_ATTR(initstate, 0444, initstate_show, NULL);
-static DEVICE_ATTR(reset, 0200, NULL, reset_store);
-static DEVICE_ATTR(orig_data_size, 0444, orig_data_size_show, NULL);
-static DEVICE_ATTR(mem_used_total, 0444, mem_used_total_show, NULL);
-static DEVICE_ATTR(max_comp_streams, 0644,
+static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
+static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
+static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
+static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
+static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
 		max_comp_streams_show, max_comp_streams_store);
-static DEVICE_ATTR(comp_algorithm, 0644,
+static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
 		comp_algorithm_show, comp_algorithm_store);
 
 ZRAM_ATTR_RO(num_reads);
