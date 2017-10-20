@@ -11,12 +11,12 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * Please preserve this licence and driver name if you implement this 
+ *
+ * Please preserve this licence and driver name if you implement this
  * anywhere else.
  *
  */
- 
+
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
@@ -37,7 +37,7 @@ extern void pmic_set_register_value(PMU_FLAGS_LIST_ENUM flagname, kal_uint32 val
 
 static ssize_t vibr_vtg_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-	struct vibrator_hw* hw = mt_get_cust_vibrator_hw();
+	struct vibrator_hw *hw = mt_get_cust_vibrator_hw();
 
 	return sprintf(buf, "%d\n", hw->vib_vol);
 }
@@ -45,13 +45,12 @@ static ssize_t vibr_vtg_show(struct kobject *kobj, struct kobj_attribute *attr, 
 static ssize_t vibr_vtg_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int val;
-    struct vibrator_hw* hw = mt_get_cust_vibrator_hw();
+    struct vibrator_hw *hw = mt_get_cust_vibrator_hw();
 	sscanf(buf, "%u", &val);
-	if(val>=MIN_VIBR && val <=MAX_VIBR) {
-       pmic_set_register_value(PMIC_RG_VIBR_VOSEL,val);
-       hw->vib_vol=val;
+	if (val >= MIN_VIBR && val <= MAX_VIBR) {
+       pmic_set_register_value(PMIC_RG_VIBR_VOSEL, val);
+       hw->vib_vol = val;
     }
-    
 	return count;
 }
 
@@ -70,24 +69,22 @@ static struct kobj_attribute thunderquake_level_attribute =
 		0666,
 		vibr_vtg_show, vibr_vtg_store);
 
-static struct attribute *thunderquake_engine_attrs[] =
-	{
+static struct attribute *thunderquake_engine_attrs[] = {
 		&thunderquake_level_attribute.attr,
 		&thunderquake_version_attribute.attr,
 		NULL,
 	};
 
-static struct attribute_group vibr_level_control_attr_group =
-	{
+static struct attribute_group vibr_level_control_attr_group = {
 		.attrs = thunderquake_engine_attrs,
 	};
- 
+
 static struct kobject *vibr_level_control_kobj;
 
 static int vibr_level_control_init(void)
 {
 	int sysfs_result;
-	printk(KERN_DEBUG "[%s]\n",__func__);
+	printk(KERN_DEBUG "[%s]\n", __func__);
 
 	vibr_level_control_kobj =
 		kobject_create_and_add("thunderquake_engine", kernel_kobj);
@@ -96,7 +93,7 @@ static int vibr_level_control_init(void)
 		pr_err("%s Interface create failed!\n",
 			__func__);
 		return -ENOMEM;
-        }
+    }
 
 	sysfs_result = sysfs_create_group(vibr_level_control_kobj,
 			&vibr_level_control_attr_group);

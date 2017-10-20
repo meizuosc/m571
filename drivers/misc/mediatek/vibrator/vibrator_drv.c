@@ -93,9 +93,9 @@ static int vibr_Enable(void)
 static int vibr_Disable(void)
 {
 	if (ldo_state) {
-		vibr_Disable_HW();
+        vibr_Disable_HW();
 		ldo_state = 0;
-	}
+    }
 	return 0;
 }
 
