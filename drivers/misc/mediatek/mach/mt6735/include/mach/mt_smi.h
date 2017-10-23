@@ -45,6 +45,8 @@ typedef enum {
 	SMI_BWC_SCEN_FORCE_MMDVFS,
 	SMI_BWC_SCEN_HDMI,
 	SMI_BWC_SCEN_HDMI4K,
+    SMI_BWC_SCEN_VPMJC,
+    SMI_BWC_SCEN_N3D,
 	SMI_BWC_SCEN_CNT
 } MTK_SMI_BWC_SCEN;
 
@@ -67,8 +69,7 @@ typedef struct {
 typedef struct {
 	unsigned int *hwc_max_pixel; /* : exit this scenario , 1 : enter this scenario */
 } MTK_SMI_BWC_STATE;
-
-typedef struct {
+    typedef struct {
 	unsigned int address;
 	unsigned int value;
 } MTK_SMI_BWC_REGISTER_SET;

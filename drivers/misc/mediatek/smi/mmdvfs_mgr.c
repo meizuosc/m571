@@ -18,8 +18,6 @@
 #include <linux/uaccess.h>
 #include <linux/aee.h>
 
-#include <mach/mt_smi.h>
-
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
@@ -30,7 +28,7 @@
 #include <mach/mt_vcore_dvfs.h>
 #include <mach/mt_freqhopping_drv.h>
 
-
+#include <mach/mt_smi.h>
 #include "mmdvfs_mgr.h"
 
 #undef pr_fmt
@@ -192,16 +190,18 @@ static void mmdvfs_update_cmd(MTK_MMDVFS_CMD *cmd)
 	if (cmd->sensor_fps)
 		g_mmdvfs_cmd.sensor_fps = cmd->sensor_fps;
 
-	MMDVFSMSG("update cm %d %d\n", cmd->camera_mode, cmd->sensor_size);
+	/* MMDVFSMSG("update cm %d %d\n", cmd->camera_mode, cmd->sensor_size); */
 	g_mmdvfs_cmd.camera_mode = cmd->camera_mode;
 }
 
 static void mmdvfs_dump_info(void)
 {
+/*
 	MMDVFSMSG("CMD %d %d %d\n", g_mmdvfs_cmd.sensor_size,
 	g_mmdvfs_cmd.sensor_fps, g_mmdvfs_cmd.camera_mode);
 	MMDVFSMSG("INFO VR %d %d\n", g_mmdvfs_info->video_record_size[0],
 	g_mmdvfs_info->video_record_size[1]);
+*/
 }
 
 /* delay 4 seconds to go LPM to workaround camera ZSD + PIP issue */
@@ -312,7 +312,7 @@ void mmdvfs_handle_cmd(MTK_MMDVFS_CMD *cmd)
 	return;
 #endif
 
-	MMDVFSMSG("MMDVFS cmd %u %d\n", cmd->type, cmd->scen);
+	/* MMDVFSMSG("MMDVFS cmd %u %d\n", cmd->type, cmd->scen); */
 
 	switch (cmd->type) {
 	case MTK_MMDVFS_CMD_TYPE_MMSYS_SET:
@@ -457,12 +457,12 @@ void mmdvfs_notify_scenario_concurrency(unsigned int u4Concurrency)
 	if (u4Concurrency & ((1 << SMI_BWC_SCEN_VP) | (1 << SMI_BWC_SCEN_VR)
 	| (1 << SMI_BWC_SCEN_VR_SLOW))) {
 #if MMDVFS_ENABLE_FLIPER_CONTROL
-		MMDVFSMSG("fliper high\n");
+		/* MMDVFSMSG("fliper high\n"); */
 		fliper_set_bw(BW_THRESHOLD_HIGH);
 #endif
 	} else {
 #if MMDVFS_ENABLE_FLIPER_CONTROL
-		MMDVFSMSG("fliper normal\n");
+		/* MMDVFSMSG("fliper normal\n"); */
 		fliper_restore_bw();
 #endif
 	}
