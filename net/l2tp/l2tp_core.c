@@ -99,8 +99,6 @@ struct l2tp_skb_cb {
 
 #define L2TP_SKB_CB(skb)	((struct l2tp_skb_cb *) &skb->cb[sizeof(struct inet_skb_parm)])
 
-static atomic_t l2tp_tunnel_count;
-static atomic_t l2tp_session_count;
 static struct workqueue_struct *l2tp_wq;
 
 /* per-net private data for this module */
@@ -1287,7 +1285,6 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
 	list_del_rcu(&tunnel->list);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
-	atomic_dec(&l2tp_tunnel_count);
 
 	l2tp_tunnel_closeall(tunnel);
 	l2tp_tunnel_dec_refcount(tunnel);
@@ -1708,7 +1705,6 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 
 	/* Add tunnel to our list */
 	INIT_LIST_HEAD(&tunnel->list);
-	atomic_inc(&l2tp_tunnel_count);
 
 	/* Bump the reference count. The tunnel context is deleted
 	 * only when this drops to zero. Must be done before list insertion
@@ -1757,8 +1753,6 @@ void l2tp_session_free(struct l2tp_session *session)
 
 	if (tunnel) {
 		BUG_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
-		if (session->session_id != 0)
-			atomic_dec(&l2tp_session_count);
 		sock_put(tunnel->sock);
 		session->tunnel = NULL;
 		l2tp_tunnel_dec_refcount(tunnel);
@@ -1906,10 +1900,6 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 					   l2tp_session_id_hash_2(pn, session_id));
 			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
 		}
-
-		/* Ignore management session in session count value */
-		if (session->session_id != 0)
-			atomic_inc(&l2tp_session_count);
 	}
 
 	return session;
