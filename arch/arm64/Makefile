@@ -23,6 +23,7 @@ KBUILD_DEFCONFIG := defconfig
 cflags-$(CONFIG_ARCH_MT6753)   += -DMEIZU_M81
 KBUILD_CFLAGS  += $(cflags-y)
 KBUILD_CFLAGS	+= -mgeneral-regs-only
+KBUILD_CFLAGS	+= $(call cc-ifversion, -ge, 0500, -DCONFIG_ARCH_SUPPORTS_INT128)
 KBUILD_CFLAGS	+= -fno-pic
 KBUILD_CPPFLAGS	+= -mlittle-endian
 AS		+= -EL
