@@ -1005,7 +1005,7 @@ static int smi_bwc_config(MTK_SMI_BWC_CONFIG *p_conf, unsigned int *pu4LocalCnt)
 
 
 	if ((SMI_BWC_SCEN_CNT <= p_conf->scenario) || (0 > p_conf->scenario)) {
-		SMIERR("Incorrect SMI BWC config : 0x%x, how could this be...\n", p_conf->scenario);
+		SMIMSG("Incorrect SMI BWC config : 0x%x, how could this be...\n", p_conf->scenario);
 		return -1;
 	}
 #if defined(SMI_D1) || defined(SMI_D2) || defined(SMI_D3)
