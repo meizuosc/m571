@@ -748,7 +748,6 @@ config ARCH_MT6735
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select VFP_OPT
 	select MTK_SYSTRACKER
@@ -767,7 +766,6 @@ config ARCH_MT6735M
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select VFP_OPT
 	select MTK_SYSTRACKER
@@ -786,7 +784,6 @@ config ARCH_MT6753
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select VFP_OPT
 	select MTK_SYSTRACKER
@@ -805,7 +802,6 @@ config ARCH_MT6752
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select VFP_OPT
 	select MTK_SYSTRACKER
@@ -852,7 +848,6 @@ config ARCH_MT6795
 	select NEED_MACH_MEMORY_H
 	select FIQ_GLUE
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select ARM_ERRATA_828419
 	select ARM_ERRATA_828420
