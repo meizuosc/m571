@@ -23,7 +23,7 @@ KBUILD_DEFCONFIG := defconfig
 cflags-$(CONFIG_ARCH_MT6753)   += -DMEIZU_M81
 KBUILD_CFLAGS  += $(cflags-y)
 KBUILD_CFLAGS	+= -mgeneral-regs-only
-KBUILD_CFLAGS	+= -fno-pic -mtune=cortex-a53 -march=armv8-a -O2 -ftree-vectorize
+KBUILD_CFLAGS	+= -fno-pic
 KBUILD_CPPFLAGS	+= -mlittle-endian
 AS		+= -EL
 LD		+= -EL
