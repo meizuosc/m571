@@ -18,8 +18,8 @@
 #include "internal.h"
 
 #ifdef CONFIG_DYNAMIC_FSYNC
-extern bool early_suspend_active;
-extern bool dyn_fsync_active;
+extern bool dyn_sync_scr_suspended;
+extern bool dyn_fsync_active __read_mostly;
 #endif
 
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
@@ -94,15 +94,19 @@ static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
 	filemap_fdatawait(bdev->bd_inode->i_mapping);
 }
 
-#ifndef CONFIG_DYNAMIC_FSYNC
-static
-#endif
-void sync_filesystems(int wait)
-{
-	iterate_supers(sync_fs_one_sb, &wait);
-}
 #ifdef CONFIG_DYNAMIC_FSYNC
-EXPORT_SYMBOL_GPL(sync_filesystems);
+void dyn_fsync_suspend_actions(void)
+{
+	int nowait = 0, wait = 1;
+
+	wakeup_flusher_threads(0, WB_REASON_SYNC);
+	iterate_supers(sync_inodes_one_sb, NULL);
+	iterate_supers(sync_fs_one_sb, &nowait);
+	iterate_supers(sync_fs_one_sb, &wait);
+	iterate_bdevs(fdatawrite_one_bdev, NULL);
+	iterate_bdevs(fdatawait_one_bdev, NULL);
+}
+EXPORT_SYMBOL(dyn_fsync_suspend_actions);
 #endif
 
 /*
@@ -195,6 +199,11 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 
+#ifdef CONFIG_DYNAMIC_FSYNC
+	if (likely(dyn_fsync_active && !dyn_sync_scr_suspended))
+		return 0;
+	else {
+#endif
 		if (!file->f_op || !file->f_op->fsync)
 			return -EINVAL;
 		if (!datasync && (inode->i_state & I_DIRTY_TIME)) {
@@ -204,6 +213,9 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 			mark_inode_dirty_sync(inode);
 		}
 		return file->f_op->fsync(file, start, end, datasync);
+#ifdef CONFIG_DYNAMIC_FSYNC
+	}
+#endif
 }
 EXPORT_SYMBOL(vfs_fsync_range);
 
@@ -217,15 +229,7 @@ EXPORT_SYMBOL(vfs_fsync_range);
  */
 int vfs_fsync(struct file *file, int datasync)
 {
-#ifdef CONFIG_DYNAMIC_FSYNC
-	if (likely(dyn_fsync_active && !early_suspend_active))
-		return 0;
-	else {
-#endif
 	return vfs_fsync_range(file, 0, LLONG_MAX, datasync);
-#ifdef CONFIG_DYNAMIC_FSYNC
-	}
-#endif
 }
 EXPORT_SYMBOL(vfs_fsync);
 
@@ -245,20 +249,15 @@ static int do_fsync(unsigned int fd, int datasync)
 SYSCALL_DEFINE1(fsync, unsigned int, fd)
 {
 #ifdef CONFIG_DYNAMIC_FSYNC
-	if (likely(dyn_fsync_active && !early_suspend_active))
+	if (likely(dyn_fsync_active && !dyn_sync_scr_suspended))
 		return 0;
 	else
 #endif
-	return do_fsync(fd, 0);
+		return do_fsync(fd, 0);
 }
 
 SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 {
-#if 0
-	if (likely(dyn_fsync_active && !early_suspend_active))
-		return 0;
-	else
-#endif
 	return do_fsync(fd, 1);
 }
 
@@ -330,89 +329,88 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
 				unsigned int, flags)
 {
 #ifdef CONFIG_DYNAMIC_FSYNC
-if (likely(dyn_fsync_active && !early_suspend_active))
-return 0;
-else {
+	if (likely(dyn_fsync_active && !dyn_sync_scr_suspended))
+		return 0;
+	else {
 #endif
+		int ret;
+		struct fd f;
+		struct address_space *mapping;
+		loff_t endbyte;			/* inclusive */
+		umode_t i_mode;
 
-	int ret;
-	struct fd f;
-	struct address_space *mapping;
-	loff_t endbyte;			/* inclusive */
-	umode_t i_mode;
-
-	ret = -EINVAL;
-	if (flags & ~VALID_FLAGS)
-		goto out;
-
-	endbyte = offset + nbytes;
-
-	if ((s64)offset < 0)
-		goto out;
-	if ((s64)endbyte < 0)
-		goto out;
-	if (endbyte < offset)
-		goto out;
-
-	if (sizeof(pgoff_t) == 4) {
-		if (offset >= (0x100000000ULL << PAGE_CACHE_SHIFT)) {
-			/*
-			 * The range starts outside a 32 bit machine's
-			 * pagecache addressing capabilities.  Let it "succeed"
-			 */
-			ret = 0;
-			goto out;
-		}
-		if (endbyte >= (0x100000000ULL << PAGE_CACHE_SHIFT)) {
-			/*
-			 * Out to EOF
-			 */
-			nbytes = 0;
-		}
-	}
-
-	if (nbytes == 0)
-		endbyte = LLONG_MAX;
-	else
-		endbyte--;		/* inclusive */
-
-	ret = -EBADF;
-	f = fdget(fd);
-	if (!f.file)
-		goto out;
-
-	i_mode = file_inode(f.file)->i_mode;
-	ret = -ESPIPE;
-	if (!S_ISREG(i_mode) && !S_ISBLK(i_mode) && !S_ISDIR(i_mode) &&
-			!S_ISLNK(i_mode))
-		goto out_put;
-
-	mapping = f.file->f_mapping;
-	if (!mapping) {
 		ret = -EINVAL;
-		goto out_put;
-	}
+		if (flags & ~VALID_FLAGS)
+			goto out;
 
-	ret = 0;
-	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
-		ret = filemap_fdatawait_range(mapping, offset, endbyte);
-		if (ret < 0)
+		endbyte = offset + nbytes;
+
+		if ((s64)offset < 0)
+			goto out;
+		if ((s64)endbyte < 0)
+			goto out;
+		if (endbyte < offset)
+			goto out;
+
+		if (sizeof(pgoff_t) == 4) {
+			if (offset >= (0x100000000ULL << PAGE_CACHE_SHIFT)) {
+				/*
+				 * The range starts outside a 32 bit machine's
+				 * pagecache addressing capabilities.  Let it "succeed"
+				 */
+				ret = 0;
+				goto out;
+			}
+			if (endbyte >= (0x100000000ULL << PAGE_CACHE_SHIFT)) {
+				/*
+				 * Out to EOF
+				 */
+				nbytes = 0;
+			}
+		}
+
+		if (nbytes == 0)
+			endbyte = LLONG_MAX;
+		else
+			endbyte--;		/* inclusive */
+
+		ret = -EBADF;
+		f = fdget(fd);
+		if (!f.file)
+			goto out;
+
+		i_mode = file_inode(f.file)->i_mode;
+		ret = -ESPIPE;
+		if (!S_ISREG(i_mode) && !S_ISBLK(i_mode) && !S_ISDIR(i_mode) &&
+				!S_ISLNK(i_mode))
 			goto out_put;
-	}
 
-	if (flags & SYNC_FILE_RANGE_WRITE) {
-		ret = filemap_fdatawrite_range(mapping, offset, endbyte);
-		if (ret < 0)
+		mapping = f.file->f_mapping;
+		if (!mapping) {
+			ret = -EINVAL;
 			goto out_put;
-	}
+		}
 
-	if (flags & SYNC_FILE_RANGE_WAIT_AFTER)
-		ret = filemap_fdatawait_range(mapping, offset, endbyte);
+		ret = 0;
+		if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
+			ret = filemap_fdatawait_range(mapping, offset, endbyte);
+			if (ret < 0)
+				goto out_put;
+		}
 
-out_put:
-	fdput(f);
-out:
-	return ret;
+		if (flags & SYNC_FILE_RANGE_WRITE) {
+			ret = filemap_fdatawrite_range(mapping, offset, endbyte);
+			if (ret < 0)
+				goto out_put;
+		}
+
+		if (flags & SYNC_FILE_RANGE_WAIT_AFTER)
+			ret = filemap_fdatawait_range(mapping, offset, endbyte);
+
+	out_put:
+		fdput(f);
+	out:
+		return ret;
 #ifdef CONFIG_DYNAMIC_FSYNC
 	}
 #endif
@@ -424,9 +422,9 @@ SYSCALL_DEFINE4(sync_file_range2, int, fd, unsigned int, flags,
 				 loff_t, offset, loff_t, nbytes)
 {
 #ifdef CONFIG_DYNAMIC_FSYNC
-	if (likely(dyn_fsync_active && !early_suspend_active))
+	if (likely(dyn_fsync_active && !dyn_sync_scr_suspended))
 		return 0;
 	else
 #endif
-	return sys_sync_file_range(fd, offset, nbytes, flags);
+		return sys_sync_file_range(fd, offset, nbytes, flags);
 }
