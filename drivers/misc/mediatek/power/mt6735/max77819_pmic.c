@@ -22,7 +22,6 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/kobject.h>
-#include <linux/earlysuspend.h>
 #include <linux/platform_device.h>
 #include <asm/atomic.h>
 
@@ -67,6 +66,8 @@ kal_bool chargin_hw_init_done = KAL_FALSE;
 /*----------------------------------------------------------------------------*/
 static int max77819_pmic_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id);
 static int max77819_pmic_i2c_remove(struct i2c_client *client);
+static int max77819_pmic_suspend(struct i2c_client *client, pm_message_t msg);
+static int max77819_pmic_resume(struct i2c_client *client);
 
 /*----------------------------------------------------------------------------*/
 
@@ -87,10 +88,6 @@ struct max77819_pmic_i2c_data {
     atomic_t                trace;
     atomic_t                suspend;
     /*data*/
-    /*early suspend*/
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-    struct early_suspend    early_drv;
-#endif
 };
 /*----------------------------------------------------------------------------*/
 static struct i2c_driver max77819_pmic_i2c_driver = {
@@ -98,12 +95,10 @@ static struct i2c_driver max77819_pmic_i2c_driver = {
 	.name           = MAX77819_PMIC_DEV_NAME,
     },
 	.probe		= max77819_pmic_i2c_probe,
-	.remove			= max77819_pmic_i2c_remove,
-#if !defined(CONFIG_HAS_EARLYSUSPEND)
-    .suspend            = max77819_pmic_suspend,
-    .resume             = max77819_pmic_resume,
-#endif
-	.id_table = max77819_pmic_i2c_id,
+	.remove		= max77819_pmic_i2c_remove,
+	.suspend	= max77819_pmic_suspend,
+	.resume		= max77819_pmic_resume,
+	.id_table	= max77819_pmic_i2c_id,
 };
 
 /*----------------------------------------------------------------------------*/
@@ -142,15 +137,13 @@ static int max77819_pmic_release(struct inode *inode, struct file *file)
 }
 
 /*----------------------------------------------------------------------------*/
-#ifndef CONFIG_HAS_EARLYSUSPEND
-/*----------------------------------------------------------------------------*/
 static int max77819_pmic_suspend(struct i2c_client *client, pm_message_t msg)
 {
 	struct max77819_pmic_i2c_data *obj = i2c_get_clientdata(client);
 	int err = 0;
 	kal_uint8  dat = 0;
 
-	GSE_FUN();
+	BLS_FUN();
 
 	return err;
 }
@@ -160,7 +153,7 @@ static int max77819_pmic_resume(struct i2c_client *client)
 	struct max77819_pmic_i2c_data *obj = i2c_get_clientdata(client);
 	int err;
 
-	GSE_FUN();
+	BLS_FUN();
 
 	if (obj == NULL) {
 		BLS_ERR("null pointer!!\n");
@@ -169,31 +162,6 @@ static int max77819_pmic_resume(struct i2c_client *client)
 
 	return 0;
 }
-/*----------------------------------------------------------------------------*/
-#else /*CONFIG_HAS_EARLY_SUSPEND is defined*/
-/*----------------------------------------------------------------------------*/
-static void max77819_pmic_early_suspend(struct early_suspend *h)
-{
-	struct max77819_pmic_i2c_data *obj = container_of(h, struct max77819_pmic_i2c_data, early_drv);
-//	int err;
-	BLS_FUN();
-
-	if (obj == NULL) {
-		BLS_ERR("null pointer!!\n");
-		return;
-	}
-
-}
-/*----------------------------------------------------------------------------*/
-static void max77819_pmic_late_resume(struct early_suspend *h)
-{
-	struct max77819_pmic_i2c_data *obj = container_of(h, struct max77819_pmic_i2c_data, early_drv);
-	int err;
-
-	BLS_FUN();
-}
-/*----------------------------------------------------------------------------*/
-#endif /*CONFIG_HAS_EARLYSUSPEND*/
 
 static DEFINE_MUTEX(max77819_pmic_i2c_access);
 /**********************************************************
