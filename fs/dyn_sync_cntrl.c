@@ -32,7 +32,7 @@ struct notifier_block dyn_fsync_fb_notif;
  * transitions
  */
 static DEFINE_MUTEX(fsync_mutex);
-bool dyn_sync_scr_suspended = false;
+bool dyn_sync_scr_suspended;
 bool dyn_fsync_active __read_mostly = true;
 
 extern void dyn_fsync_suspend_actions(void);
@@ -48,19 +48,17 @@ static ssize_t dyn_fsync_active_store(struct kobject *kobj,
 {
 	unsigned int data;
 
-	if(sscanf(buf, "%u\n", &data) == 1) {
+	if (sscanf(buf, "%u\n", &data) == 1) {
 		if (data == 1) {
-			pr_info("%s: dynamic fsync enabled\n", __FUNCTION__);
+			pr_info("%s: dynamic fsync enabled\n", __func__);
 			dyn_fsync_active = true;
-		}
-		else if (data == 0) {
-			pr_info("%s: dyanamic fsync disabled\n", __FUNCTION__);
+		} else if (data == 0) {
+			pr_info("%s: dyanamic fsync disabled\n", __func__);
 			dyn_fsync_active = false;
-		}
-		else
-			pr_info("%s: bad value: %u\n", __FUNCTION__, data);
+		} else
+			pr_info("%s: bad value: %u\n", __func__, data);
 	} else
-		pr_info("%s: unknown input!\n", __FUNCTION__);
+		pr_info("%s: unknown input!\n", __func__);
 
 	return count;
 }
@@ -81,15 +79,15 @@ static struct kobj_attribute dyn_fsync_active_attribute =
 static struct kobj_attribute dyn_fsync_version_attribute =
 	__ATTR(Dyn_fsync_version, 0444, dyn_fsync_version_show, NULL);
 
-static struct attribute *dyn_fsync_active_attrs[] =
-	{
+static struct attribute *dyn_fsync_active_attrs[] = {
+
 		&dyn_fsync_active_attribute.attr,
 		&dyn_fsync_version_attribute.attr,
 		NULL,
 	};
 
-static struct attribute_group dyn_fsync_active_attr_group =
-	{
+static struct attribute_group dyn_fsync_active_attr_group = {
+
 		.attrs = dyn_fsync_active_attrs,
 	};
 
@@ -103,7 +101,7 @@ static void dyn_fsync_suspend(void)
 		dyn_fsync_suspend_actions();
 	mutex_unlock(&fsync_mutex);
 
-	pr_info("%s: flushing work finished.\n", __FUNCTION__);
+	pr_info("%s: flushing work finished.\n", __func__);
 }
 
 static int dyn_fsync_fb_notifier_callback(struct notifier_block *self,
@@ -140,20 +138,20 @@ static int __init dyn_fsync_init(void)
 
 	ret = fb_register_client(&dyn_fsync_fb_notif);
 	if (ret) {
-		pr_info("%s fb register failed!\n", __FUNCTION__);
+		pr_info("%s fb register failed!\n", __func__);
 		return ret;
 	}
 
 	dyn_fsync_kobj = kobject_create_and_add("dyn_fsync", kernel_kobj);
 	if (!dyn_fsync_kobj) {
-		pr_err("%s dyn_fsync kobject create failed!\n", __FUNCTION__);
+		pr_err("%s dyn_fsync kobject create failed!\n", __func__);
 		return -ENOMEM;
-        }
+	}
 
 	ret = sysfs_create_group(dyn_fsync_kobj,
 			&dyn_fsync_active_attr_group);
 	if (ret) {
-		pr_info("%s dyn_fsync sysfs create failed!\n", __FUNCTION__);
+		pr_info("%s dyn_fsync sysfs create failed!\n", __func__);
 		kobject_put(dyn_fsync_kobj);
 	}
 
