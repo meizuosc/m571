@@ -132,6 +132,7 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 			break;
 		case Opt_default_normal:
 			opts->default_normal = true;
+			break;
 		case Opt_nocache:
 			opts->nocache = true;
 			break;
