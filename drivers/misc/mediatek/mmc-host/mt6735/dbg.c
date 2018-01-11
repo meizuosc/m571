@@ -2126,6 +2126,8 @@ static ssize_t msdc_debug_proc_write(struct file *file, const char *buf, size_t 
 
 		if (id >= HOST_MAX_NUM || id < 0)
 			pr_err("[****SD_Debug****]msdc host_id error when modify msdc reg\n");
+		else if (offset > 0xFFFF || offset < 0)
+			pr_err("[****SD_Debug****]msdc address offset error when modify msdc reg\n");
 		else {
 #if defined(CFG_DEV_MSDC0)
 			if (id == 0)
