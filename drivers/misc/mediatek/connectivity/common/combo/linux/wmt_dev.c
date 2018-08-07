@@ -1198,10 +1198,11 @@ long WMT_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				iRet = -EFAULT;
 				break;
 			}
-			if (wMtPatchInfo.dowloadSeq > pAtchNum) {
-				 WMT_ERR_FUNC("dowloadSeq would overflow\n");
-				 iRet = -EFAULT;
-				 break;
+			if (wMtPatchInfo.dowloadSeq > pAtchNum || wMtPatchInfo.dowloadSeq == 0) {
+				WMT_ERR_FUNC("dowloadSeq num(%u) > %u or == 0!\n", wMtPatchInfo.dowloadSeq, pAtchNum);
+				iRet = -EFAULT;
+				counter = 0;
+				break;
 			}
 			dWloadSeq = wMtPatchInfo.dowloadSeq;
 
