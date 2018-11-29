@@ -28,7 +28,7 @@
 struct meizu_sensors_table {
 	struct device *dev;
 	struct meizu_sensors_ops *ops;
-	const char *name;
+	char *name;
 	struct device_attribute *attr;
 	int attr_cnt;
 } meizu_sensors_table[MEIZU_SENSOR_ID_MAX];
