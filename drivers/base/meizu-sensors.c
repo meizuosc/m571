@@ -13,7 +13,7 @@
 #include <linux/meizu-sys.h>
 #include <linux/meizu-sensors.h>
 
-#define MZ_SENSORS_DEBUG 1
+//#define MZ_SENSORS_DEBUG 1
 #ifdef MZ_SENSORS_DEBUG
 #define LOG_TAG_MZ_SENSORS "[mz_sensors]"
 #define pr_info(format, arg...)         printk(KERN_EMERG LOG_TAG_MZ_SENSORS format , ## arg)
