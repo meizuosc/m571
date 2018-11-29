@@ -1,7 +1,6 @@
 #
 # Makefile for building the SELinux module as part of the kernel tree.
 #
-CFLAGS_KERNEL := -fno-unsafe-math-optimizations -fno-strict-aliasing
 
 obj-$(CONFIG_SECURITY_SELINUX) := selinux.o
 

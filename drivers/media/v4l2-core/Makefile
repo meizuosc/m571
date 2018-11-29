@@ -1,7 +1,6 @@
 #
 # Makefile for the V4L2 core
 #
-CFLAGS_KERNEL := -fno-unsafe-math-optimizations -fno-strict-aliasing
 
 tuner-objs	:=	tuner-core.o
 

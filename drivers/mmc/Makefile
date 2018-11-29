@@ -1,7 +1,6 @@
 #
 # Makefile for the kernel mmc device drivers.
 #
-CFLAGS_KERNEL := -fno-unsafe-math-optimizations -fno-strict-aliasing
 
 subdir-ccflags-$(CONFIG_MMC_DEBUG) := -DDEBUG
 

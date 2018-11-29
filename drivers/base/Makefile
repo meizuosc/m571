@@ -1,5 +1,4 @@
 # Makefile for the Linux device tree
-CFLAGS_KERNEL := -fno-unsafe-math-optimizations -fno-strict-aliasing
 
 obj-y			:= core.o bus.o dd.o syscore.o \
 			   driver.o class.o platform.o \
