@@ -62,8 +62,8 @@
 #define dev_notice(dev, format, arg...) printk(KERN_EMERG LOG_TAG_LTR559 format , ## arg)
 #endif
 
-#define LTR559_DEBUG_PUSH_TIME 0
-#if LTR559_DEBUG_PUSH_TIME
+//#define LTR559_DEBUG_PUSH_TIME 0
+#ifdef LTR559_DEBUG_PUSH_TIME
 static struct timespec ltr559_time_before, ltr559_time_after;
 static int ltr559_push_time_debug;
 #endif
