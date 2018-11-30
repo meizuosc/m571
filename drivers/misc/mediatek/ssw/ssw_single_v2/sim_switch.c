@@ -178,11 +178,11 @@ static int set_sim_gpio(unsigned int mode)
             return SSW_INVALID_PARA;
     }
 #if (defined(GPIO_SIM1_HOT_PLUG) && defined(GPIO_SIM2_HOT_PLUG))
-    SSW_DBG("mode(%d),SIM1(eint=%d, sclk=%d, srst=%d , sio=%d) SIM2(eint=%d,sclk=%d, srst=%d , sio=%d)\n", mode,\        
+    SSW_DBG("mode(%d),SIM1(eint=%d, sclk=%d, srst=%d , sio=%d) SIM2(eint=%d,sclk=%d, srst=%d , sio=%d)\n", mode,\
         mt_get_gpio_mode(GPIO_SIM1_HOT_PLUG),mt_get_gpio_mode(GPIO_SIM1_SCLK),mt_get_gpio_mode(GPIO_SIM1_SRST),mt_get_gpio_mode(GPIO_SIM1_SIO), \
         mt_get_gpio_mode(GPIO_SIM2_HOT_PLUG),mt_get_gpio_mode(GPIO_SIM2_SCLK),mt_get_gpio_mode(GPIO_SIM2_SRST),mt_get_gpio_mode(GPIO_SIM2_SIO));
 #else
-    SSW_DBG("mode(%d),SIM1(sclk=%d, srst=%d , sio=%d) SIM2(sclk=%d, srst=%d , sio=%d)\n", mode,\        
+    SSW_DBG("mode(%d),SIM1(sclk=%d, srst=%d , sio=%d) SIM2(sclk=%d, srst=%d , sio=%d)\n", mode,\
         mt_get_gpio_mode(GPIO_SIM1_SCLK),mt_get_gpio_mode(GPIO_SIM1_SRST),mt_get_gpio_mode(GPIO_SIM1_SIO), \
         mt_get_gpio_mode(GPIO_SIM2_SCLK),mt_get_gpio_mode(GPIO_SIM2_SRST),mt_get_gpio_mode(GPIO_SIM2_SIO));
 
