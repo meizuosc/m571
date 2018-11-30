@@ -524,7 +524,7 @@ int emmc_rpmb_req_write_data(struct mmc_card *card, struct rpmb_ioc_param *param
 
     left_blkcnt = total_blkcnt = ((param->data_len % RPMB_SZ_DATA) ? (param->data_len / RPMB_SZ_DATA + 1) : (param->data_len / RPMB_SZ_DATA));
 
-#if RPMB_MULTI_BLOCK_ACCESS
+#ifdef RPMB_MULTI_BLOCK_ACCESS
     
     /*
      * For RPMB write data, the elements we need in the data frame is
@@ -756,7 +756,7 @@ int emmc_rpmb_req_read_data(struct mmc_card *card, struct rpmb_ioc_param *param)
 
     left_blkcnt = total_blkcnt = ((param->data_len % RPMB_SZ_DATA) ? (param->data_len / RPMB_SZ_DATA + 1) : (param->data_len / RPMB_SZ_DATA));
 
-#if RPMB_MULTI_BLOCK_ACCESS
+#ifdef RPMB_MULTI_BLOCK_ACCESS
 
     blkaddr = param->addr;
 
