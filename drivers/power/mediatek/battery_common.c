@@ -294,10 +294,6 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CAPACITY,
-    POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	#ifdef MEIZU_M81
-            POWER_SUPPLY_PROP_CURRENT_NOW,
-	#endif
 	/* Add for Battery Service */
 	POWER_SUPPLY_PROP_batt_vol,
 	POWER_SUPPLY_PROP_batt_temp,
@@ -315,6 +311,10 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_present_smb,
 	/* ADB CMD Discharging */
 	POWER_SUPPLY_PROP_adjust_power,
+#ifdef MEIZU_M81
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+#endif
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
 
@@ -643,19 +643,6 @@ static int battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = data->BAT_CAPACITY;
 		break;
-    case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-        val->intval = data->BAT_batt_vol * 1000; /* uV */
-        break;
-#ifdef MEIZU_M81
-        case POWER_SUPPLY_PROP_CURRENT_NOW:
-	    is_charging = battery_meter_get_battery_current_sign();
-	    current_now = battery_meter_get_battery_current_now();
-	    if (is_charging == KAL_TRUE)
-	        val->intval = current_now;
-	    else
-	        val->intval = -current_now;
-	    break;
-#endif
 	case POWER_SUPPLY_PROP_batt_vol:
 		val->intval = data->BAT_batt_vol;
 		break;
@@ -695,6 +682,19 @@ static int battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_adjust_power :
 		val->intval = data->adjust_power;
+		break;
+#ifdef MEIZU_M81
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		    is_charging = battery_meter_get_battery_current_sign();
+		    current_now = battery_meter_get_battery_current_now();
+			if (is_charging == KAL_TRUE)
+				val->intval = current_now;
+			else
+				val->intval = -current_now;
+		break;
+#endif
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = data->BAT_batt_vol * 1000; /* uV */
 		break;
 
 	default:
@@ -2185,7 +2185,8 @@ PMU_STATUS do_batt_temp_state_machine(void)
 	if (BMT_status.temperature < MIN_CHARGE_TEMPERATURE)
 	#endif
 	{
-		battery_xlog_printk(BAT_LOG_CRTI, "[BATTERY] Battery Under Temperature or NTC fail !!\n\r");
+		battery_log(BAT_LOG_CRTI,
+				    "[BATTERY] Battery Under Temperature or NTC fail !!\n\r");
 		g_batt_temp_status = TEMP_POS_LOW;
 		return PMU_STATUS_FAIL;
 	} else if (g_batt_temp_status == TEMP_POS_LOW) {
@@ -3012,7 +3013,7 @@ static void mt_battery_charger_detect_check(void)
 		    (DISO_data.diso_state.cur_vusb_state == DISO_ONLINE)) {
 		#endif
 			#ifdef MEIZU_M81
-			msleep(300) ;
+			msleep(300);
 			#endif
 			mt_charger_type_detection();
 
