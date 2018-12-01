@@ -96,37 +96,6 @@ config CPUTIME_STATS
 	tristate "cputime profiling module for functions"
 	select CPUTIME_SUPPORT
 	default n
-	
-config MTK_RAM_CONSOLE
-	bool "mt ram console" 
-
-config MTK_RAM_CONSOLE_USING_SRAM
-	bool "Using SRAM as ram console storage"
-	depends on MTK_RAM_CONSOLE
-
-config MTK_RAM_CONSOLE_USING_DRAM
-	bool "Using DRAM as ram console storage"
-	depends on MTK_RAM_CONSOLE
-
-config MTK_RAM_CONSOLE_SIZE
-	hex "MTK RAM console  address"
-	default 0
-	depends on MTK_RAM_CONSOLE
-
-config MTK_RAM_CONSOLE_ADDR
-	hex "MTK RAM console buffer size"
-	default 0
-	depends on MTK_RAM_CONSOLE   
-
-config MTK_RAM_CONSOLE_DRAM_SIZE
-	hex "MTK RAM console dram address"
-	default 0
-	depends on MTK_RAM_CONSOLE
-
-config MTK_RAM_CONSOLE_DRAM_ADDR
-	hex "MTK RAM console dram size"
-	default 0
-	depends on MTK_RAM_CONSOLE   
 
 config PREEMPT_MONITOR
 	bool "mt preempt monitor"
