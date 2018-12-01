@@ -694,7 +694,7 @@ static int battery_get_property(struct power_supply *psy,
 		break;
 #endif
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = data->BAT_batt_vol * 1000; /* uV */
+		val->intval = data->BAT_batt_vol; // * 1000 /* uV */
 		break;
 
 	default:
