@@ -161,8 +161,8 @@ obj-$(CONFIG_ZRAM)	+= mlog/
 
 #obj-y	+= cam_cal/src/$(MTK_PLATFORM)/dummy_eeprom/
 
-obj-$(CONFIG_MTK_CAM_CAL_S5K3L2XXOTP_SUPPORT) += cam_cal/src/$(MTK_PLATFORM)/s5k3l2xxotp/
-obj-$(CONFIG_MTK_CAM_CAL_OV5670OTP_SUPPORT) += cam_cal/src/$(MTK_PLATFORM)/ov5670otp/
+obj-$(CONFIG_MTK_CAM_CAL_S5K3L2XXOTP_SUPPORT) += cam_cal/src/mt6735/s5k3l2xxotp/
+obj-$(CONFIG_MTK_CAM_CAL_OV5670OTP_SUPPORT) += cam_cal/src/mt6735/ov5670otp/
 obj-y	+= lens/
 obj-y	+= imgsensor/src/
 
