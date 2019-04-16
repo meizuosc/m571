@@ -32,8 +32,6 @@ enum oom_scan_t {
 /* Thread is the potential origin of an oom condition; kill first on oom */
 #define OOM_FLAG_ORIGIN		((__force oom_flags_t)0x1)
 
-extern struct mutex oom_lock;
-
 static inline void set_current_oom_origin(void)
 {
 	current->signal->oom_flags |= OOM_FLAG_ORIGIN;
@@ -49,7 +47,9 @@ static inline bool oom_task_origin(const struct task_struct *p)
 	return !!(p->signal->oom_flags & OOM_FLAG_ORIGIN);
 }
 
-extern void mark_oom_victim(struct task_struct *tsk);
+extern void mark_tsk_oom_victim(struct task_struct *tsk);
+
+extern void unmark_oom_victim(void);
 
 extern unsigned long oom_badness(struct task_struct *p,
 		struct mem_cgroup *memcg, const nodemask_t *nodemask,
@@ -62,6 +62,9 @@ extern void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			     struct mem_cgroup *memcg, nodemask_t *nodemask,
 			     const char *message);
 
+extern bool oom_zonelist_trylock(struct zonelist *zonelist, gfp_t gfp_flags);
+extern void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_flags);
+
 extern void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
 			       int order, const nodemask_t *nodemask);
 
@@ -69,17 +72,22 @@ extern enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 		unsigned long totalpages, const nodemask_t *nodemask,
 		bool force_kill);
 
-extern bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		int order, nodemask_t *mask, bool force_kill);
-
-extern void exit_oom_victim(void);
-
 extern int register_oom_notifier(struct notifier_block *nb);
 extern int unregister_oom_notifier(struct notifier_block *nb);
 
 extern bool oom_killer_disabled;
-extern bool oom_killer_disable(void);
-extern void oom_killer_enable(void);
+
+static inline void oom_killer_disable(void)
+{
+	oom_killer_disabled = true;
+}
+
+static inline void oom_killer_enable(void)
+{
+	oom_killer_disabled = false;
+}
 
 extern struct task_struct *find_lock_task_mm(struct task_struct *p);
 

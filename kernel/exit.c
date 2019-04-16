@@ -458,10 +458,8 @@ static void exit_mm(struct task_struct *tsk)
 	enter_lazy_tlb(mm, current);
 	task_unlock(tsk);
 	mm_update_next_owner(mm);
-
 	mmput(mm);
-	if (test_thread_flag(TIF_MEMDIE))
-		exit_oom_victim();
+	unmark_oom_victim();
 }
 
 static struct task_struct *find_alive_thread(struct task_struct *p)

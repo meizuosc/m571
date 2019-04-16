@@ -42,8 +42,7 @@
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
 int sysctl_oom_dump_tasks = 1;
-
-DEFINE_MUTEX(oom_lock);
+static DEFINE_SPINLOCK(zone_scan_lock);
 
 static unsigned long last_victim;
 
@@ -300,6 +299,9 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 	if (oom_task_origin(task))
 		return OOM_SCAN_SELECT;
 
+	if (task_will_free_mem(task) && !force_kill)
+		return OOM_SCAN_ABORT;
+
 	return OOM_SCAN_OK;
 }
 
@@ -399,11 +401,13 @@ void dump_tasks(const struct mem_cgroup *memcg, const nodemask_t *nodemask)
 static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 			struct mem_cgroup *memcg, const nodemask_t *nodemask)
 {
+	task_lock(current);
 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
 		"oom_score_adj=%hd\n",
 		current->comm, gfp_mask, order,
 		current->signal->oom_score_adj);
-	cpuset_print_current_mems_allowed();
+	cpuset_print_task_mems_allowed(current);
+	task_unlock(current);
 	dump_stack();
 	if (memcg)
 		mem_cgroup_print_oom_info(memcg, p);
@@ -414,26 +418,30 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 }
 
 /*
- * Number of OOM victims in flight
+ * Number of OOM killer invocations (including memcg OOM killer).
+ * Primarily used by PM freezer to check for potential races with
+ * OOM killed frozen task.
  */
-static atomic_t oom_victims = ATOMIC_INIT(0);
-static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);
+static atomic_t oom_kills = ATOMIC_INIT(0);
 
-bool oom_killer_disabled __read_mostly;
+int oom_kills_count(void)
+{
+	return atomic_read(&oom_kills);
+}
+
+void note_oom_kill(void)
+{
+	atomic_inc(&oom_kills);
+}
 
 /**
- * mark_oom_victim - mark the given task as OOM victim
+ * mark_tsk_oom_victim - marks the given taks as OOM victim.
  * @tsk: task to mark
- *
- * Has to be called with oom_lock held and never after
- * oom has been disabled already.
  */
-void mark_oom_victim(struct task_struct *tsk)
+void mark_tsk_oom_victim(struct task_struct *tsk)
 {
-	WARN_ON(oom_killer_disabled);
-	/* OOM killer might race with memcg OOM */
-	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
-		return;
+	set_tsk_thread_flag(tsk, TIF_MEMDIE);
+
 	/*
 	 * Make sure that the task is woken up from uninterruptible sleep
 	 * if it is frozen because OOM killer wouldn't be able to free
@@ -441,73 +449,14 @@ void mark_oom_victim(struct task_struct *tsk)
 	 * that TIF_MEMDIE tasks should be ignored.
 	 */
 	__thaw_task(tsk);
-	atomic_inc(&oom_victims);
 }
 
 /**
- * exit_oom_victim - note the exit of an OOM victim
+ * unmark_oom_victim - unmarks the current task as OOM victim.
  */
-void exit_oom_victim(void)
+void unmark_oom_victim(void)
 {
 	clear_thread_flag(TIF_MEMDIE);
-
-	if (!atomic_dec_return(&oom_victims))
-		wake_up_all(&oom_victims_wait);
-}
-
-/**
- * oom_killer_disable - disable OOM killer
- *
- * Forces all page allocations to fail rather than trigger OOM killer.
- * Will block and wait until all OOM victims are killed.
- *
- * The function cannot be called when there are runnable user tasks because
- * the userspace would see unexpected allocation failures as a result. Any
- * new usage of this function should be consulted with MM people.
- *
- * Returns true if successful and false if the OOM killer cannot be
- * disabled.
- */
-bool oom_killer_disable(void)
-{
-	/*
-	 * Make sure to not race with an ongoing OOM killer. Check that the
-	 * current is not killed (possibly due to sharing the victim's memory).
-	 */
-	if (mutex_lock_killable(&oom_lock))
-		return false;
-	oom_killer_disabled = true;
-	mutex_unlock(&oom_lock);
-
-	wait_event(oom_victims_wait, !atomic_read(&oom_victims));
-
-	return true;
-}
-
-/**
- * oom_killer_enable - enable OOM killer
- */
-void oom_killer_enable(void)
-{
-	oom_killer_disabled = false;
-}
-
-/*
- * task->mm can be NULL if the task is the exited group leader.  So to
- * determine whether the task is using a particular mm, we examine all the
- * task's threads: if one of those is using this mm then this task was also
- * using it.
- */
-static bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
-{
-	struct task_struct *t;
-
-	for_each_thread(p, t) {
-		struct mm_struct *t_mm = READ_ONCE(t->mm);
-		if (t_mm)
-			return t_mm == mm;
-	}
-	return false;
 }
 
 #define K(x) ((x) << (PAGE_SHIFT-10))
@@ -534,7 +483,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	 */
 	task_lock(p);
 	if (p->mm && task_will_free_mem(p)) {
-		mark_oom_victim(p);
+		mark_tsk_oom_victim(p);
 		task_unlock(p);
 		last_victim = jiffies;
 		put_task_struct(p);
@@ -545,8 +494,10 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	if (__ratelimit(&oom_rs))
 		dump_header(p, gfp_mask, order, memcg, nodemask);
 
-	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+	task_lock(p);
+	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
 		message, task_pid_nr(p), p->comm, points);
+	task_unlock(p);
 
 	/*
 	 * If any of p's children has a different mm and is eligible for kill,
@@ -555,17 +506,9 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	 * still freeing memory.
 	 */
 	read_lock(&tasklist_lock);
-
-	/*
-	 * The task 'p' might have already exited before reaching here. The
-	 * put_task_struct() will free task_struct 'p' while the loop still try
-	 * to access the field of 'p', so, get an extra reference.
-	 */
-	get_task_struct(p);
 	for_each_thread(p, t) {
 		list_for_each_entry(child, &t->children, sibling) {
 			unsigned int child_points;
-			enum oom_scan_t scan_result;
 
             /*LCH add for race condition*/
             if (task_will_free_mem(p)) {
@@ -578,16 +521,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		        return;
             }
 
-			if (process_shares_mm(child, p->mm))
+			if (child->mm == p->mm)
 				continue;
-
-			/* Make sure no objections to killing the child */
-			scan_result = oom_scan_process_thread(child, totalpages,
-				nodemask, false);
-			if (scan_result == OOM_SCAN_CONTINUE ||
-			    scan_result == OOM_SCAN_ABORT)
-				continue;
-
 			/*
 			 * oom_badness() returns 0 if the thread is unkillable
 			 */
@@ -601,7 +536,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			}
 		}
 	}
-	put_task_struct(p);
 	read_unlock(&tasklist_lock);
 
 	p = find_lock_task_mm(victim);
@@ -616,13 +550,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 
 	/* mm cannot safely be dereferenced after task_unlock(victim) */
 	mm = victim->mm;
-	/*
-	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
-	 * the OOM victim from depleting the memory reserves from the user
-	 * space under its control.
-	 */
-	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
-	mark_oom_victim(victim);
+	mark_tsk_oom_victim(victim);
 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
@@ -639,22 +567,22 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	 * pending fatal signal.
 	 */
 	rcu_read_lock();
-	for_each_process(p) {
-		if (!process_shares_mm(p, mm))
-			continue;
-		if (same_thread_group(p, victim))
-			continue;
-		if (unlikely(p->flags & PF_KTHREAD))
-			continue;
-		if (is_global_init(p))
-			continue;
-		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-			continue;
-		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
-	}
+	for_each_process(p)
+		if (p->mm == mm && !same_thread_group(p, victim) &&
+		    !(p->flags & PF_KTHREAD)) {
+			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+				continue;
+
+			task_lock(p);	/* Protect ->comm from prctl() */
+			pr_err("Kill process %d (%s) sharing same memory\n",
+				task_pid_nr(p), p->comm);
+			task_unlock(p);
+			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+		}
 	rcu_read_unlock();
 
 	last_victim = jiffies;
+	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
 	put_task_struct(victim);
 }
 #undef K
@@ -695,8 +623,54 @@ int unregister_oom_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(unregister_oom_notifier);
 
+/*
+ * Try to acquire the OOM killer lock for the zones in zonelist.  Returns zero
+ * if a parallel OOM killing is already taking place that includes a zone in
+ * the zonelist.  Otherwise, locks all zones in the zonelist and returns 1.
+ */
+bool oom_zonelist_trylock(struct zonelist *zonelist, gfp_t gfp_mask)
+{
+	struct zoneref *z;
+	struct zone *zone;
+	bool ret = true;
+
+	spin_lock(&zone_scan_lock);
+	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask))
+		if (zone_is_oom_locked(zone)) {
+			ret = false;
+			goto out;
+		}
+
+	/*
+	 * Lock each zone in the zonelist under zone_scan_lock so a parallel
+	 * call to oom_zonelist_trylock() doesn't succeed when it shouldn't.
+	 */
+	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask))
+		zone_set_flag(zone, ZONE_OOM_LOCKED);
+
+out:
+	spin_unlock(&zone_scan_lock);
+	return ret;
+}
+
+/*
+ * Clears the ZONE_OOM_LOCKED flag for all zones in the zonelist so that failed
+ * allocation attempts with zonelists containing them may now recall the OOM
+ * killer, if necessary.
+ */
+void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_mask)
+{
+	struct zoneref *z;
+	struct zone *zone;
+
+	spin_lock(&zone_scan_lock);
+	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask))
+		zone_clear_flag(zone, ZONE_OOM_LOCKED);
+	spin_unlock(&zone_scan_lock);
+}
+
 /**
- * __out_of_memory - kill the "best" process when we run out of memory
+ * out_of_memory - kill the "best" process when we run out of memory
  * @zonelist: zonelist pointer
  * @gfp_mask: memory allocation flags
  * @order: amount of memory being requested as a power of 2
@@ -708,8 +682,8 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
  * OR try to be smart about which process to kill. Note that we
  * don't have to be perfect here, we just have to be good.
  */
-bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-		   int order, nodemask_t *nodemask, bool force_kill)
+void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+		int order, nodemask_t *nodemask, bool force_kill)
 {
 	const nodemask_t *mpol_mask;
 	struct task_struct *p;
@@ -717,9 +691,7 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	unsigned long freed = 0;
 	unsigned int uninitialized_var(points);
 	enum oom_constraint constraint = CONSTRAINT_NONE;
-
-	if (oom_killer_disabled)
-		return false;
+	int killed = 0;
 
 #ifdef CONFIG_MT_ENG_BUILD
 	//void add_kmem_status_oom_counter(void);
@@ -729,7 +701,7 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
 	if (freed > 0)
 		/* Got some memory back in the last second. */
-		return true;
+		return;
 
 	/*
 	 * If current has a pending SIGKILL or is exiting, then automatically
@@ -741,9 +713,9 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	 */
 	if (current->mm &&
 	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
-		mark_oom_victim(current);
+		mark_tsk_oom_victim(current);
 		last_victim = jiffies;
-		return true;
+		return;
 	}
 
 	/*
@@ -762,7 +734,7 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		oom_kill_process(current, gfp_mask, order, 0, totalpages, NULL,
 				 nodemask,
 				 "Out of memory (oom_kill_allocating_task)");
-		return true;
+		goto out;
 	}
 
 	p = select_bad_process(&points, totalpages, mpol_mask, force_kill);
@@ -774,13 +746,15 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	if (PTR_ERR(p) != -1UL) {
 		oom_kill_process(p, gfp_mask, order, points, totalpages, NULL,
 				 nodemask, "Out of memory");
-		/*
-		 * Give the killed process a good chance to exit before trying
-		 * to allocate memory again.
-		 */
-		schedule_timeout_killable(1);
+		killed = 1;
 	}
-	return true;
+out:
+	/*
+	 * Give the killed threads a good chance of exiting before trying to
+	 * allocate memory again.
+	 */
+	if (killed)
+		schedule_timeout_killable(1);
 }
 
 /*
@@ -790,21 +764,14 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
  */
 void pagefault_out_of_memory(void)
 {
+	struct zonelist *zonelist;
+
 	if (mem_cgroup_oom_synchronize(true))
 		return;
 
-	if (!mutex_trylock(&oom_lock))
-		return;
-
-	if (!out_of_memory(NULL, 0, 0, NULL, false)) {
-		/*
-		 * There shouldn't be any user tasks runnable while the
-		 * OOM killer is disabled, so the current task has to
-		 * be a racing OOM victim for which oom_killer_disable()
-		 * is waiting for.
-		 */
-		WARN_ON(test_thread_flag(TIF_MEMDIE));
+	zonelist = node_zonelist(first_memory_node, GFP_KERNEL);
+	if (oom_zonelist_trylock(zonelist, GFP_KERNEL)) {
+		out_of_memory(NULL, 0, 0, NULL, false);
+		oom_zonelist_unlock(zonelist, GFP_KERNEL);
 	}
-
-	mutex_unlock(&oom_lock);
 }
