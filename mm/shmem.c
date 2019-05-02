@@ -2080,7 +2080,7 @@ shmem_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 	struct inode *inode;
 	int error = -ENOSPC;
 
-	inode = shmem_get_inode(dir->i_sb, dir, mode, 0, VM_NORESERVE);
+	inode = shmem_get_inode(dir->i_sb, dir, mode, 0, VM_NORESERVE, 0);
 	if (inode) {
 		error = security_inode_init_security(inode, dir,
 						     NULL,
