@@ -483,7 +483,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			enum oom_scan_t scan_result;
 
             /*LCH add for race condition*/
-            if (p->flags & PF_EXITING) {
+            if (task_will_free_mem(p)) {
                 read_unlock(&tasklist_lock);
                 task_lock(p);
                 pr_err("%s: process %d (%s) is exiting\n", message, task_pid_nr(p), p->comm);
