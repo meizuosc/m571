@@ -2021,12 +2021,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 #endif
 #endif
 
-#if defined(CONFIG_CMA) && defined(CONFIG_MTK_SVP) // SVP 15
 	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
-#else
-	if (free_pages - free_cma <= min + lowmem_reserve)
-#endif
-
 		return false;
 	for (o = 0; o < order; o++) {
 		/* At the next order, this order's pages become unavailable */
