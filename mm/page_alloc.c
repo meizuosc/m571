@@ -1341,7 +1341,7 @@ static int try_to_steal_freepages(struct zone *zone, struct page *page,
 	    page_group_by_mobility_disabled) {
 		int pages;
 
-		pages = move_freepages_block(zone, page, start_type);
+		pages = move_freepages_block(zone, page, start_type, 0);
 
 		/* Claim the whole block if over half of it is free */
 		if (pages >= (1 << (pageblock_order-1)) ||
