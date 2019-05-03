@@ -1518,13 +1518,6 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			list_add(&page->lru, list);
 		else
 			list_add_tail(&page->lru, list);
-		
-		if (IS_ENABLED(CONFIG_MTKPASR)) {
-			mt = get_pageblock_migratetype(page);
-			/* No change on the mobility of "MIGRATE_MTKPASR" page */
-			if (!is_migrate_mtkpasr(mt) && !is_migrate_mtkpasr(migratetype))
-				mt = migratetype;
-		}
 
 		list = &page->lru;
 #if !defined(CONFIG_CMA) || !defined(CONFIG_MTK_SVP) // SVP 16
