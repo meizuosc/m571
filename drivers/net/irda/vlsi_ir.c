@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 #include <net/irda/irda.h>

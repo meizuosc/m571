@@ -10,7 +10,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 //#include <asm/mach-types.h>
 
 #define MMPROFILE_INTERNAL

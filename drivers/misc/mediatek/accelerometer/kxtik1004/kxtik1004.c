@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -43,7 +43,7 @@
 /*----------------------------------------------------------------------------*/
 #define I2C_DRIVERID_KXTIK1004 150
 /*----------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 /*----------------------------------------------------------------------------*/
 //#define CONFIG_KXTIK1004_LOWPASS   /*apply low pass filter on output*/       
 #define SW_CALIBRATION
@@ -160,8 +160,8 @@ static bool enable_status = false;
 
 /*----------------------------------------------------------------------------*/
 #define GSE_TAG                  "[Gsensor] "
-#define GSE_FUN(f)               printk(KERN_INFO GSE_TAG"%s\n", __FUNCTION__)
-#define GSE_ERR(fmt, args...)    printk(KERN_ERR GSE_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define GSE_FUN(f)               printk(KERN_INFO GSE_TAG"%s\n", __func__)
+#define GSE_ERR(fmt, args...)    printk(KERN_ERR GSE_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define GSE_LOG(fmt, args...)    printk(KERN_INFO GSE_TAG fmt, ##args)
 /*----------------------------------------------------------------------------*/
 static struct data_resolution kxtik1004_data_resolution[1] = {

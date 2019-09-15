@@ -2,7 +2,7 @@
 #include <linux/genhd.h> 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/mmc/sd_misc.h>
 

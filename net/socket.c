@@ -88,8 +88,9 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
+#include <linux/nospec.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include <net/compat.h>
@@ -516,9 +517,26 @@ static ssize_t sockfs_listxattr(struct dentry *dentry, char *buffer,
 	return used;
 }
 
+static int sockfs_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+	int err = simple_setattr(dentry, iattr);
+
+	if (!err && (iattr->ia_valid & ATTR_UID)) {
+		struct socket *sock = SOCKET_I(dentry->d_inode);
+
+		if (sock->sk)
+			sock->sk->sk_uid = iattr->ia_uid;
+		else
+			err = -ENOENT;
+	}
+
+	return err;
+}
+
 static const struct inode_operations sockfs_inode_ops = {
 	.getxattr = sockfs_getxattr,
 	.listxattr = sockfs_listxattr,
+	.setattr = sockfs_setattr,
 };
 
 /**
@@ -577,18 +595,23 @@ const struct file_operations bad_sock_fops = {
  *	an inode not a file.
  */
 
-void sock_release(struct socket *sock)
+static void __sock_release(struct socket *sock, struct inode *inode)
 {
 	if (sock->ops) {
 		struct module *owner = sock->ops->owner;
 
+		if (inode)
+			mutex_lock(&inode->i_mutex);
 		sock->ops->release(sock);
+		sock->sk = NULL;
+		if (inode)
+			mutex_unlock(&inode->i_mutex);
 		sock->ops = NULL;
 		module_put(owner);
 	}
 
 	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
-		printk(KERN_ERR "[mtk_net][socket]sock_release: fasync list not empty!\n");
+		pr_debug(KERN_ERR "[mtk_net][socket]sock_release: fasync list not empty!\n");
 
 	if (test_bit(SOCK_EXTERNALLY_ALLOCATED, &sock->flags))
 		return;
@@ -599,6 +622,11 @@ void sock_release(struct socket *sock)
 		return;
 	}
 	sock->file = NULL;
+}
+
+void sock_release(struct socket *sock)
+{
+	__sock_release(sock, NULL);
 }
 EXPORT_SYMBOL(sock_release);
 
@@ -1169,7 +1197,7 @@ static int sock_close(struct inode *inode, struct file *filp)
 
 	if (!inode) {
 		#ifdef CONFIG_MTK_NET_LOGGING 
-		printk(KERN_DEBUG "[mtk_net][socket]sock_close: NULL inode\n");
+		pr_debug(KERN_DEBUG "[mtk_net][socket]sock_close: NULL inode\n");
 		#endif
 		return 0;
 	}
@@ -1177,14 +1205,14 @@ static int sock_close(struct inode *inode, struct file *filp)
         struct socket *sock = SOCKET_I(inode);
 	if((sock != NULL) && (sock->sk != NULL))
 		{
-	       printk(KERN_INFO "[mtk_net][socekt]socket_close[%lu] refcnt: %d\n",inode->i_ino,atomic_read(&sock->sk->sk_refcnt)); 
+	       pr_debug(KERN_INFO "[mtk_net][socekt]socket_close[%lu] refcnt: %d\n",inode->i_ino,atomic_read(&sock->sk->sk_refcnt)); 
 		}
 	else
 		{
-		   printk(KERN_INFO "[mtk_net][socekt]socket_close[%lu] \n",inode->i_ino); 
+		   pr_debug(KERN_INFO "[mtk_net][socekt]socket_close[%lu] \n",inode->i_ino); 
 		}
 	#endif
-	sock_release(SOCKET_I(inode));
+	__sock_release(SOCKET_I(inode), inode);
 	
 	return 0;
 }
@@ -1282,7 +1310,7 @@ int __sock_create(struct net *net, int family, int type, int protocol,
 		if (!warned) {
 			warned = 1;
 			#ifdef CONFIG_MTK_NET_LOGGING 
-			printk(KERN_INFO "[mtk_net][socket]%s uses obsolete (PF_INET,SOCK_PACKET)\n",
+			pr_debug(KERN_INFO "[mtk_net][socket]%s uses obsolete (PF_INET,SOCK_PACKET)\n",
 			       current->comm);
 			#endif
 		}
@@ -1418,13 +1446,13 @@ out:
 	if((retval >= 0)&& sock && SOCK_INODE(sock) )
 	{
 	   #ifdef CONFIG_MTK_NET_LOGGING 
-	   printk(KERN_INFO "[mtk_net][socket]socket_create[%lu]:fd=%d \n",SOCK_INODE(sock)->i_ino,retval);
+	   pr_debug(KERN_INFO "[mtk_net][socket]socket_create[%lu]:fd=%d \n",SOCK_INODE(sock)->i_ino,retval);
 	   #endif               
 	}
 	 else
 	 {
 	 	#ifdef CONFIG_MTK_NET_LOGGING 	
-	   printk(KERN_INFO "[mtk_net][socket]socket_create:fd=%d \n",retval); 
+	   pr_debug(KERN_INFO "[mtk_net][socket]socket_create:fd=%d \n",retval); 
 	   #endif
 	 }
 	return retval;
@@ -1440,7 +1468,7 @@ out_release:
 SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 		int __user *, usockvec)
 {
-	struct socket *sock1, *sock2;
+	struct socket *sock1 = NULL, *sock2 = NULL;
 	int fd1, fd2, err;
 	struct file *newfile1, *newfile2;
 	int flags;
@@ -1515,7 +1543,7 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
             if(sock1 && SOCK_INODE(sock1) && sock2&& SOCK_INODE(sock2) )
             {
        	        #ifdef CONFIG_MTK_NET_LOGGING 
-	            printk(KERN_INFO "[mtk_net][socket]socketpair:fd1[%lu]=%d, fd2[%lu]=%d \n", SOCK_INODE(sock1)->i_ino,fd1,SOCK_INODE(sock2)->i_ino,fd2);
+	            pr_debug(KERN_INFO "[mtk_net][socket]socketpair:fd1[%lu]=%d, fd2[%lu]=%d \n", SOCK_INODE(sock1)->i_ino,fd1,SOCK_INODE(sock2)->i_ino,fd2);
 	            #endif             
 	     }
 	  
@@ -1525,7 +1553,7 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	sys_close(fd2);
 	sys_close(fd1);
 	#ifdef CONFIG_MTK_NET_LOGGING 
-	printk(KERN_INFO "[mtk_net][socket]socketpair fail1: %d \n", err);
+	pr_debug(KERN_INFO "[mtk_net][socket]socketpair fail1: %d \n", err);
 	#endif
 	return err;
 
@@ -1535,8 +1563,8 @@ out_release_1:
 	sock_release(sock1);
 out:
 	#ifdef CONFIG_MTK_NET_LOGGING 
-    printk(KERN_INFO "[mtk_net][socket]socketpair fail2: %d \n", err);
-    #endif
+	pr_debug(KERN_INFO "[mtk_net][socket]socketpair fail2: %d \n", err);
+	#endif
 	return err;
 }
 
@@ -1570,7 +1598,7 @@ SYSCALL_DEFINE3(bind, int, fd, struct sockaddr __user *, umyaddr, int, addrlen)
       #ifdef CONFIG_MTK_NET_LOGGING 
 		    if((((struct sockaddr_in *)&address)->sin_family) != AF_UNIX)
 		    	{
-		    		 printk(KERN_WARNING "[mtk_net][socket] bind addr->sin_port:%d,err:%d \n",htons(((struct sockaddr_in *)&address)->sin_port),err);
+		    		 pr_debug(KERN_WARNING "[mtk_net][socket] bind addr->sin_port:%d,err:%d \n",htons(((struct sockaddr_in *)&address)->sin_port),err);
           }
         #endif		      
 		}
@@ -1695,7 +1723,7 @@ out:
         if( (err>=0)&& newsock && SOCK_INODE(newsock) )
       {
 	    	#ifdef CONFIG_MTK_NET_LOGGING 
-	        printk(KERN_INFO "[mtk_net][socket]socket_accept:fd=%d,server_sock[%lu], newsock[%lu] \n",err,SOCK_INODE(sock)->i_ino,SOCK_INODE(newsock)->i_ino);
+	        pr_debug(KERN_INFO "[mtk_net][socket]socket_accept:fd=%d,server_sock[%lu], newsock[%lu] \n",err,SOCK_INODE(sock)->i_ino,SOCK_INODE(newsock)->i_ino);
 	        #endif
 	    }  
 	    
@@ -1832,6 +1860,8 @@ SYSCALL_DEFINE6(sendto, int, fd, void __user *, buff, size_t, len,
 
 	if (len > INT_MAX)
 		len = INT_MAX;
+	if (unlikely(!access_ok(VERIFY_READ, buff, len)))
+		return -EFAULT;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
@@ -1891,6 +1921,8 @@ SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
 
 	if (size > INT_MAX)
 		size = INT_MAX;
+	if (unlikely(!access_ok(VERIFY_WRITE, ubuf, size)))
+		return -EFAULT;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
@@ -2056,14 +2088,12 @@ static int ___sys_sendmsg(struct socket *sock, struct msghdr __user *msg,
 	int err, ctl_len, total_len;
 
 	err = -EFAULT;
-	if (MSG_CMSG_COMPAT & flags) {
-		if (get_compat_msghdr(msg_sys, msg_compat))
-			return -EFAULT;
-	} else {
+	if (MSG_CMSG_COMPAT & flags)
+		err = get_compat_msghdr(msg_sys, msg_compat);
+	else
 		err = copy_msghdr_from_user(msg_sys, msg);
-		if (err)
-			return err;
-	}
+	if (err)
+		return err;
 
 	if (msg_sys->msg_iovlen > UIO_FASTIOV) {
 		err = -EMSGSIZE;
@@ -2268,14 +2298,12 @@ static int ___sys_recvmsg(struct socket *sock, struct msghdr __user *msg,
 	struct sockaddr __user *uaddr;
 	int __user *uaddr_len;
 
-	if (MSG_CMSG_COMPAT & flags) {
-		if (get_compat_msghdr(msg_sys, msg_compat))
-			return -EFAULT;
-	} else {
+	if (MSG_CMSG_COMPAT & flags)
+		err = get_compat_msghdr(msg_sys, msg_compat);
+	else
 		err = copy_msghdr_from_user(msg_sys, msg);
-		if (err)
-			return err;
-	}
+	if (err)
+		return err;
 
 	if (msg_sys->msg_iovlen > UIO_FASTIOV) {
 		err = -EMSGSIZE;
@@ -2398,8 +2426,10 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 		return err;
 
 	err = sock_error(sock->sk);
-	if (err)
+	if (err) {
+		datagrams = err;
 		goto out_put;
+	}
 
 	entry = mmsg;
 	compat_entry = (struct compat_mmsghdr __user *)mmsg;
@@ -2453,31 +2483,31 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			break;
 	}
 
+	if (err == 0)
+		goto out_put;
+
+	if (datagrams == 0) {
+		datagrams = err;
+		goto out_put;
+	}
+
+	/*
+	 * We may return less entries than requested (vlen) if the
+	 * sock is non block and there aren't enough datagrams...
+	 */
+	if (err != -EAGAIN) {
+		/*
+		 * ... or  if recvmsg returns an error after we
+		 * received some datagrams, where we record the
+		 * error to return on the next call or if the
+		 * app asks about it using getsockopt(SO_ERROR).
+		 */
+		sock->sk->sk_err = -err;
+	}
 out_put:
 	fput_light(sock->file, fput_needed);
 
-	if (err == 0)
-		return datagrams;
-
-	if (datagrams != 0) {
-		/*
-		 * We may return less entries than requested (vlen) if the
-		 * sock is non block and there aren't enough datagrams...
-		 */
-		if (err != -EAGAIN) {
-			/*
-			 * ... or  if recvmsg returns an error after we
-			 * received some datagrams, where we record the
-			 * error to return on the next call or if the
-			 * app asks about it using getsockopt(SO_ERROR).
-			 */
-			sock->sk->sk_err = -err;
-		}
-
-		return datagrams;
-	}
-
-	return err;
+	return datagrams;
 }
 
 SYSCALL_DEFINE5(recvmmsg, int, fd, struct mmsghdr __user *, mmsg,
@@ -2534,6 +2564,7 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 
 	if (call < 1 || call > SYS_SENDMMSG)
 		return -EINVAL;
+	call = array_index_nospec(call, SYS_SENDMMSG + 1);
 
 	len = nargs[call];
 	if (len > sizeof(a))
@@ -2646,7 +2677,7 @@ int sock_register(const struct net_proto_family *ops)
 	int err;
 
 	if (ops->family >= NPROTO) {
-		printk(KERN_CRIT "[mtk_net][sock]protocol %d >= NPROTO(%d)\n", ops->family,
+		pr_debug(KERN_CRIT "[mtk_net][sock]protocol %d >= NPROTO(%d)\n", ops->family,
 		       NPROTO);
 		return -ENOBUFS;
 	}
@@ -2661,7 +2692,7 @@ int sock_register(const struct net_proto_family *ops)
 	}
 	spin_unlock(&net_family_lock);
     #ifdef CONFIG_MTK_NET_LOGGING 
-	printk(KERN_INFO "[mtk_net][socekt]NET: Registered protocol family %d\n", ops->family);
+	pr_debug(KERN_INFO "[mtk_net][socekt]NET: Registered protocol family %d\n", ops->family);
 	#endif
 	return err;
 }
@@ -2690,7 +2721,7 @@ void sock_unregister(int family)
 
 	synchronize_rcu();
     #ifdef CONFIG_MTK_NET_LOGGING 
-	printk(KERN_INFO "[mtk_net][socket]NET: Unregistered protocol family %d\n", family);
+	pr_debug(KERN_INFO "[mtk_net][socket]NET: Unregistered protocol family %d\n", family);
 	#endif
 }
 EXPORT_SYMBOL(sock_unregister);
@@ -3386,6 +3417,7 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
+	case SIOCKILLADDR:
 		return dev_ifsioc(net, sock, cmd, argp);
 
 	case SIOCSARP:

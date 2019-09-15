@@ -47,7 +47,7 @@
  *  Overall revision about smaps.
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/errno.h>
 #include <linux/time.h>
@@ -245,7 +245,7 @@ out:
 
 static int proc_pid_auxv(struct task_struct *task, char *buffer)
 {
-	struct mm_struct *mm = mm_access(task, PTRACE_MODE_READ);
+	struct mm_struct *mm = mm_access(task, PTRACE_MODE_READ_FSCREDS);
 	int res = PTR_ERR(mm);
 	if (mm && !IS_ERR(mm)) {
 		unsigned int nwords = 0;
@@ -275,7 +275,7 @@ static int proc_pid_wchan(struct task_struct *task, char *buffer)
 	wchan = get_wchan(task);
 
 	if (lookup_symbol_name(wchan, symname) < 0)
-		if (!ptrace_may_access(task, PTRACE_MODE_READ))
+		if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
 			return 0;
 		else
 			return sprintf(buffer, "%lu", wchan);
@@ -289,7 +289,7 @@ static int lock_trace(struct task_struct *task)
 	int err = mutex_lock_killable(&task->signal->cred_guard_mutex);
 	if (err)
 		return err;
-	if (!ptrace_may_access(task, PTRACE_MODE_ATTACH)) {
+	if (!ptrace_may_access(task, PTRACE_MODE_ATTACH_FSCREDS)) {
 		mutex_unlock(&task->signal->cred_guard_mutex);
 		return -EPERM;
 	}
@@ -563,7 +563,7 @@ static int proc_fd_access_allowed(struct inode *inode)
 	 */
 	task = get_proc_task(inode);
 	if (task) {
-		allowed = ptrace_may_access(task, PTRACE_MODE_READ);
+		allowed = ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS);
 		put_task_struct(task);
 	}
 	return allowed;
@@ -598,7 +598,7 @@ static bool has_pid_permissions(struct pid_namespace *pid,
 		return true;
 	if (in_group_p(pid->pid_gid))
 		return true;
-	return ptrace_may_access(task, PTRACE_MODE_READ);
+	return ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS);
 }
 
 
@@ -705,29 +705,35 @@ static const struct file_operations proc_single_file_operations = {
 	.release	= single_release,
 };
 
+
+struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
+{
+	struct task_struct *task = get_proc_task(inode);
+	struct mm_struct *mm = ERR_PTR(-ESRCH);
+
+	if (task) {
+		mm = mm_access(task, mode);
+		put_task_struct(task);
+
+		if (!IS_ERR_OR_NULL(mm)) {
+			/* ensure this mm_struct can't be freed */
+			atomic_inc(&mm->mm_count);
+			/* but do not pin its memory */
+			mmput(mm);
+		}
+	}
+
+	return mm;
+}
+
 static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
 {
-	struct task_struct *task = get_proc_task(file_inode(file));
-	struct mm_struct *mm;
-
-	if (!task)
-		return -ESRCH;
-
-	mm = mm_access(task, mode);
-	put_task_struct(task);
+	struct mm_struct *mm = proc_mem_open(inode, mode);
 
 	if (IS_ERR(mm))
 		return PTR_ERR(mm);
 
-	if (mm) {
-		/* ensure this mm_struct can't be freed */
-		atomic_inc(&mm->mm_count);
-		/* but do not pin its memory */
-		mmput(mm);
-	}
-
 	file->private_data = mm;
-
 	return 0;
 }
 
@@ -749,7 +755,8 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
 	ssize_t copied;
 	char *page;
 
-	if (!mm)
+	/* Ensure the process spawned far enough to have an environment. */
+	if (!mm || !mm->env_end)
 		return 0;
 
 	page = (char *)__get_free_page(GFP_TEMPORARY);
@@ -850,7 +857,8 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 	int ret = 0;
 	struct mm_struct *mm = file->private_data;
 
-	if (!mm)
+	/* Ensure the process spawned far enough to have an environment. */
+	if (!mm || !mm->env_end)
 		return 0;
 
 	page = (char *)__get_free_page(GFP_TEMPORARY);
@@ -995,7 +1003,9 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 		  current->comm, task_pid_nr(current), task_pid_nr(task),
 		  task_pid_nr(task));
 
+	delete_from_adj_tree(task);
 	task->signal->oom_score_adj = oom_adj;
+	add_2_adj_tree(task);
 	trace_oom_score_adj_update(task);
 err_sighand:
 	unlock_task_sighand(task, &flags);
@@ -1110,7 +1120,10 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 		goto err_sighand;
 	}
 
+	delete_from_adj_tree(task);
 	task->signal->oom_score_adj = (short)oom_score_adj;
+	add_2_adj_tree(task);
+
 	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
 		task->signal->oom_score_adj_min = (short)oom_score_adj;
 	trace_oom_score_adj_update(task);
@@ -1796,7 +1809,7 @@ static int map_files_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (!task)
 		goto out_notask;
 
-	mm = mm_access(task, PTRACE_MODE_READ);
+	mm = mm_access(task, PTRACE_MODE_READ_FSCREDS);
 	if (IS_ERR_OR_NULL(mm))
 		goto out;
 
@@ -1931,7 +1944,7 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
 		goto out;
 
 	result = ERR_PTR(-EACCES);
-	if (!ptrace_may_access(task, PTRACE_MODE_READ))
+	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
 		goto out_put_task;
 
 	result = ERR_PTR(-ENOENT);
@@ -1987,7 +2000,7 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		goto out;
 
 	ret = -EACCES;
-	if (!ptrace_may_access(task, PTRACE_MODE_READ))
+	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
 		goto out_put_task;
 
 	ret = 0;
@@ -2523,7 +2536,7 @@ static int do_io_accounting(struct task_struct *task, char *buffer, int whole)
 	if (result)
 		return result;
 
-	if (!ptrace_may_access(task, PTRACE_MODE_READ)) {
+	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS)) {
 		result = -EACCES;
 		goto out_unlock;
 	}
@@ -3141,8 +3154,8 @@ static const struct pid_entry tid_base_stuff[] = {
 	REG("cgroup",  S_IRUGO, proc_cgroup_operations),
 #endif
 	INF("oom_score", S_IRUGO, proc_oom_score),
-	REG("oom_adj",   S_IRUGO|S_IWUSR, proc_oom_adj_operations),
-	REG("oom_score_adj", S_IRUGO|S_IWUSR, proc_oom_score_adj_operations),
+	REG("oom_adj",   S_IRUSR, proc_oom_adj_operations),
+	REG("oom_score_adj", S_IRUSR, proc_oom_score_adj_operations),
 #ifdef CONFIG_AUDITSYSCALL
 	REG("loginuid",  S_IWUSR|S_IRUGO, proc_loginuid_operations),
 	REG("sessionid",  S_IRUGO, proc_sessionid_operations),

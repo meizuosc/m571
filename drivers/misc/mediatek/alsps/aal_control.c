@@ -4,7 +4,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "alsps.h"
 #include "aal_control.h"
 #include <linux/hwmsen_dev.h>
@@ -72,7 +72,7 @@ static long AAL_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lon
 				break;
 			
 			default:
-				AAL_ERR("%s not supported = 0x%04x", __FUNCTION__, cmd);
+				AAL_ERR("%s not supported = 0x%04x", __func__, cmd);
 				err = -ENOIOCTLCMD;
 				break;
 		}

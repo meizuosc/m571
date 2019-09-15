@@ -34,7 +34,7 @@
 #include <asm/oplib.h>
 #include <asm/iommu.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 #include <asm/dma.h>
@@ -1698,7 +1698,7 @@ static void __init sun4v_ktsb_init(void)
 #endif
 }
 
-void __cpuinit sun4v_ktsb_register(void)
+void sun4v_ktsb_register(void)
 {
 	unsigned long pa, ret;
 

@@ -5,6 +5,7 @@
 menuconfig NET
 	bool "Networking support"
 	select NLATTR
+	select GENERIC_NET_UTILS
 	---help---
 	  Unless you really know what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even
@@ -235,7 +236,7 @@ source "net/netlink/Kconfig"
 
 config RPS
 	boolean "RPS"
-	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	depends on SMP && SYSFS
 	default y
 
 config RFS_ACCEL
@@ -246,7 +247,7 @@ config RFS_ACCEL
 
 config XPS
 	boolean
-	depends on SMP && USE_GENERIC_SMP_HELPERS
+	depends on SMP
 	default y
 
 config NETPRIO_CGROUP

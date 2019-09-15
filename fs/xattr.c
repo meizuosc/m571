@@ -22,7 +22,7 @@
 #include <linux/vmalloc.h>
 #include <linux/posix_acl_xattr.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Check permissions for extended attribute access.  This is a bit complicated
@@ -70,7 +70,7 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 			return -EPERM;
 	}
 
-	return inode_permission(inode, mask);
+	return inode_permission2(ERR_PTR(-EOPNOTSUPP), inode, mask);
 }
 
 /**
@@ -324,7 +324,6 @@ setxattr(struct dentry *d, const char __user *name, const void __user *value,
 {
 	int error;
 	void *kvalue = NULL;
-	void *vvalue = NULL;	/* If non-NULL, we used vmalloc() */
 	char kname[XATTR_NAME_MAX + 1];
 
 	if (flags & ~(XATTR_CREATE|XATTR_REPLACE))
@@ -341,10 +340,9 @@ setxattr(struct dentry *d, const char __user *name, const void __user *value,
 			return -E2BIG;
 		kvalue = kmalloc(size, GFP_KERNEL | __GFP_NOWARN);
 		if (!kvalue) {
-			vvalue = vmalloc(size);
-			if (!vvalue)
+			kvalue = vmalloc(size);
+			if (!kvalue)
 				return -ENOMEM;
-			kvalue = vvalue;
 		}
 		if (copy_from_user(kvalue, value, size)) {
 			error = -EFAULT;
@@ -357,10 +355,8 @@ setxattr(struct dentry *d, const char __user *name, const void __user *value,
 
 	error = vfs_setxattr(d, kname, kvalue, size, flags);
 out:
-	if (vvalue)
-		vfree(vvalue);
-	else
-		kfree(kvalue);
+	kvfree(kvalue);
+
 	return error;
 }
 
@@ -441,7 +437,6 @@ getxattr(struct dentry *d, const char __user *name, void __user *value,
 {
 	ssize_t error;
 	void *kvalue = NULL;
-	void *vvalue = NULL;
 	char kname[XATTR_NAME_MAX + 1];
 
 	error = strncpy_from_user(kname, name, sizeof(kname));
@@ -455,10 +450,9 @@ getxattr(struct dentry *d, const char __user *name, void __user *value,
 			size = XATTR_SIZE_MAX;
 		kvalue = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
 		if (!kvalue) {
-			vvalue = vmalloc(size);
-			if (!vvalue)
+			kvalue = vmalloc(size);
+			if (!kvalue)
 				return -ENOMEM;
-			kvalue = vvalue;
 		}
 	}
 
@@ -474,10 +468,9 @@ getxattr(struct dentry *d, const char __user *name, void __user *value,
 		   than XATTR_SIZE_MAX bytes. Not possible. */
 		error = -E2BIG;
 	}
-	if (vvalue)
-		vfree(vvalue);
-	else
-		kfree(kvalue);
+
+	kvfree(kvalue);
+
 	return error;
 }
 
@@ -541,17 +534,15 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 {
 	ssize_t error;
 	char *klist = NULL;
-	char *vlist = NULL;	/* If non-NULL, we used vmalloc() */
 
 	if (size) {
 		if (size > XATTR_LIST_MAX)
 			size = XATTR_LIST_MAX;
 		klist = kmalloc(size, __GFP_NOWARN | GFP_KERNEL);
 		if (!klist) {
-			vlist = vmalloc(size);
-			if (!vlist)
+			klist = vmalloc(size);
+			if (!klist)
 				return -ENOMEM;
-			klist = vlist;
 		}
 	}
 
@@ -564,10 +555,9 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 		   than XATTR_LIST_MAX bytes. Not possible. */
 		error = -E2BIG;
 	}
-	if (vlist)
-		vfree(vlist);
-	else
-		kfree(klist);
+
+	kvfree(klist);
+
 	return error;
 }
 

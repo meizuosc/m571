@@ -5,7 +5,6 @@
 include $(srctree)/drivers/misc/mediatek/Makefile.custom
 
 
-obj-$(CONFIG_ANDROID_PMEM)      += pmem.o
 obj-$(CONFIG_IBM_ASM)		+= ibmasm/
 obj-$(CONFIG_AD525X_DPOT)	+= ad525x_dpot.o
 obj-$(CONFIG_AD525X_DPOT_I2C)	+= ad525x_dpot-i2c.o
@@ -61,3 +60,4 @@ obj-$(CONFIG_LATTICE_ECP3_CONFIG)	+= lattice-ecp3-config.o
 obj-$(CONFIG_SRAM)		+= sram.o
 obj-$(CONFIG_MEDIATEK_SOLUTION) += mediatek/
 obj-$(CONFIG_LTR559) += ltr559.o
+obj-$(CONFIG_UID_SYS_STATS) += uid_sys_stats.o

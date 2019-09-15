@@ -10,7 +10,7 @@
 #include <linux/hardirq.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/futex.h>
 #include "uaccess.h"
 

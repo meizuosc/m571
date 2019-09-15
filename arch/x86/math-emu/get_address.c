@@ -19,7 +19,7 @@
 
 #include <linux/stddef.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/desc.h>
 
 #include "fpu_system.h"

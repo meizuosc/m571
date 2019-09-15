@@ -60,7 +60,7 @@
 #include <linux/workqueue.h>
 #include <net/neighbour.h>
 #include <net/netevent.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "cxgb4.h"
 #include "t4_regs.h"

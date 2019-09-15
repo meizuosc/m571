@@ -44,18 +44,23 @@ void __attribute__((weak)) spm_mcdi_wakeup_all_cores(void) {}
 static DEFINE_MUTEX(cpu_add_remove_lock);
 
 /*
- * The following two API's must be used when attempting
- * to serialize the updates to cpu_online_mask, cpu_present_mask.
+ * The following two APIs (cpu_maps_update_begin/done) must be used when
+ * attempting to serialize the updates to cpu_online_mask & cpu_present_mask.
+ * The APIs cpu_notifier_register_begin/done() must be used to protect CPU
+ * hotplug callback (un)registration performed using __register_cpu_notifier()
+ * or __unregister_cpu_notifier().
  */
 void cpu_maps_update_begin(void)
 {
 	mutex_lock(&cpu_add_remove_lock);
 }
+EXPORT_SYMBOL(cpu_notifier_register_begin);
 
 void cpu_maps_update_done(void)
 {
 	mutex_unlock(&cpu_add_remove_lock);
 }
+EXPORT_SYMBOL(cpu_notifier_register_done);
 
 /*******************************************************************************
 * 20131225 marc.huang                                                          *
@@ -232,6 +237,11 @@ int __ref register_cpu_notifier(struct notifier_block *nb)
 	return ret;
 }
 
+int __ref __register_cpu_notifier(struct notifier_block *nb)
+{
+	return raw_notifier_chain_register(&cpu_chain, nb);
+}
+
 static int __cpu_notify(unsigned long val, void *v, int nr_to_call,
 			int *nr_calls)
 {
@@ -248,13 +258,12 @@ static int cpu_notify(unsigned long val, void *v)
 	return __cpu_notify(val, v, -1, NULL);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 static void cpu_notify_nofail(unsigned long val, void *v)
 {
 	BUG_ON(cpu_notify(val, v));
 }
 EXPORT_SYMBOL(register_cpu_notifier);
+EXPORT_SYMBOL(__register_cpu_notifier);
 
 void __ref unregister_cpu_notifier(struct notifier_block *nb)
 {
@@ -264,6 +273,13 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
+void __ref __unregister_cpu_notifier(struct notifier_block *nb)
+{
+	raw_notifier_chain_unregister(&cpu_chain, nb);
+}
+EXPORT_SYMBOL(__unregister_cpu_notifier);
+
+#ifdef CONFIG_HOTPLUG_CPU
 /**
  * clear_tasks_mm_cpumask - Safely clear tasks' mm_cpumask for a CPU
  * @cpu: a CPU id
@@ -432,8 +448,39 @@ out:
 EXPORT_SYMBOL(cpu_down);
 #endif /*CONFIG_HOTPLUG_CPU*/
 
+/*
+ * Unpark per-CPU smpboot kthreads at CPU-online time.
+ */
+static int smpboot_thread_call(struct notifier_block *nfb,
+			       unsigned long action, void *hcpu)
+{
+	int cpu = (long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+
+	case CPU_ONLINE:
+		smpboot_unpark_threads(cpu);
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block smpboot_thread_notifier = {
+	.notifier_call = smpboot_thread_call,
+	.priority = CPU_PRI_SMPBOOT,
+};
+
+void smpboot_thread_init(void)
+{
+	register_cpu_notifier(&smpboot_thread_notifier);
+}
+
 /* Requires cpu_add_remove_lock to be held */
-static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
+static int _cpu_up(unsigned int cpu, int tasks_frozen)
 {
 	int ret, nr_calls = 0;
 	void *hcpu = (void *)(long)cpu;
@@ -460,7 +507,7 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	ret = __cpu_notify(CPU_UP_PREPARE | mod, hcpu, -1, &nr_calls);
 	if (ret) {
 		nr_calls--;
-		printk(KERN_WARNING "%s: attempt to bring up CPU %u failed\n",
+		printk(KERN_DEBUG "%s: attempt to bring up CPU %u failed\n",
 				__func__, cpu);
 		goto out_notify;
 	}
@@ -470,9 +517,6 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	if (ret != 0)
 		goto out_notify;
 	BUG_ON(!cpu_online(cpu));
-
-	/* Wake the per cpu threads */
-	smpboot_unpark_threads(cpu);
 
 	/* Now call notifier in preparation. */
 	cpu_notify(CPU_ONLINE | mod, hcpu);
@@ -486,7 +530,7 @@ out:
 	return ret;
 }
 
-int __cpuinit cpu_up(unsigned int cpu)
+int cpu_up(unsigned int cpu)
 {
 	int err = 0;
 
@@ -687,7 +731,7 @@ core_initcall(cpu_hotplug_pm_sync_init);
  * It must be called by the arch code on the new cpu, before the new cpu
  * enables interrupts and before the "boot" cpu returns from __cpu_up().
  */
-void __cpuinit notify_cpu_starting(unsigned int cpu)
+void notify_cpu_starting(unsigned int cpu)
 {
 	unsigned long val = CPU_STARTING;
 

@@ -55,7 +55,7 @@
 #include <linux/suspend.h>
 
 #include <asm/scatterlist.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -94,8 +94,6 @@
 /* Battery Logging Entry */
 /* ////////////////////////////////////////////////////////////////////////////// */
 int Enable_BATDRV_LOG = BAT_LOG_CRTI;
-/* static struct proc_dir_entry *proc_entry; */
-char proc_bat_data[32];
 
 /* ///////////////////////////////////////////////////////////////////////////////////////// */
 /* // Smart Battery Structure */
@@ -234,10 +232,12 @@ static int suspend_discharging = -1;
 /* FOR ANDROID BATTERY SERVICE */
 /* ////////////////////////////////////////////////////////////////////////////// */
 
+#if defined(CONFIG_MTK_WIRELESS_CHARGER_SUPPORT)
 struct wireless_data {
 	struct power_supply psy;
 	int WIRELESS_ONLINE;
 };
+#endif
 
 struct ac_data {
 	struct power_supply psy;
@@ -274,9 +274,11 @@ struct battery_data {
 	int adjust_power;
 };
 
+#if defined(CONFIG_MTK_WIRELESS_CHARGER_SUPPORT)
 static enum power_supply_property wireless_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
+#endif
 
 static enum power_supply_property ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
@@ -292,9 +294,6 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CAPACITY,
-	#ifdef MEIZU_M81
-            POWER_SUPPLY_PROP_CURRENT_NOW,
-	#endif
 	/* Add for Battery Service */
 	POWER_SUPPLY_PROP_batt_vol,
 	POWER_SUPPLY_PROP_batt_temp,
@@ -312,6 +311,10 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_present_smb,
 	/* ADB CMD Discharging */
 	POWER_SUPPLY_PROP_adjust_power,
+#ifdef MEIZU_M81
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+#endif
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
 
@@ -479,15 +482,17 @@ EXPORT_SYMBOL(wake_up_bat3);
 
 static ssize_t bat_log_write(struct file *filp, const char __user *buff, size_t len, loff_t *data)
 {
-	if (copy_from_user(&proc_bat_data, buff, len)) {
+	char proc_bat_data;
+
+	if ((len <= 0) || copy_from_user(&proc_bat_data, buff, 1)) {
 		battery_log(BAT_LOG_FULL, "bat_log_write error.\n");
 		return -EFAULT;
 	}
 
-	if (proc_bat_data[0] == '1') {
+	if (proc_bat_data == '1') {
 		battery_log(BAT_LOG_CRTI, "enable battery driver log system\n");
 		Enable_BATDRV_LOG = 1;
-	} else if (proc_bat_data[0] == '2') {
+	} else if (proc_bat_data == '2') {
 		battery_log(BAT_LOG_CRTI, "enable battery driver log system:2\n");
 		Enable_BATDRV_LOG = 2;
 	} else {
@@ -525,6 +530,7 @@ int init_proc_log(void)
 }
 
 
+#if defined(CONFIG_MTK_WIRELESS_CHARGER_SUPPORT)
 static int wireless_get_property(struct power_supply *psy,
 				 enum power_supply_property psp, union power_supply_propval *val)
 {
@@ -541,6 +547,7 @@ static int wireless_get_property(struct power_supply *psy,
 	}
 	return ret;
 }
+#endif
 
 static int ac_get_property(struct power_supply *psy,
 			   enum power_supply_property psp, union power_supply_propval *val)
@@ -636,16 +643,6 @@ static int battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = data->BAT_CAPACITY;
 		break;
-#ifdef MEIZU_M81
-        case POWER_SUPPLY_PROP_CURRENT_NOW:
-	    is_charging = battery_meter_get_battery_current_sign();
-	    current_now = battery_meter_get_battery_current_now();
-	    if (is_charging == KAL_TRUE)
-	        val->intval = current_now;
-	    else
-	        val->intval = -current_now;
-	    break;
-#endif
 	case POWER_SUPPLY_PROP_batt_vol:
 		val->intval = data->BAT_batt_vol;
 		break;
@@ -686,6 +683,19 @@ static int battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_adjust_power :
 		val->intval = data->adjust_power;
 		break;
+#ifdef MEIZU_M81
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		    is_charging = battery_meter_get_battery_current_sign();
+		    current_now = battery_meter_get_battery_current_now();
+			if (is_charging == KAL_TRUE)
+				val->intval = current_now;
+			else
+				val->intval = -current_now;
+		break;
+#endif
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = data->BAT_batt_vol; // * 1000 /* uV */
+		break;
 
 	default:
 		ret = -EINVAL;
@@ -695,6 +705,7 @@ static int battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+#if defined(CONFIG_MTK_WIRELESS_CHARGER_SUPPORT)
 /* wireless_data initialization */
 static struct wireless_data wireless_main = {
 	.psy = {
@@ -706,6 +717,7 @@ static struct wireless_data wireless_main = {
 		},
 	.WIRELESS_ONLINE = 0,
 };
+#endif
 
 /* ac_data initialization */
 static struct ac_data ac_main = {
@@ -1862,8 +1874,18 @@ static void battery_update(struct battery_data *bat_data)
 	kal_bool resetBatteryMeter = KAL_FALSE;
 
 	bat_data->BAT_TECHNOLOGY = POWER_SUPPLY_TECHNOLOGY_LION;
-	bat_data->BAT_HEALTH = POWER_SUPPLY_HEALTH_GOOD;
-	bat_data->BAT_batt_vol = BMT_status.bat_vol;
+
+   if (BMT_status.temperature == ERR_CHARGE_TEMPERATURE) {
+       bat_data->BAT_HEALTH = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+   } else if (BMT_status.temperature < MIN_CHARGE_TEMPERATURE) {
+       bat_data->BAT_HEALTH = POWER_SUPPLY_HEALTH_COLD;
+   } else if (BMT_status.temperature >= MAX_CHARGE_TEMPERATURE) {
+       bat_data->BAT_HEALTH = POWER_SUPPLY_HEALTH_OVERHEAT;
+   } else {
+       bat_data->BAT_HEALTH = POWER_SUPPLY_HEALTH_GOOD;
+   }
+
+	bat_data->BAT_batt_vol = BMT_status.bat_vol * 1000;
 	bat_data->BAT_batt_temp = BMT_status.temperature * 10;
 	bat_data->BAT_PRESENT = BMT_status.bat_exist;
 
@@ -1884,7 +1906,7 @@ static void battery_update(struct battery_data *bat_data)
 
 	} else {		/* Only Battery */
 
-		bat_data->BAT_STATUS = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		bat_data->BAT_STATUS = POWER_SUPPLY_STATUS_DISCHARGING;
 		if (BMT_status.bat_vol <= V_0PERCENT_TRACKING)
 			resetBatteryMeter = mt_battery_0Percent_tracking_check();
 		else
@@ -1986,6 +2008,7 @@ void update_charger_info(int wireless_state)
 #endif
 }
 
+#if defined(CONFIG_MTK_WIRELESS_CHARGER_SUPPORT)
 static void wireless_update(struct wireless_data *wireless_data)
 {
 	struct power_supply *wireless_psy = &wireless_data->psy;
@@ -2003,6 +2026,7 @@ static void wireless_update(struct wireless_data *wireless_data)
 
 	power_supply_changed(wireless_psy);
 }
+#endif // CONFIG_MTK_WIRELESS_CHARGER_SUPPORT
 
 #ifdef MEIZU_M81
 static void ac_update(struct ac_data *ac_data)
@@ -2161,7 +2185,8 @@ PMU_STATUS do_batt_temp_state_machine(void)
 	if (BMT_status.temperature < MIN_CHARGE_TEMPERATURE)
 	#endif
 	{
-		battery_xlog_printk(BAT_LOG_CRTI, "[BATTERY] Battery Under Temperature or NTC fail !!\n\r");
+		battery_log(BAT_LOG_CRTI,
+				    "[BATTERY] Battery Under Temperature or NTC fail !!\n\r");
 		g_batt_temp_status = TEMP_POS_LOW;
 		return PMU_STATUS_FAIL;
 	} else if (g_batt_temp_status == TEMP_POS_LOW) {
@@ -2895,7 +2920,9 @@ static void mt_battery_update_status(void)
 	{
 		usb_update(&usb_main);
 		ac_update(&ac_main);
+#if defined(CONFIG_MTK_WIRELESS_CHARGER_SUPPORT)
 		wireless_update(&wireless_main);
+#endif
 		battery_update(&battery_main);
 	}
 
@@ -2986,7 +3013,7 @@ static void mt_battery_charger_detect_check(void)
 		    (DISO_data.diso_state.cur_vusb_state == DISO_ONLINE)) {
 		#endif
 			#ifdef MEIZU_M81
-			msleep(300) ;
+			msleep(300);
 			#endif
 			mt_charger_type_detection();
 
@@ -3164,57 +3191,6 @@ void do_chrdet_int_task(void)
 	}
 }
 
-#ifdef MEIZU_M81
-static inline int fuelgauge_info_dump(void)
-{
-	int ret, err;
-	static int i;
-	struct file *fp = NULL;
-	mm_segment_t pos;
-	char buf[48] = {0};
-	char time_buf[32] = {0};
-	struct timespec ts;
-	struct rtc_time tm;
-	static kal_bool done = KAL_FALSE;
-
-	/* get the system current time */
-	getnstimeofday(&ts);
-	rtc_time_to_tm(ts.tv_sec, &tm);
-	sprintf(time_buf, "%d-%02d-%02d %02d:%02d:%02d %s",
-			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-			tm.tm_hour + 8, tm.tm_min, tm.tm_sec, " ");
-
-	pos = get_fs();
-	set_fs(KERNEL_DS);
-
-	fp = filp_open("/data/fuelgauge_datalog.txt", O_RDWR | O_APPEND | O_CREAT, 0644);
-	if (IS_ERR(fp)) {
-		pr_info("create file failed******\n");
-		err = PTR_ERR(fp);
-		if (err != -ENOENT )
-			pr_err("%s:open the file failed\n", __func__);
-		set_fs(pos);
-		return err;
-	}
-
-	if (done == KAL_FALSE) {
-
-		done = KAL_TRUE;
-	}
-	/* record the current system time */
-	err = fp->f_op->write(fp, time_buf, 21, &fp->f_pos);
-
-	sprintf(buf, "%3d %4d %3d %2d %d %d\n", BMT_status.UI_SOC,BMT_status.ICharging, BMT_status.bat_vol,
-			BMT_status.temperature, BMT_status.charger_exist, BMT_status.charger_type);
-	err = fp->f_op->write(fp, buf, 30, &fp->f_pos);
-
-	set_fs(pos);
-	filp_close(fp, NULL);
-
-	return ret;
-}
-#endif
-
 extern void dodprint(void);
 
 void BAT_thread(void)
@@ -3254,9 +3230,6 @@ void BAT_thread(void)
 
 	mt_battery_update_status();
 	mt_kpoc_power_off_check();
-    #ifdef MEIZU_M81
-	fuelgauge_info_dump();
-    #endif
 }
 
 /* ///////////////////////////////////////////////////////////////////////////////////////// */
@@ -3969,6 +3942,7 @@ static int battery_probe(struct platform_device *dev)
 	}
 	battery_log(BAT_LOG_CRTI, "[BAT_probe] power_supply_register USB Success !!\n");
 
+#if defined(CONFIG_MTK_WIRELESS_CHARGER_SUPPORT)
 	ret = power_supply_register(&(dev->dev), &wireless_main.psy);
 	if (ret) {
 		battery_log(BAT_LOG_CRTI,
@@ -3977,6 +3951,7 @@ static int battery_probe(struct platform_device *dev)
 	}
 	battery_log(BAT_LOG_CRTI,
 			    "[BAT_probe] power_supply_register WIRELESS Success !!\n");
+#endif
 
 	ret = power_supply_register(&(dev->dev), &battery_main.psy);
 	if (ret) {
@@ -3995,7 +3970,7 @@ static int battery_probe(struct platform_device *dev)
 		battery_main.BAT_PRESENT = 1;
 		battery_main.BAT_TECHNOLOGY = POWER_SUPPLY_TECHNOLOGY_LION;
 		battery_main.BAT_CAPACITY = 100;
-		battery_main.BAT_batt_vol = 4200;
+		battery_main.BAT_batt_vol = 4200000;
 		battery_main.BAT_batt_temp = 220;
 
 		g_bat_init_flag = KAL_TRUE;

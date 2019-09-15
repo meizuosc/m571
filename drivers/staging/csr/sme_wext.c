@@ -16,7 +16,7 @@
 #include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ctype.h>
 #include "unifi_priv.h"
 #include <linux/rtnetlink.h>
@@ -24,7 +24,7 @@
 #define CHECK_INITED(_priv)                             \
     do {                                                    \
         if (_priv->init_progress != UNIFI_INIT_COMPLETED) { \
-            unifi_trace(_priv, UDBG2, "%s unifi not ready, failing wext call\n", __FUNCTION__); \
+            unifi_trace(_priv, UDBG2, "%s unifi not ready, failing wext call\n", __func__); \
             return -ENODEV;                                 \
         }                                                   \
     } while (0)

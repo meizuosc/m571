@@ -52,7 +52,7 @@ static const char * osst_version = "0.99.4";
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/dma.h>
 
 /* The driver prints some debugging information on the console if DEBUG
@@ -365,7 +365,7 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 	if (!req)
 		return DRIVER_ERROR << 24;
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(req);
 	req->cmd_flags |= REQ_QUIET;
 
 	SRpnt->bio = NULL;

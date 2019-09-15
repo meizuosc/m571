@@ -9,7 +9,7 @@
 
 #include <linux/mount.h>
 #include <linux/compat.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "ext3.h"
 
 long ext3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)

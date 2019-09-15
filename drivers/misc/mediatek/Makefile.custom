@@ -76,6 +76,7 @@ ccflags-y += -I$(MTK_CUSTOM_PATH)/accdet/$(MTK_PLATFORM) \
              -I$(MTK_CUSTOM_PATH)/met/platform/$(MTK_PLATFORM) \
              -I$(MTK_CUSTOM_PATH)/met/$(MTK_PLATFORM) \
              -I$(MTK_CUSTOM_PATH)/sensorHub/inc \
+	     -I$(MTK_CUSTOM_PATH)/smi \
              -I$(MTK_CUSTOM_PATH)/smi/$(MTK_PLATFORM) \
              -I$(MTK_CUSTOM_PATH)/ssw/inc \
              -I$(MTK_CUSTOM_PATH)/sync \

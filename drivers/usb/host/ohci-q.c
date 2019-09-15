@@ -146,7 +146,7 @@ static void periodic_link (struct ohci_hcd *ohci, struct ed *ed)
 {
 	unsigned	i;
 
-	ohci_vdbg (ohci, "link %sed %p branch %d [%dus.], interval %d\n",
+	ohci_vdbg (ohci, "link %sed %pK branch %d [%dus.], interval %d\n",
 		(ed->hwINFO & cpu_to_hc32 (ohci, ED_ISO)) ? "iso " : "",
 		ed, ed->branch, ed->load, ed->interval);
 
@@ -293,7 +293,7 @@ static void periodic_unlink (struct ohci_hcd *ohci, struct ed *ed)
 	}
 	ohci_to_hcd(ohci)->self.bandwidth_allocated -= ed->load / ed->interval;
 
-	ohci_vdbg (ohci, "unlink %sed %p branch %d [%dus.], interval %d\n",
+	ohci_vdbg (ohci, "unlink %sed %pK branch %d [%dus.], interval %d\n",
 		(ed->hwINFO & cpu_to_hc32 (ohci, ED_ISO)) ? "iso " : "",
 		ed, ed->branch, ed->load, ed->interval);
 }
@@ -763,7 +763,7 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 
 		if (cc != TD_CC_NOERROR)
 			ohci_vdbg (ohci,
-				"urb %p iso td %p (%d) len %d cc %d\n",
+				"urb %pK iso td %pK (%d) len %d cc %d\n",
 				urb, td, 1 + td->index, dlen, cc);
 
 	/* BULK, INT, CONTROL ... drivers see aggregate length/status,
@@ -795,7 +795,7 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 
 		if (cc != TD_CC_NOERROR && cc < 0x0E)
 			ohci_vdbg (ohci,
-				"urb %p td %p (%d) cc %d, len=%d/%d\n",
+				"urb %pK td %pK (%d) cc %d, len=%d/%d\n",
 				urb, td, 1 + td->index, cc,
 				urb->actual_length,
 				urb->transfer_buffer_length);
@@ -861,7 +861,7 @@ static void ed_halted(struct ohci_hcd *ohci, struct td *td, int cc)
 		/* fallthrough */
 	default:
 		ohci_dbg (ohci,
-			"urb %p path %s ep%d%s %08x cc %d --> status %d\n",
+			"urb %pK path %s ep%d%s %08x cc %d --> status %d\n",
 			urb, urb->dev->devpath,
 			usb_pipeendpoint (urb->pipe),
 			usb_pipein (urb->pipe) ? "in" : "out",
@@ -927,10 +927,6 @@ rescan_all:
 		int			completed, modified;
 		__hc32			*prev;
 
-		/* Is this ED already invisible to the hardware? */
-		if (ed->state == ED_IDLE)
-			goto ed_idle;
-
 		/* only take off EDs that the HC isn't using, accounting for
 		 * frame counter wraps and EDs with partially retired TDs
 		 */
@@ -961,19 +957,19 @@ skip_ed:
 		}
 
 		/* ED's now officially unlinked, hc doesn't see */
-		ed->state = ED_IDLE;
 		if (quirk_zfmicro(ohci) && ed->type == PIPE_INTERRUPT)
 			ohci->eds_scheduled--;
 		ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_H);
 		ed->hwNextED = 0;
 		wmb();
 		ed->hwINFO &= ~cpu_to_hc32(ohci, ED_SKIP | ED_DEQUEUE);
-ed_idle:
 
 		/* reentrancy:  if we drop the schedule lock, someone might
 		 * have modified this list.  normally it's just prepending
 		 * entries (which we'd ignore), but paranoia won't hurt.
 		 */
+		*last = ed->ed_next;
+		ed->ed_next = NULL;
 		modified = 0;
 
 		/* unlink urbs as requested, but rescan the list after
@@ -1032,19 +1028,21 @@ rescan_this:
 			goto rescan_this;
 
 		/*
-		 * If no TDs are queued, take ED off the ed_rm_list.
+		 * If no TDs are queued, ED is now idle.
 		 * Otherwise, if the HC is running, reschedule.
-		 * If not, leave it on the list for further dequeues.
+		 * If the HC isn't running, add ED back to the
+		 * start of the list for later processing.
 		 */
 		if (list_empty(&ed->td_list)) {
-			*last = ed->ed_next;
-			ed->ed_next = NULL;
+			ed->state = ED_IDLE;
 		} else if (ohci->rh_state == OHCI_RH_RUNNING) {
-			*last = ed->ed_next;
-			ed->ed_next = NULL;
 			ed_schedule(ohci, ed);
 		} else {
-			last = &ed->ed_next;
+			ed->ed_next = ohci->ed_rm_list;
+			ohci->ed_rm_list = ed;
+			/* Don't loop on the same ED */
+			if (last == &ohci->ed_rm_list)
+				last = &ed->ed_next;
 		}
 
 		if (modified)

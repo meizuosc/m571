@@ -24,7 +24,7 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #include <linux/interrupt.h>
 #include <linux/cdev.h>
 #include <linux/stringify.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sii_hal.h"
 #include "si_fw_macros.h"
@@ -1732,7 +1732,7 @@ int mhl_tx_init(struct mhl_drv_info const *drv_info, struct i2c_client *client)
 
 
 	if (drv_info == NULL || client == NULL) {
-		pr_err("Null parameter passed to %s\n",__FUNCTION__);
+		pr_err("Null parameter passed to %s\n",__func__);
 		return -EINVAL;
 	}
 

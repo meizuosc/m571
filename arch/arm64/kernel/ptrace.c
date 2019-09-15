@@ -58,6 +58,12 @@
  */
 void ptrace_disable(struct task_struct *child)
 {
+	/*
+	 * This would be better off in core code, but PTRACE_DETACH has
+	 * grown its fair share of arch-specific worts and changing it
+	 * is likely to cause regressions on obscure architectures.
+	 */
+	user_disable_single_step(child);
 }
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -220,13 +226,13 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 				     struct arch_hw_breakpoint_ctrl ctrl,
 				     struct perf_event_attr *attr)
 {
-	int err, len, type, disabled = !ctrl.enabled;
+	int err, len, type, offset, disabled = !ctrl.enabled;
 
 	attr->disabled = disabled;
 	if (disabled)
 		return 0;
 
-	err = arch_bp_generic_fields(ctrl, &len, &type);
+	err = arch_bp_generic_fields(ctrl, &len, &type, &offset);
 	if (err)
 		return err;
 
@@ -245,6 +251,7 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 
 	attr->bp_len	= len;
 	attr->bp_type	= type;
+	attr->bp_addr	+= offset;
 
 	return 0;
 }
@@ -297,7 +304,7 @@ static int ptrace_hbp_get_addr(unsigned int note_type,
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
 
-	*addr = bp ? bp->attr.bp_addr : 0;
+	*addr = bp ? counter_arch_bp(bp)->address : 0;
 	return 0;
 }
 
@@ -443,6 +450,8 @@ static int hw_break_set(struct task_struct *target,
 	/* (address, ctrl) registers */
 	limit = regset->n * regset->size;
 	while (count && offset < limit) {
+		if (count < PTRACE_HBP_ADDR_SZ)
+			return -EINVAL;
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &addr,
 					 offset, offset + PTRACE_HBP_ADDR_SZ);
 		if (ret)
@@ -452,6 +461,8 @@ static int hw_break_set(struct task_struct *target,
 			return ret;
 		offset += PTRACE_HBP_ADDR_SZ;
 
+		if (!count)
+			break;
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl,
 					 offset, offset + PTRACE_HBP_CTRL_SZ);
 		if (ret)
@@ -488,7 +499,7 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 		   const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	struct user_pt_regs newregs;
+	struct user_pt_regs newregs = task_pt_regs(target)->user_regs;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &newregs, 0, -1);
 	if (ret)
@@ -518,7 +529,8 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 		   const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	struct user_fpsimd_state newstate;
+	struct user_fpsimd_state newstate =
+		target->thread.fpsimd_state.user_fpsimd;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &newstate, 0, -1);
 	if (ret)
@@ -542,13 +554,40 @@ static int tls_set(struct task_struct *target, const struct user_regset *regset,
 		   const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	unsigned long tls;
+	unsigned long tls = target->thread.tp_value;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &tls, 0, -1);
 	if (ret)
 		return ret;
 
 	target->thread.tp_value = tls;
+	return ret;
+}
+
+static int system_call_get(struct task_struct *target,
+			   const struct user_regset *regset,
+			   unsigned int pos, unsigned int count,
+			   void *kbuf, void __user *ubuf)
+{
+	int syscallno = task_pt_regs(target)->syscallno;
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &syscallno, 0, -1);
+}
+
+static int system_call_set(struct task_struct *target,
+			   const struct user_regset *regset,
+			   unsigned int pos, unsigned int count,
+			   const void *kbuf, const void __user *ubuf)
+{
+	int syscallno = task_pt_regs(target)->syscallno;
+	int ret;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &syscallno, 0, -1);
+	if (ret)
+		return ret;
+
+	task_pt_regs(target)->syscallno = syscallno;
 	return ret;
 }
 
@@ -560,6 +599,7 @@ enum aarch64_regset {
 	REGSET_HW_BREAK,
 	REGSET_HW_WATCH,
 #endif
+	REGSET_SYSTEM_CALL,
 };
 
 static const struct user_regset aarch64_regsets[] = {
@@ -609,6 +649,14 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = hw_break_set,
 	},
 #endif
+	[REGSET_SYSTEM_CALL] = {
+		.core_note_type = NT_ARM_SYSTEM_CALL,
+		.n = 1,
+		.size = sizeof(int),
+		.align = sizeof(int),
+		.get = system_call_get,
+		.set = system_call_set,
+	},
 };
 
 static const struct user_regset_view user_aarch64_view = {
@@ -1126,13 +1174,13 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 	unsigned int saved_syscallno = regs->syscallno;
 
 	/* Do the secure computing check first; failures should be fast. */
-	if (secure_computing(regs->syscallno) == -1)
+	if (secure_computing() == -1)
 		return RET_SKIP_SYSCALL_TRACE;
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
+	if (test_thread_flag_relaxed(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+	if (test_thread_flag_relaxed(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, regs->syscallno);
 
 	if (IS_SKIP_SYSCALL(regs->syscallno)) {
@@ -1163,9 +1211,9 @@ asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 {
 	audit_syscall_exit(regs);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+	if (test_thread_flag_relaxed(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_exit(regs, regs_return_value(regs));
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
+	if (test_thread_flag_relaxed(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);
 }

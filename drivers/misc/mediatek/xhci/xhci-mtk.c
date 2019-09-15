@@ -5,7 +5,7 @@
 #include <linux/kernel.h>	/* printk() */
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/wakelock.h>

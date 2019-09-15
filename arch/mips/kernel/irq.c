@@ -23,7 +23,7 @@
 #include <linux/ftrace.h>
 
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_KGDB
 int kgdb_early_setup;
@@ -110,7 +110,7 @@ void __init init_IRQ(void)
 #endif
 }
 
-#ifdef DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
 static inline void check_stack_overflow(void)
 {
 	unsigned long sp;

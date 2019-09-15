@@ -78,6 +78,7 @@ struct writeback_control {
 	unsigned tagged_writepages:1;	/* tag-and-write to avoid livelock */
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
+	unsigned for_sync:1;		/* sync(2) WB_SYNC_ALL writeback */
 };
 
 /*
@@ -128,6 +129,7 @@ extern int vm_dirty_ratio;
 extern unsigned long vm_dirty_bytes;
 extern unsigned int dirty_writeback_interval;
 extern unsigned int dirty_expire_interval;
+extern unsigned int dirtytime_expire_interval;
 extern int vm_highmem_is_dirtyable;
 extern int block_dump;
 extern int laptop_mode;
@@ -144,6 +146,8 @@ extern int dirty_ratio_handler(struct ctl_table *table, int write,
 extern int dirty_bytes_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
 		loff_t *ppos);
+int dirtytime_interval_handler(struct ctl_table *table, int write,
+			       void __user *buffer, size_t *lenp, loff_t *ppos);
 
 struct ctl_table;
 int dirty_writeback_centisecs_handler(struct ctl_table *, int,

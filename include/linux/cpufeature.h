@@ -43,10 +43,21 @@
  * For a list of legal values for 'feature', please consult the file
  * 'asm/cpufeature.h' of your favorite architecture.
  */
-#define module_cpu_feature_match(x, __init)			\
+
+#ifdef MODULE
+
+/* gcc6 does not like unused declarations */
+#define declare_cpu_feature(x) \
 static struct cpu_feature const cpu_feature_match_ ## x[] =	\
 	{ { .feature = cpu_feature(x) }, { } };			\
-MODULE_DEVICE_TABLE(cpu, cpu_feature_match_ ## x);		\
+MODULE_DEVICE_TABLE(cpu, cpu_feature_match_ ## x);
+
+#else
+#define declare_cpu_feature(x)
+#endif
+
+#define module_cpu_feature_match(x, __init)			\
+declare_cpu_feature(x)						\
 								\
 static int cpu_feature_match_ ## x ## _init(void)		\
 {								\

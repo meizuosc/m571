@@ -8,7 +8,7 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h> //Add for msleep
 #include <linux/seq_file.h>
 #include <mach/wd_api.h>

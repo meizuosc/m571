@@ -24,7 +24,7 @@
 #include <linux/user.h>
 #include <linux/signal.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>

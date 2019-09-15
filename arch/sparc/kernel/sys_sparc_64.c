@@ -25,7 +25,7 @@
 #include <linux/random.h>
 #include <linux/export.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/utrap.h>
 #include <asm/unistd.h>
 
@@ -119,7 +119,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 		vma = find_vma(mm, addr);
 		if (task_size - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
@@ -182,7 +182,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 		vma = find_vma(mm, addr);
 		if (task_size - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
@@ -265,7 +265,7 @@ static unsigned long mmap_rnd(void)
 	unsigned long rnd = 0UL;
 
 	if (current->flags & PF_RANDOMIZE) {
-		unsigned long val = get_random_int();
+		unsigned long val = get_random_long();
 		if (test_thread_flag(TIF_32BIT))
 			rnd = (val % (1UL << (23UL-PAGE_SHIFT)));
 		else
@@ -336,7 +336,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 	long err;
 
 	/* No need for backward compatibility. We can start fresh... */
-	if (call <= SEMCTL) {
+	if (call <= SEMTIMEDOP) {
 		switch (call) {
 		case SEMOP:
 			err = sys_semtimedop(first, ptr,
@@ -416,7 +416,7 @@ out:
 
 SYSCALL_DEFINE1(sparc64_personality, unsigned long, personality)
 {
-	int ret;
+	long ret;
 
 	if (personality(current->personality) == PER_LINUX32 &&
 	    personality(personality) == PER_LINUX)

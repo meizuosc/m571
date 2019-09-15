@@ -29,7 +29,7 @@
 /* ethtool support for e1000 */
 
 #include "e1000.h"
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 enum {NETDEV_STATS, E1000_STATS};
 

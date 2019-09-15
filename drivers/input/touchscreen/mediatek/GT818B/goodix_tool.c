@@ -14,7 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/proc_fs.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define IC_TYPE_NAME        "GT818"
 #define DATA_LENGTH_UINT    512

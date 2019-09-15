@@ -49,7 +49,7 @@
 #include <linux/types.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/if_vlan.h>
 
 #include "ieee80211.h"
@@ -188,7 +188,7 @@ int ieee80211_encrypt_fragment(
 
 	if (!(crypt && crypt->ops))
 	{
-		printk("=========>%s(), crypt is null\n", __FUNCTION__);
+		printk("=========>%s(), crypt is null\n", __func__);
 		return -1;
 	}
 #ifdef CONFIG_IEEE80211_CRYPT_TKIP

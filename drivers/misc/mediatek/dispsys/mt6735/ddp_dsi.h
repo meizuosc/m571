@@ -1,13 +1,11 @@
 #ifndef __DSI_DRV_H__
 #define __DSI_DRV_H__
 
-
 #include <mach/mt_typedefs.h>
 
 #include "lcm_drv.h"
 #include "ddp_hal.h"
-#include "fbconfig_kdebug_k2.h"
-
+#include <video/fbconfig_kdebug_k2.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -344,7 +344,6 @@ config FORCE_MAX_ZONEORDER
 
 config SMP
 	bool "Symmetric multi-processing support"
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N.  If you have a system with more
@@ -376,7 +375,6 @@ config NR_CPUS
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
 	depends on SMP
-	select HOTPLUG
 	default n
 	---help---
 	  Say Y here to experiment with turning CPUs off and on.  CPUs

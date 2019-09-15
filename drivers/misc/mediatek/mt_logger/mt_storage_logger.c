@@ -187,7 +187,7 @@ static struct _loggerFuncName storageLoggerfunc[] = {
 };
 
 /*========USB PART========*/
-#define MSG_ARRAY_INDEX(a, b, c) [USB_LOGGER_MSG_##a - USB_LOGGER_MSG_FIRST_ONE] = \
+#define MSG_ARRAY_INDEX(a, b, c)[USB_LOGGER_MSG_##a - USB_LOGGER_MSG_FIRST_ONE] = \
 								{USB_LOGGER_MSG_##a, b, c}
 
 static struct _loggerMsgFormat usb_logger_format[] = {
@@ -239,7 +239,7 @@ static struct _loggerMsgFormat usb_logger_format[] = {
 	MSG_ARRAY_INDEX(LAST_ONE, "", "")
 };
 
-#define MSG_FUNC_INDEX(a, b) [USB_FUNC_STRING_INDEX_##a] = {USB_FUNC_STRING_INDEX_##a, b}
+#define MSG_FUNC_INDEX(a, b)[USB_FUNC_STRING_INDEX_##a] = {USB_FUNC_STRING_INDEX_##a, b}
 
 static struct _loggerFuncName usb_func_name_string[] = {
 	MSG_FUNC_INDEX(MUSB_INTERRUPT, "musb_interrupt"),
@@ -270,7 +270,7 @@ static struct _loggerFuncName usb_func_name_string[] = {
 };
 
 /*========Thermal PART========*/
-#define MSG_THRML_ARRAY_INDEX(a, b, c) [THRML_LOGGER_MSG_##a - THRML_LOGGER_MSG_FIRST_ONE] = \
+#define MSG_THRML_ARRAY_INDEX(a, b, c)[THRML_LOGGER_MSG_##a - THRML_LOGGER_MSG_FIRST_ONE] = \
 								{THRML_LOGGER_MSG_##a, b, c}
 
 
@@ -296,7 +296,7 @@ static struct _loggerMsgFormat thermalLoggerFmt[] = {
 
 };
 
-#define MSG_THRML_FUNC_INDEX(a, b) [THRML_FID_##a] = {THRML_FID_##a, b}
+#define MSG_THRML_FUNC_INDEX(a, b)[THRML_FID_##a] = {THRML_FID_##a, b}
 
 static struct _loggerFuncName thermalLoggerfunc[] = {
 	MSG_THRML_FUNC_INDEX(bind, "mtk_thermal_wrapper_bind"),
@@ -353,7 +353,7 @@ static struct platform_driver storage_logger_driver = {
 		   }
 };
 #endif
-static int storage_logger_dump_write_proc(struct file *file, const char *buffer, size_t count,
+static ssize_t storage_logger_dump_write_proc(struct file *file, const char *buffer, size_t count,
 					  loff_t *data)
 {
 	char tmpBuf[4];
@@ -434,7 +434,7 @@ static int storage_logger_bufsize_open_proc(struct inode *inode, struct file *fi
 	return single_open(file, storage_logger_bufsize_show_proc, NULL);
 }
 
-static int storage_logger_bufsize_write_proc(struct file *file, const char *buffer, size_t count,
+static ssize_t storage_logger_bufsize_write_proc(struct file *file, const char *buffer, size_t count,
 					     loff_t *data)
 {
 	char tmpBuf[30];
@@ -470,7 +470,7 @@ static int storage_logger_bufsize_write_proc(struct file *file, const char *buff
 	return count;
 }
 
-static int storage_logger_filename_write_proc(struct file *file, const char *buffer, size_t count,
+static ssize_t storage_logger_filename_write_proc(struct file *file, const char *buffer, size_t count,
 					      loff_t *data)
 {
 	char tmpBuf[MAX_FILENAME_TOTAL_LENGTH + 1];
@@ -510,7 +510,7 @@ bool ioschedule_dump(void)
 	return storage_logger_iosched;
 }
 
-static int storage_logger_iosched_write_proc(struct file *file, const char *buffer, size_t count,
+static ssize_t storage_logger_iosched_write_proc(struct file *file, const char *buffer, size_t count,
 					     loff_t *data)
 {
 	char tmpBuf[4];
@@ -604,7 +604,7 @@ static int storage_logger_fs_rectime_threshold_open_proc(struct inode *inode, st
 	return single_open(file, storage_logger_fs_rectime_threshold_show_proc, NULL);
 }
 
-static int storage_logger_fs_rectime_threshold_write_proc(struct file *file, const char *buffer,
+static ssize_t storage_logger_fs_rectime_threshold_write_proc(struct file *file, const char *buffer,
 							  size_t count, loff_t *data)
 {
 	char tmpBuf[30];
@@ -622,7 +622,6 @@ static int storage_logger_fs_rectime_threshold_write_proc(struct file *file, con
 	if (0 != local_logger_bs) {
 		fs_rectime_threshold = local_logger_bs;
 	}
-	/* printk(KERN_INFO " %s, %d - write file system threshold to fs_rectime with %d ms\n", __FUNCTION__, __LINE__, fs_rectime_threshold); */
 	return count;
 }
 
@@ -677,11 +676,14 @@ static inline void __add_trace(enum logger_type type, unsigned int msg_id,
 	const char *fmt = NULL;
 	unsigned long flags;
 	unsigned long long curtime;
-	uint localbuffer[MAX_SINGLE_LINE_SIZE_INT];
-	uint payload[MAX_SINGLE_LINE_SIZE_INT];
+	uint *localbuffer = NULL;
+	uint *payload = NULL;
 
 
 	struct logger_type_info *info = &logger_info[type];
+
+	localbuffer = vmalloc(MAX_SINGLE_LINE_SIZE_INT * sizeof(uint));
+	payload = vmalloc(MAX_SINGLE_LINE_SIZE_INT * sizeof(uint));
 
 	/*Disable the Storage Logger. Do nothing and just return */
 	if (!enable_StorageLogger || (!storage_logger_mem_pool))
@@ -751,7 +753,6 @@ static inline void __add_trace(enum logger_type type, unsigned int msg_id,
 				    ((storage_logger_bufsize >> 2) -
 				     (storage_logger_bufsize >> 6))) {
 					readIndex = 0;
-					/* printk(KERN_INFO"Holmes Wrapped Wx: %d\n",writeIndex); */
 					break;
 				}
 
@@ -786,6 +787,9 @@ static inline void __add_trace(enum logger_type type, unsigned int msg_id,
 		spin_unlock_irqrestore(&logger_lock, flags);
 
 	}
+
+	vfree(localbuffer);
+	vfree(payload);
 }
 
 void add_trace(enum logger_type type, unsigned int msg_id,
@@ -855,7 +859,7 @@ static int storage_logger_open_proc(struct inode *inode, struct file *file)
 	return single_open(file, storage_logger_show_proc, NULL);
 }
 
-static int storage_logger_write_proc(struct file *file, const char *buffer, size_t count,
+static ssize_t storage_logger_write_proc(struct file *file, const char *buffer, size_t count,
 				     loff_t *data)
 {
 	char acBuf[32];
@@ -914,7 +918,7 @@ static int mtk_io_osd_open_proc(struct inode *inode, struct file *file)
 	return single_open(file, mtk_io_osd_show_proc, NULL);
 }
 
-static int mtk_io_osd_write_proc(struct file *file, const char *buffer, size_t count, loff_t *data)
+static ssize_t mtk_io_osd_write_proc(struct file *file, const char *buffer, size_t count, loff_t *data)
 {
 	char acBuf[32];
 	unsigned long CopySize = 0;
@@ -1021,7 +1025,7 @@ static int storage_logger_open_flag(struct inode *inode, struct file *file)
 char acBuf[MAX_SINGLE_LINE_SIZE];
 char cmd[MAX_SINGLE_LINE_SIZE];
 
-static int storage_logger_write_flag(struct file *file, const char *buffer, size_t count,
+static ssize_t storage_logger_write_flag(struct file *file, const char *buffer, size_t count,
 				     loff_t *data)
 {
 	unsigned long CopySize = 0;
@@ -1078,7 +1082,7 @@ static int usb_logger_open_flag(struct inode *inode, struct file *file)
 	return single_open(file, usb_logger_show_flag, NULL);
 }
 
-static int usb_logger_write_flag(struct file *file, const char *buffer, size_t count, loff_t *data)
+static ssize_t usb_logger_write_flag(struct file *file, const char *buffer, size_t count, loff_t *data)
 {
 	char kbuf[MAX_SINGLE_LINE_SIZE];
 	unsigned long len = 0;
@@ -1124,7 +1128,7 @@ static int thermal_logger_open_flag(struct inode *inode, struct file *file)
 	return single_open(file, thermal_logger_show_flag, NULL);
 }
 
-static int thermal_logger_write_flag
+static ssize_t thermal_logger_write_flag
     (struct file *file, const char *buffer, size_t count, loff_t *data) {
 	char kbuf[MAX_SINGLE_LINE_SIZE];
 	unsigned long len = 0;
@@ -1382,7 +1386,7 @@ ssize_t storage_logger_proc_read(struct file *file, char __user *buf, size_t siz
 	}
 	/* SLog_MSG("second part: %Lu  %d\n",m->index,m->count); */
 
- Done :
+ Done:
 	if (!copied)
 		copied = err;
 	else {
@@ -1411,7 +1415,6 @@ ssize_t storage_logger_proc_read(struct file *file, char __user *buf, size_t siz
 		/* Take a sleep to wait the storage logger stopping */
 		msleep(10);
 	}
-	printk(KERN_INFO "Holmes storage_logger_proc_read: %d %Lu %Lu\n", size, *ppos, m->read_pos);
 	mutex_lock(&m->lock);
 
 	/* Don't assume *ppos is where we left it */
@@ -1451,7 +1454,6 @@ ssize_t storage_logger_proc_read(struct file *file, char __user *buf, size_t siz
 	if (m->count) {
 		n = min(m->count, size);
 		err = copy_to_user(buf, m->buf + m->from, n);
-		printk(KERN_INFO "Holmes copy_to_user: %d\n", n);
 
 		if (err)
 			goto Efault;
@@ -1468,7 +1470,6 @@ ssize_t storage_logger_proc_read(struct file *file, char __user *buf, size_t siz
 	/* we need at least one record in buffer */
 	pos = m->index;
 	p = m->op->start(m, &pos);
-	printk(KERN_INFO "Holmes start: %Lu     %d\n", m->index, m->count);
 
 	while (1) {
 		err = PTR_ERR(p);
@@ -1476,7 +1477,6 @@ ssize_t storage_logger_proc_read(struct file *file, char __user *buf, size_t siz
 			break;
 		err = m->op->show(m, p);
 
-		printk(KERN_INFO "Holmes show: %Lu   %d\n", m->index, m->count);
 
 		if (err < 0)
 			break;
@@ -1498,7 +1498,6 @@ ssize_t storage_logger_proc_read(struct file *file, char __user *buf, size_t siz
 		m->version = 0;
 		pos = m->index;
 		p = m->op->start(m, &pos);
-		printk(KERN_INFO "Holmes start2: %Lu   %d\n", m->index, m->count);
 	}
 	m->op->stop(m, p);
 	m->count = 0;
@@ -1524,7 +1523,6 @@ ssize_t storage_logger_proc_read(struct file *file, char __user *buf, size_t siz
 	m->op->stop(m, p);
 	n = min(m->count, size);
 	err = copy_to_user(buf, m->buf, n);
-	printk(KERN_INFO "Holmes copy_to_user: %d\n", n);
 
 	if (err)
 		goto Efault;
@@ -1544,7 +1542,6 @@ ssize_t storage_logger_proc_read(struct file *file, char __user *buf, size_t siz
 	}
 	file->f_version = m->version;
 	mutex_unlock(&m->lock);
-	printk(KERN_INFO "Holmes return: %d\n", copied);
 
 	return copied;
  Enomem:
@@ -1563,6 +1560,8 @@ int __storage_logger_proc_release(struct inode *inode, struct file *file)
 	m->buf = seq_buf_ptr;
 	vfree(m->buf);
 #endif
+    if (m->buf)
+	kfree(m->buf);
 	kfree(m);
 	return 0;
 }
@@ -1675,6 +1674,7 @@ static const struct file_operations driver_base_proc_fops = {
 	.write = storage_logger_write_proc,
 	.read = seq_read,
 	.open = storage_logger_open_proc,
+	.release = single_release,
 };
 
 static const struct file_operations driver_config_proc_fops = {
@@ -1682,6 +1682,7 @@ static const struct file_operations driver_config_proc_fops = {
 	.write = storage_logger_write_flag,
 	.read = seq_read,
 	.open = storage_logger_open_flag,
+	.release = single_release,
 };
 
 static const struct file_operations driver_usb_config_proc_fops = {
@@ -1689,6 +1690,7 @@ static const struct file_operations driver_usb_config_proc_fops = {
 	.write = usb_logger_write_flag,
 	.read = seq_read,
 	.open = usb_logger_open_flag,
+	.release = single_release,
 };
 
 static const struct file_operations driver_thermal_config_proc_fops = {
@@ -1696,6 +1698,7 @@ static const struct file_operations driver_thermal_config_proc_fops = {
 	.write = thermal_logger_write_flag,
 	.read = seq_read,
 	.open = thermal_logger_open_flag,
+	.release = single_release,
 };
 
 #if defined(FEATURE_STORAGE_PERF_INDEX)
@@ -1705,18 +1708,21 @@ static const struct file_operations mtk_io_osd_config_proc_fops = {
 	.write = mtk_io_osd_write_proc,
 	.read = seq_read,
 	.open = mtk_io_osd_open_proc,
+	.release = single_release,
 };
 
 static const struct file_operations mtk_io_osd_mmcqd1_proc_fops = {
 	.owner = THIS_MODULE,
 	.read = seq_read,
 	.open = mtk_io_osd_mmcqd1_open_proc,
+	.release = single_release,
 };
 
 static const struct file_operations mtk_io_osd_mmcqd2_proc_fops = {
 	.owner = THIS_MODULE,
 	.read = seq_read,
 	.open = mtk_io_osd_mmcqd2_open_proc,
+	.release = single_release,
 };
 
 #endif
@@ -1731,6 +1737,7 @@ static const struct file_operations driver_bufsize_proc_fops = {
 	.write = storage_logger_bufsize_write_proc,
 	.read = seq_read,
 	.open = storage_logger_bufsize_open_proc,
+	.release = single_release,
 };
 
 static const struct file_operations driver_filename_proc_fops = {
@@ -1738,12 +1745,14 @@ static const struct file_operations driver_filename_proc_fops = {
 	.write = storage_logger_filename_write_proc,
 	.read = seq_read,
 	.open = storage_logger_filename_open_proc,
+	.release = single_release,
 };
 
 static const struct file_operations driver_status_proc_fops = {
 	.owner = THIS_MODULE,
 	.read = seq_read,
 	.open = storage_logger_status_open_proc,
+	.release = single_release,
 };
 
 static const struct file_operations driver_iosched_proc_fops = {
@@ -1751,6 +1760,7 @@ static const struct file_operations driver_iosched_proc_fops = {
 	.write = storage_logger_iosched_write_proc,
 	.read = seq_read,
 	.open = storage_logger_iosched_open_proc,
+	.release = single_release,
 };
 
 static const struct file_operations driver_fs_rectime_proc_fops = {
@@ -1758,6 +1768,7 @@ static const struct file_operations driver_fs_rectime_proc_fops = {
 	.write = storage_logger_fs_rectime_threshold_write_proc,
 	.read = seq_read,
 	.open = storage_logger_fs_rectime_threshold_open_proc,
+	.release = single_release,
 };
 
 static int __init storage_logger_init(void)

@@ -1013,7 +1013,8 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	return try_release_extent_buffer(page);
 }
 
-static void btree_invalidatepage(struct page *page, unsigned long offset)
+static void btree_invalidatepage(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
@@ -1623,7 +1624,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 		if (!device->bdev)
 			continue;
 		bdi = blk_get_backing_dev_info(device->bdev);
-		if (bdi && bdi_congested(bdi, bdi_bits)) {
+		if (bdi_congested(bdi, bdi_bits)) {
 			ret = 1;
 			break;
 		}
@@ -2441,6 +2442,7 @@ int open_ctree(struct super_block *sb,
 		       "unsupported option features (%Lx).\n",
 		       (unsigned long long)features);
 		err = -EINVAL;
+		brelse(bh);
 		goto fail_alloc;
 	}
 

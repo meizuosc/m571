@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -48,7 +48,7 @@
 #include "mmc3416x.h"
 #include <linux/hwmsen_helper.h>
 /*----------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 #define MMC3416X_DEV_NAME         "mmc3416x"
 #define DRIVER_VERSION          "1.0.0"
 /*----------------------------------------------------------------------------*/
@@ -1094,7 +1094,7 @@ static int mmc3416x_release(struct inode *inode, struct file *file)
 			break;
 			
 		default:
-			printk(KERN_ERR "%s not supported = 0x%04x", __FUNCTION__, cmd);
+			printk(KERN_ERR "%s not supported = 0x%04x", __func__, cmd);
 			return -ENOIOCTLCMD;
 			break;		
 		}

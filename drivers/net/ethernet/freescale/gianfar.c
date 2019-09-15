@@ -89,7 +89,7 @@
 #include <asm/io.h>
 #include <asm/reg.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>

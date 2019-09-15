@@ -22,7 +22,7 @@
 #include <linux/rtpm_prio.h>
 #include <mach/eint.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <cust_eint.h>
 #include <linux/jiffies.h>
 
@@ -100,8 +100,8 @@ enum {
 * Macros
 ****************************************************************************/
 #define TPD_TAG                  "[Melfas] "
-#define TPD_FUN(f)               printk(KERN_ERR TPD_TAG"%s\n", __FUNCTION__)
-#define TPD_ERR(fmt, args...)    printk(KERN_ERR TPD_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define TPD_FUN(f)               printk(KERN_ERR TPD_TAG"%s\n", __func__)
+#define TPD_ERR(fmt, args...)    printk(KERN_ERR TPD_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define TPD_LOG(fmt, args...)    printk(KERN_ERR TPD_TAG fmt, ##args)
 
 /****************************************************************************

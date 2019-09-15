@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright (C) IBM Corporation, 2005, 2006
  *
@@ -1514,7 +1514,7 @@ rcu_torture_shutdown(void *arg)
  * Execute random CPU-hotplug operations at the interval specified
  * by the onoff_interval.
  */
-static int __cpuinit
+static int
 rcu_torture_onoff(void *arg)
 {
 	int cpu;
@@ -1596,7 +1596,7 @@ rcu_torture_onoff(void *arg)
 	return 0;
 }
 
-static int __cpuinit
+static int
 rcu_torture_onoff_init(void)
 {
 	int ret;
@@ -1639,7 +1639,7 @@ static void rcu_torture_onoff_cleanup(void)
  * CPU-stall kthread.  It waits as specified by stall_cpu_holdoff, then
  * induces a CPU stall for the time specified by stall_cpu.
  */
-static int __cpuinit rcu_torture_stall(void *args)
+static int rcu_torture_stall(void *args)
 {
 	unsigned long stop_at;
 

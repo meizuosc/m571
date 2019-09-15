@@ -344,7 +344,7 @@ static int check_port(struct sdio_modem_port *port)
 	struct sdio_modem *modem = NULL;
 	int ret = 0;
 	if (!port){
-		LOGPRT(LOG_ERR, "%s port NULL\n", __FUNCTION__);
+		LOGPRT(LOG_ERR, "%s port NULL\n", __func__);
 		ret = -ENODEV;
 	}
 	else{
@@ -1960,7 +1960,7 @@ void exception_data_dump(const char *buf, unsigned int len)
 	int i;
 
 	if (!buf || (len <= 0)){
-		LOGPRT(LOG_ERR, "[MODEM SDIO] %s: Bad parameters!\n", __FUNCTION__);
+		LOGPRT(LOG_ERR, "[MODEM SDIO] %s: Bad parameters!\n", __func__);
 		goto err_exit;
 	}
 	LOGPRT(LOG_INFO, "[MODEM SDIO] Exception data dump begin\n");
@@ -3893,7 +3893,7 @@ int sdio_rawbulk_intercept(int port_num, unsigned int inception) {
     struct sdio_modem_port *port = sdio_modem_tty_port_get(port_num);
   
 	if (!port || !port->func){
-		LOGPRT(LOG_ERR,  "%s %d failed\n", __FUNCTION__,__LINE__);
+		LOGPRT(LOG_ERR,  "%s %d failed\n", __func__,__LINE__);
 		return ret;
 	}
 	LOGPRT(LOG_DEBUG, "modem inception = %d\n", inception);
@@ -3925,7 +3925,7 @@ int modem_buffer_push(int port_num, void *buf, int count)
   
 	ret = check_port(port);
 	if (ret < 0){
-		LOGPRT(LOG_ERR,  "%s %d invalid port\n", __FUNCTION__,__LINE__);
+		LOGPRT(LOG_ERR,  "%s %d invalid port\n", __func__,__LINE__);
 		return ret;
 	}
 
@@ -3938,7 +3938,7 @@ int modem_buffer_push(int port_num, void *buf, int count)
 	data_len = FIFO_SIZE - kfifo_len(&port->transmit_fifo);
 	spin_unlock_irqrestore(&port->write_lock, flags);
     if(data_len < count) {
-        LOGPRT(LOG_DEBUG, "%s %d: SDIO driver buffer is full!\n", __FUNCTION__,__LINE__);
+        LOGPRT(LOG_DEBUG, "%s %d: SDIO driver buffer is full!\n", __func__,__LINE__);
         return -ENOMEM;
     } 
 
@@ -4730,11 +4730,37 @@ static const struct sdio_device_id modem_sdio_ids[] = {
 
 MODULE_DEVICE_TABLE(sdio, modem_sdio_ids);
 
+static int c2k_sdio_suspend(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	int ret;
+
+	if (func) {
+		LOGPRT(LOG_INFO, "c2k_sdio_suspend\n");
+		ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	}
+	return 0;
+}
+
+static int c2k_sdio_resume(struct device *dev)
+{
+	return 0;
+}
+
+static const struct dev_pm_ops c2k_sdio_pm_ops = {
+	.suspend = c2k_sdio_suspend,
+	.resume = c2k_sdio_resume,
+};
+
 static struct sdio_driver modem_sdio_driver = {
 	.probe		= modem_sdio_probe,
 	.remove		= modem_sdio_remove,
 	.name		= "modem_sdio",
 	.id_table		= modem_sdio_ids,
+	.drv = {
+		.owner = THIS_MODULE,
+		.pm = &c2k_sdio_pm_ops,
+	}
 };
 
 #if ENABLE_CCMNI
@@ -5208,7 +5234,7 @@ int  modem_sdio_init(struct cbp_platform_data *pdata)
 			ret = -ENOMEM;
 			goto err_kazlloc_sdio_modem_port;
 		}
-		//printk("[MODEM SDIO] %s index[%d] 0x%x\n", __FUNCTION__, index, port);
+		//printk("[MODEM SDIO] %s index[%d] 0x%x\n", __func__, index, port);
 #if !ENABLE_CHAR_DEV
 		tty_port_init(&port->port);
 		port->port.ops = &sdio_modem_port_ops;

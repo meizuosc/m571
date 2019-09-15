@@ -8,7 +8,7 @@
 #include <linux/aee.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/setup.h>
 #include <mach/mtk_memcfg.h>
 #include <linux/of_fdt.h>

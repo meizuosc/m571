@@ -9,7 +9,7 @@
 #include <linux/ptrace.h>
 #include <linux/kernel.h>
 #include <asm/unistd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ucontext.h>
 #include <frame_kern.h>
 #include <skas.h>
@@ -508,7 +508,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 {
 	struct rt_sigframe __user *frame;
 	int err = 0;
-	struct task_struct *me = current;
 
 	frame = (struct rt_sigframe __user *)
 		round_down(stack_top - sizeof(struct rt_sigframe), 16);

@@ -104,7 +104,7 @@ static int tpd_def_calmat_local[8] = TPD_CALIBRATION_MATRIX;
 
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct touch_info {
     int y[10];
@@ -665,7 +665,7 @@ static int tpd_local_init(void)
     memcpy(tpd_calmat, tpd_def_calmat_local, 8*4);
     memcpy(tpd_def_calmat, tpd_def_calmat_local, 8*4);	
 #endif  
-    TPD_DMESG("end %s, %d\n", __FUNCTION__, __LINE__);  
+    TPD_DMESG("end %s, %d\n", __func__, __LINE__);  
     tpd_type_cap = 1;
     return 0; 
  }

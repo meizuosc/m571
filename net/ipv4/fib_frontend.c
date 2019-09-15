@@ -14,7 +14,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/capability.h>
 #include <linux/types.h>
@@ -209,19 +209,20 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 		return ip_hdr(skb)->daddr;
 
 	in_dev = __in_dev_get_rcu(dev);
-	BUG_ON(!in_dev);
 
 	net = dev_net(dev);
 
 	scope = RT_SCOPE_UNIVERSE;
 	if (!ipv4_is_zeronet(ip_hdr(skb)->saddr)) {
+		bool vmark = in_dev && IN_DEV_SRC_VMARK(in_dev);
+
 		fl4.flowi4_oif = 0;
 		fl4.flowi4_iif = LOOPBACK_IFINDEX;
 		fl4.daddr = ip_hdr(skb)->saddr;
 		fl4.saddr = 0;
 		fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
 		fl4.flowi4_scope = scope;
-		fl4.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0;
+		fl4.flowi4_mark = vmark ? skb->mark : 0;
 		if (!fib_lookup(net, &fl4, &res))
 			return FIB_RES_PREFSRC(net, res);
 	} else {
@@ -250,7 +251,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	bool dev_match;
 
 	fl4.flowi4_oif = 0;
-	fl4.flowi4_iif = oif;
+	fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
 	fl4.daddr = src;
 	fl4.saddr = dst;
 	fl4.flowi4_tos = tos;
@@ -623,15 +624,15 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
-    #ifdef CONFIG_MTK_NET_LOGGING 
-	printk(KERN_INFO "[mtk_net][RTlog delete] inet_rtm_delroute !\n");
-	#endif
+	//#ifdef CONFIG_MTK_NET_LOGGING
+	//printk(KERN_INFO "[mtk_net][RTlog delete] inet_rtm_delroute !\n");
+	//#endif
 	err = rtm_to_fib_config(net, skb, nlh, &cfg);
 	if (err < 0)
 		goto errout;
-	#ifdef CONFIG_MTK_NET_LOGGING 
-	printk(KERN_INFO "[mtk_net][RTlog info]  inet_rtm_delroute  cfg.fc_dst =%08x, cfg.fc_gw =%08x\n",cfg.fc_dst,cfg.fc_gw);
-    #endif
+	//#ifdef CONFIG_MTK_NET_LOGGING
+	//printk(KERN_INFO "[mtk_net][RTlog info]  inet_rtm_delroute  cfg.fc_dst =%08x, cfg.fc_gw =%08x\n",cfg.fc_dst,cfg.fc_gw);
+	//#endif
 	tb = fib_get_table(net, cfg.fc_table);
 	if (tb == NULL) {
 		err = -ESRCH;
@@ -649,16 +650,16 @@ static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
-	#ifdef CONFIG_MTK_NET_LOGGING 
-	printk(KERN_INFO "[mtk_net][RTlog insert] inet_rtm_newroute !\n");
-	#endif
+	//#ifdef CONFIG_MTK_NET_LOGGING 
+	//printk(KERN_INFO "[mtk_net][RTlog insert] inet_rtm_newroute !\n");
+	//#endif
 
 	err = rtm_to_fib_config(net, skb, nlh, &cfg);
 	if (err < 0)
 		goto errout;
-	#ifdef CONFIG_MTK_NET_LOGGING 
-	printk(KERN_INFO "[mtk_net][RTlog info]  inet_rtm_newroute  cfg.fc_dst =%08x,cfg.fc_gw =%08x \n",cfg.fc_dst,cfg.fc_gw);
-	#endif
+	//#ifdef CONFIG_MTK_NET_LOGGING 
+	//printk(KERN_INFO "[mtk_net][RTlog info]  inet_rtm_newroute  cfg.fc_dst =%08x,cfg.fc_gw =%08x \n",cfg.fc_dst,cfg.fc_gw);
+	//#endif
 
 	tb = fib_new_table(net, cfg.fc_table);
 	if (tb == NULL) {
@@ -784,9 +785,9 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 	    (prefix != addr || ifa->ifa_prefixlen < 32)) {
 	    /* MTK_NET_CHANGES */
 	    if(0 == strncmp(dev->name, "ccmni", 2)){
-	    #ifdef CONFIG_MTK_NET_LOGGING 
-		printk(KERN_INFO "[mtk_net][RTlog] ignore ccmni subnet route\n");
-		#endif
+		//#ifdef CONFIG_MTK_NET_LOGGING 
+		//printk(KERN_INFO "[mtk_net][RTlog] ignore ccmni subnet route\n");
+		//#endif
 		} else {
 		fib_magic(RTM_NEWROUTE,
 			  dev->flags & IFF_LOOPBACK ? RTN_LOCAL : RTN_UNICAST,
@@ -840,6 +841,9 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 			  any, ifa->ifa_prefixlen, prim);
 		subnet = 1;
 	}
+
+	if (in_dev->dead)
+		goto no_promotions;
 
 	/* Deletion is more complicated than add.
 	 * We should take care of not to delete too much :-)
@@ -916,6 +920,7 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 		}
 	}
 
+no_promotions:
 	if (!(ok & BRD_OK))
 		fib_magic(RTM_DELROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);
 	if (subnet && ifa->ifa_prefixlen < 31) {
@@ -986,7 +991,8 @@ static void nl_fib_input(struct sk_buff *skb)
 
 	net = sock_net(skb->sk);
 	nlh = nlmsg_hdr(skb);
-	if (skb->len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len ||
+	if (skb->len < nlmsg_total_size(sizeof(*frn)) ||
+	    skb->len < nlh->nlmsg_len ||
 	    nlmsg_len(nlh) < sizeof(*frn))
 		return;
 
@@ -1043,7 +1049,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 	switch (event) {
 	case NETDEV_UP:
 		#ifdef CONFIG_MTK_NET_LOGGING 
-		printk(KERN_INFO "[mtk_net][RTlog insert]   fib_inetaddr_event()  %s NETDEV_UP!\n", ifa->ifa_dev->dev->name);
+		pr_debug(KERN_INFO "[mtk_net][RTlog insert]   fib_inetaddr_event()  %s NETDEV_UP!\n", ifa->ifa_dev->dev->name);
 		#endif
 		fib_add_ifaddr(ifa);
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -1053,9 +1059,9 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 		rt_cache_flush(dev_net(dev));
 		break;
 	case NETDEV_DOWN:
-		#ifdef CONFIG_MTK_NET_LOGGING 
-		printk(KERN_INFO "[mtk_net][RTlog delete]   fib_inetaddr_event()  %s NETDEV_DOWN!\n", ifa->ifa_dev->dev->name);
-		#endif
+		//#ifdef CONFIG_MTK_NET_LOGGING 
+		//printk(KERN_INFO "[mtk_net][RTlog delete]   fib_inetaddr_event()  %s NETDEV_DOWN!\n", ifa->ifa_dev->dev->name);
+		//#endif
 		fib_del_ifaddr(ifa, NULL);
 		atomic_inc(&net->ipv4.dev_addr_genid);
 		if (ifa->ifa_dev->ifa_list == NULL) {
@@ -1090,7 +1096,7 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 	switch (event) {
 	case NETDEV_UP:
 		#ifdef CONFIG_MTK_NET_LOGGING 
-		printk(KERN_INFO "[mtk_net][RTlog insert]   fib_netdev_event()  %s NETDEV_UP!\n", dev->name);
+		pr_debug(KERN_INFO "[mtk_net][RTlog insert]   fib_netdev_event()  %s NETDEV_UP!\n", dev->name);
 		#endif
 		for_ifa(in_dev) {
 			fib_add_ifaddr(ifa);
@@ -1103,7 +1109,7 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		break;
 	case NETDEV_DOWN:
 		#ifdef CONFIG_MTK_NET_LOGGING 
-		printk(KERN_INFO "[mtk_net][RTlog delete]   fib_netdev_event()  %s NETDEV_DOWN!\n", dev->name);
+		pr_debug(KERN_INFO "[mtk_net][RTlog delete]   fib_netdev_event()  %s NETDEV_DOWN!\n", dev->name);
 		#endif
 		fib_disable_ip(dev, 0);
 		break;
@@ -1210,13 +1216,14 @@ static struct pernet_operations fib_net_ops = {
 
 void __init ip_fib_init(void)
 {
-	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL, NULL);
-	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL, NULL);
-	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib, NULL);
+	fib_trie_init();
 
 	register_pernet_subsys(&fib_net_ops);
+
 	register_netdevice_notifier(&fib_netdev_notifier);
 	register_inetaddr_notifier(&fib_inetaddr_notifier);
 
-	fib_trie_init();
+	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL, NULL);
+	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL, NULL);
+	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib, NULL);
 }

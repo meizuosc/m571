@@ -37,7 +37,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/musb/musb_core.h>
 #include <linux/musb/musb_debug.h>

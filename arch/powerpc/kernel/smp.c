@@ -480,7 +480,7 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 	secondary_ti = current_set[cpu] = ti;
 }
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc, c;
 
@@ -544,8 +544,8 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	if (smp_ops->give_timebase)
 		smp_ops->give_timebase();
 
-	/* Wait until cpu puts itself in the online map */
-	while (!cpu_online(cpu))
+	/* Wait until cpu puts itself in the online & active maps */
+	while (!cpu_online(cpu) || !cpu_active(cpu))
 		cpu_relax();
 
 	return 0;
@@ -610,7 +610,7 @@ static struct device_node *cpu_to_l2cache(int cpu)
 }
 
 /* Activate a secondary processor. */
-__cpuinit void start_secondary(void *unused)
+void start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
 	struct device_node *l2_cache;

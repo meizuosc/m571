@@ -34,7 +34,7 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/if_vlan.h>
 #include "vlan.h"
@@ -274,7 +274,8 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	return 0;
 
 out_free_newdev:
-	free_netdev(new_dev);
+	if (new_dev->reg_state == NETREG_UNINITIALIZED)
+		free_netdev(new_dev);
 	return err;
 }
 

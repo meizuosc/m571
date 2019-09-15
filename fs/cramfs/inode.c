@@ -23,7 +23,7 @@
 #include <linux/vfs.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static const struct super_operations cramfs_ops;
 static const struct inode_operations cramfs_dir_inode_operations;
@@ -227,6 +227,7 @@ static void cramfs_put_super(struct super_block *sb)
 
 static int cramfs_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	*flags |= MS_RDONLY;
 	return 0;
 }

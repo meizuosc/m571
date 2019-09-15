@@ -12,10 +12,10 @@
 #include <linux/gfp.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>
+#include <asm/relaxed.h>
 
 #include "smpboot.h"
 
-#ifdef CONFIG_USE_GENERIC_SMP_HELPERS
 enum {
 	CSD_FLAG_LOCK		= 0x01,
 };
@@ -73,7 +73,7 @@ hotplug_cfd(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata hotplug_cfd_notifier = {
+static struct notifier_block hotplug_cfd_notifier = {
 	.notifier_call		= hotplug_cfd,
 };
 
@@ -102,8 +102,8 @@ void __init call_function_init(void)
  */
 static void csd_lock_wait(struct call_single_data *csd)
 {
-	while (csd->flags & CSD_FLAG_LOCK)
-		cpu_relax();
+	while (cpu_relaxed_read_short(&csd->flags) & CSD_FLAG_LOCK)
+		cpu_read_relax();
 }
 
 static void csd_lock(struct call_single_data *csd)
@@ -515,7 +515,6 @@ int smp_call_function(smp_call_func_t func, void *info, int wait)
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function);
-#endif /* USE_GENERIC_SMP_HELPERS */
 
 /* Setup configured maximum number of CPUs to activate */
 unsigned int setup_max_cpus = NR_CPUS;

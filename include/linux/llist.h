@@ -57,6 +57,7 @@
 
 #include <linux/kernel.h>
 #include <asm/cmpxchg.h>
+#include <asm/relaxed.h>
 
 struct llist_head {
 	struct llist_node *first;
@@ -160,6 +161,11 @@ static inline bool llist_empty(const struct llist_head *head)
 	return ACCESS_ONCE(head->first) == NULL;
 }
 
+static inline bool llist_empty_relaxed(const struct llist_head *head)
+{
+	return (void *)cpu_relaxed_read_long(&head->first) == NULL;
+}
+
 static inline struct llist_node *llist_next(struct llist_node *node)
 {
 	return node->next;
@@ -205,5 +211,7 @@ extern bool llist_add_batch(struct llist_node *new_first,
 			    struct llist_node *new_last,
 			    struct llist_head *head);
 extern struct llist_node *llist_del_first(struct llist_head *head);
+
+struct llist_node *llist_reverse_order(struct llist_node *head);
 
 #endif /* LLIST_H */

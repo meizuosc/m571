@@ -4,12 +4,6 @@
 
 menu "Misc devices"
 
-
-config ANDROID_PMEM
-        bool "Android pmem allocator"
-        default y
-
-
 config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
@@ -461,7 +455,7 @@ config ARM_CHARLCD
 	  still useful.
 
 config BMP085
-	bool
+	tristate
 	depends on SYSFS
 
 config BMP085_I2C
@@ -490,6 +484,7 @@ config BMP085_SPI
 
 config PCH_PHUB
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
+	select GENERIC_NET_UTILS
 	depends on PCI
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
@@ -556,6 +551,26 @@ config LTR559
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ltr559.
+
+config THUNDERQUAKE_ENGINE_GPL
+   tristate "Vibrator Intensity Controller for MTK Vibrator"
+   default y
+   help
+   Vibrator Intensity Controller for MTK Vibrator v1.0
+
+config UID_SYS_STATS
+    bool "Per-UID statistics"
+    depends on PROFILING && TASK_XACCT && TASK_IO_ACCOUNTING
+	help
+	  Per UID based cpu time statistics exported to /proc/uid_cputime
+	  Per UID based io statistics exported to /proc/uid_io
+
+config UID_SYS_STATS_DEBUG
+	bool "Per-TASK statistics"
+	depends on UID_SYS_STATS
+	default n
+	help
+	  Per TASK based io statistics exported to /proc/uid_io
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

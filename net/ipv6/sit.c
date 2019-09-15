@@ -31,7 +31,7 @@
 #include <linux/if_arp.h>
 #include <linux/icmp.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/init.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/if_ether.h>
@@ -245,11 +245,13 @@ static struct ip_tunnel *ipip6_tunnel_locate(struct net *net,
 	if (!create)
 		goto failed;
 
-	if (parms->name[0])
+	if (parms->name[0]) {
+		if (!dev_valid_name(parms->name))
+			goto failed;
 		strlcpy(name, parms->name, IFNAMSIZ);
-	else
+	} else {
 		strcpy(name, "sit%d");
-
+	}
 	dev = alloc_netdev(sizeof(*t), name, ipip6_tunnel_setup);
 	if (dev == NULL)
 		return NULL;
@@ -530,13 +532,13 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 t->parms.link, 0, IPPROTO_IPV6, 0);
+				 t->parms.link, 0, iph->protocol, 0);
 		err = 0;
 		goto out;
 	}
 	if (type == ICMP_REDIRECT) {
 		ipv4_redirect(skb, dev_net(skb->dev), t->parms.link, 0,
-			      IPPROTO_IPV6, 0);
+			      iph->protocol, 0);
 		err = 0;
 		goto out;
 	}

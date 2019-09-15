@@ -24,7 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/netdevice.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "ft1000.h"
 
 #define FT1000_PROC "ft1000"

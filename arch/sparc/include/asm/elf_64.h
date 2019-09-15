@@ -7,7 +7,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/spitfire.h>
 
 /*

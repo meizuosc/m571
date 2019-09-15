@@ -30,7 +30,7 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 
@@ -58,7 +58,7 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 		 */
 		spin_lock(&sb->s_root->d_inode->i_lock);
 		spin_lock(&sb->s_root->d_lock);
-		hlist_del_init(&sb->s_root->d_alias);
+		hlist_del_init(&sb->s_root->d_u.d_alias);
 		spin_unlock(&sb->s_root->d_lock);
 		spin_unlock(&sb->s_root->d_inode->i_lock);
 	}

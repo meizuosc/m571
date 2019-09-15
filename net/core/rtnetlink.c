@@ -39,7 +39,7 @@
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -910,14 +910,16 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 		goto nla_put_failure;
 
 	if (1) {
-		struct rtnl_link_ifmap map = {
-			.mem_start   = dev->mem_start,
-			.mem_end     = dev->mem_end,
-			.base_addr   = dev->base_addr,
-			.irq         = dev->irq,
-			.dma         = dev->dma,
-			.port        = dev->if_port,
-		};
+		struct rtnl_link_ifmap map;
+
+		memset(&map, 0, sizeof(map));
+		map.mem_start   = dev->mem_start;
+		map.mem_end     = dev->mem_end;
+		map.base_addr   = dev->base_addr;
+		map.irq         = dev->irq;
+		map.dma         = dev->dma;
+		map.port        = dev->if_port;
+
 		if (nla_put(skb, IFLA_MAP, sizeof(map), &map))
 			goto nla_put_failure;
 	}
@@ -1149,14 +1151,10 @@ static const struct nla_policy ifla_vfinfo_policy[IFLA_VF_INFO_MAX+1] = {
 };
 
 static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
-	[IFLA_VF_MAC]		= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_mac) },
-	[IFLA_VF_VLAN]		= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_vlan) },
-	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_tx_rate) },
-	[IFLA_VF_SPOOFCHK]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct ifla_vf_spoofchk) },
+	[IFLA_VF_MAC]		= { .len = sizeof(struct ifla_vf_mac) },
+	[IFLA_VF_VLAN]		= { .len = sizeof(struct ifla_vf_vlan) },
+	[IFLA_VF_TX_RATE]	= { .len = sizeof(struct ifla_vf_tx_rate) },
+	[IFLA_VF_SPOOFCHK]	= { .len = sizeof(struct ifla_vf_spoofchk) },
 };
 
 static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
@@ -1321,6 +1319,10 @@ static int do_setlink(const struct sk_buff *skb,
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
+
+	err = validate_linkmsg(dev, tb);
+	if (err < 0)
+		return err;
 
 	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD]) {
 		struct net *net = rtnl_link_get_net(dev_net(dev), tb);
@@ -1579,10 +1581,6 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto errout;
 	}
 
-	err = validate_linkmsg(dev, tb);
-	if (err < 0)
-		goto errout;
-
 	err = do_setlink(skb, dev, ifm, tb, ifname, 0);
 errout:
 	return err;
@@ -1663,6 +1661,12 @@ struct net_device *rtnl_create_link(struct net *net,
 		num_rx_queues = nla_get_u32(tb[IFLA_NUM_RX_QUEUES]);
 	else if (ops->get_num_rx_queues)
 		num_rx_queues = ops->get_num_rx_queues();
+
+	if (num_tx_queues < 1 || num_tx_queues > 4096)
+		return ERR_PTR(-EINVAL);
+
+	if (num_rx_queues < 1 || num_rx_queues > 4096)
+		return ERR_PTR(-EINVAL);
 
 	err = -ENOMEM;
 	dev = alloc_netdev_mqs(ops->priv_size, ifname, ops->setup,
@@ -1866,8 +1870,16 @@ replay:
 			goto out;
 
 		err = rtnl_configure_link(dev, ifm);
-		if (err < 0)
-			unregister_netdevice(dev);
+		if (err < 0) {
+			if (ops->newlink) {
+				LIST_HEAD(list_kill);
+
+				ops->dellink(dev, &list_kill);
+				unregister_netdevice_many(&list_kill);
+			} else {
+				unregister_netdevice(dev);
+			}
+		}
 out:
 		put_net(dest_net);
 		return err;
@@ -2132,6 +2144,11 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EINVAL;
 	}
 
+	if (dev->type != ARPHRD_ETHER) {
+		pr_info("PF_BRIDGE: FDB add only supported for Ethernet devices\n");
+		return -EINVAL;
+	}
+
 	addr = nla_data(tb[NDA_LLADDR]);
 	if (is_zero_ether_addr(addr)) {
 		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid ether address\n");
@@ -2233,6 +2250,11 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EINVAL;
 	}
 
+	if (dev->type != ARPHRD_ETHER) {
+		pr_info("PF_BRIDGE: FDB delete only supported for Ethernet devices\n");
+		return -EINVAL;
+	}
+
 	addr = nla_data(tb[NDA_LLADDR]);
 	if (is_zero_ether_addr(addr)) {
 		pr_info("PF_BRIDGE: RTM_DELNEIGH with invalid ether address\n");
@@ -2315,6 +2337,9 @@ int ndo_dflt_fdb_dump(struct sk_buff *skb,
 		      int idx)
 {
 	int err;
+
+	if (dev->type != ARPHRD_ETHER)
+		return -EINVAL;
 
 	netif_addr_lock_bh(dev);
 	err = nlmsg_populate_fdb(skb, cb, dev, &idx, &dev->uc);
@@ -2491,12 +2516,16 @@ static int rtnl_bridge_notify(struct net_device *dev, u16 flags)
 			goto errout;
 	}
 
+	if (!skb->len)
+		goto errout;
+
 	rtnl_notify(skb, net, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 	return 0;
 errout:
 	WARN_ON(err == -EMSGSIZE);
 	kfree_skb(skb);
-	rtnl_set_sk_err(net, RTNLGRP_LINK, err);
+	if (err)
+		rtnl_set_sk_err(net, RTNLGRP_LINK, err);
 	return err;
 }
 

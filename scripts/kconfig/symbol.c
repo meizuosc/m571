@@ -995,7 +995,7 @@ struct symbol **sym_re_search(const char *pattern)
  * When we check for recursive dependencies we use a stack to save
  * current state so we can print out relevant info to user.
  * The entries are located on the call stack so no need to free memory.
- * Note inser() remove() must always match to properly clear the stack.
+ * Note insert() remove() must always match to properly clear the stack.
  */
 static struct dep_stack {
 	struct dep_stack *prev, *next;

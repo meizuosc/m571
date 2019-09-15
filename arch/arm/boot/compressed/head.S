@@ -60,11 +60,6 @@
 		add	\rb, \rb, #0x00010000	@ Ser1
 #endif
 		.endm
-#elif defined(CONFIG_ARCH_S3C24XX)
-		.macro loadsp, rb, tmp
-		mov	\rb, #0x50000000
-		add	\rb, \rb, #0x4000 * CONFIG_S3C_LOWLEVEL_UART_PORT
-		.endm
 #else
 		.macro	loadsp,	rb, tmp
 		addruart \rb, \tmp
@@ -175,9 +170,26 @@ not_angel:
 		.text
 
 #ifdef CONFIG_AUTO_ZRELADDR
-		@ determine final kernel image address
+		/*
+		 * Find the start of physical memory.  As we are executing
+		 * without the MMU on, we are in the physical address space.
+		 * We just need to get rid of any offset by aligning the
+		 * address.
+		 *
+		 * This alignment is a balance between the requirements of
+		 * different platforms - we have chosen 128MB to allow
+		 * platforms which align the start of their physical memory
+		 * to 128MB to use this feature, while allowing the zImage
+		 * to be placed within the first 128MB of memory on other
+		 * platforms.  Increasing the alignment means we place
+		 * stricter alignment requirements on the start of physical
+		 * memory, but relaxing it means that we break people who
+		 * are already placing their zImage in (eg) the top 64MB
+		 * of this range.
+		 */
 		mov	r4, pc
 		and	r4, r4, #0xf8000000
+		/* Determine final kernel image address. */
 		add	r4, r4, #TEXT_OFFSET
 #else
 		ldr	r4, =zreladdr
@@ -258,16 +270,37 @@ restart:	adr	r0, LC0
 		 * OK... Let's do some funky business here.
 		 * If we do have a DTB appended to zImage, and we do have
 		 * an ATAG list around, we want the later to be translated
-		 * and folded into the former here.  To be on the safe side,
-		 * let's temporarily move  the stack away into the malloc
-		 * area.  No GOT fixup has occurred yet, but none of the
-		 * code we're about to call uses any global variable.
+		 * and folded into the former here. No GOT fixup has occurred
+		 * yet, but none of the code we're about to call uses any
+		 * global variable.
 		*/
-		add	sp, sp, #0x10000
+
+		/* Get the initial DTB size */
+		ldr	r5, [r6, #4]
+#ifndef __ARMEB__
+		/* convert to little endian */
+		eor	r1, r5, r5, ror #16
+		bic	r1, r1, #0x00ff0000
+		mov	r5, r5, ror #8
+		eor	r5, r5, r1, lsr #8
+#endif
+		/* 50% DTB growth should be good enough */
+		add	r5, r5, r5, lsr #1
+		/* preserve 64-bit alignment */
+		add	r5, r5, #7
+		bic	r5, r5, #7
+		/* clamp to 32KB min and 1MB max */
+		cmp	r5, #(1 << 15)
+		movlo	r5, #(1 << 15)
+		cmp	r5, #(1 << 20)
+		movhi	r5, #(1 << 20)
+		/* temporarily relocate the stack past the DTB work space */
+		add	sp, sp, r5
+
 		stmfd	sp!, {r0-r3, ip, lr}
 		mov	r0, r8
 		mov	r1, r6
-		sub	r2, sp, r6
+		mov	r2, r5
 		bl	atags_to_fdt
 
 		/*
@@ -279,11 +312,11 @@ restart:	adr	r0, LC0
 		sub	r0, r4, #TEXT_OFFSET
 		add	r0, r0, #0x100
 		mov	r1, r6
-		sub	r2, sp, r6
+		mov	r2, r5
 		bleq	atags_to_fdt
 
 		ldmfd	sp!, {r0-r3, ip, lr}
-		sub	sp, sp, #0x10000
+		sub	sp, sp, r5
 #endif
 
 		mov	r8, r6			@ use the appended device tree
@@ -300,7 +333,7 @@ restart:	adr	r0, LC0
 		subs	r1, r5, r1
 		addhi	r9, r9, r1
 
-		/* Get the dtb's size */
+		/* Get the current DTB size */
 		ldr	r5, [r6, #4]
 #ifndef __ARMEB__
 		/* convert r5 (dtb size) to little endian */
@@ -715,7 +748,7 @@ __armv7_mmu_cache_on:
 		orrne	r0, r0, #1		@ MMU enabled
 		movne	r1, #0xfffffffd		@ domain 0 = client
 		bic     r6, r6, #1 << 31        @ 32-bit translation system
-		bic     r6, r6, #3 << 0         @ use only ttbr0
+		bic     r6, r6, #(7 << 0) | (1 << 4)	@ use only ttbr0
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
@@ -1035,6 +1068,8 @@ cache_clean_flush:
 		b	call_cache_fn
 
 __armv4_mpu_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 		mov	r2, #1
 		mov	r3, #0
 		mcr	p15, 0, ip, c7, c6, 0	@ invalidate D cache
@@ -1052,6 +1087,8 @@ __armv4_mpu_cache_flush:
 		mov	pc, lr
 		
 __fa526_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c14, 0	@ clean and invalidate D cache
 		mcr	p15, 0, r1, c7, c5, 0	@ flush I cache
@@ -1060,13 +1097,16 @@ __fa526_cache_flush:
 
 __armv6_mmu_cache_flush:
 		mov	r1, #0
-		mcr	p15, 0, r1, c7, c14, 0	@ clean+invalidate D
+		tst	r4, #1
+		mcreq	p15, 0, r1, c7, c14, 0	@ clean+invalidate D
 		mcr	p15, 0, r1, c7, c5, 0	@ invalidate I+BTB
-		mcr	p15, 0, r1, c7, c15, 0	@ clean+invalidate unified
+		mcreq	p15, 0, r1, c7, c15, 0	@ clean+invalidate unified
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
 __armv7_mmu_cache_flush:
+		tst	r4, #1
+		bne	iflush
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
 		mov	r10, #0
@@ -1127,6 +1167,8 @@ iflush:
 		mov	pc, lr
 
 __armv5tej_mmu_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 1:		mrc	p15, 0, r15, c7, c14, 3	@ test,clean,invalidate D cache
 		bne	1b
 		mcr	p15, 0, r0, c7, c5, 0	@ flush I cache
@@ -1134,6 +1176,8 @@ __armv5tej_mmu_cache_flush:
 		mov	pc, lr
 
 __armv4_mmu_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 		mov	r2, #64*1024		@ default: 32K dcache size (*2)
 		mov	r11, #32		@ default: 32 byte line size
 		mrc	p15, 0, r3, c0, c0, 1	@ read cache type
@@ -1167,6 +1211,8 @@ no_cache_id:
 
 __armv3_mmu_cache_flush:
 __armv3_mpu_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c0, 0	@ invalidate whole cache v3
 		mov	pc, lr

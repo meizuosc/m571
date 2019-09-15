@@ -5,7 +5,6 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/android_pmem.h>
 #include <linux/memblock.h>
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
@@ -1108,39 +1107,6 @@ struct platform_device mt3326_device_gps = {
 #endif
 
 /*=======================================================================*/
-/* MT6573 PMEM                                                           */
-/*=======================================================================*/
-#if defined(CONFIG_ANDROID_PMEM)
-static struct android_pmem_platform_data  pdata_multimedia = {
-        .name = "pmem_multimedia",
-        .no_allocator = 0,
-        .cached = 1,
-        .buffered = 1
-};
-
-static struct platform_device pmem_multimedia_device = {
-        .name = "android_pmem",
-        .id = 1,
-        .dev = { .platform_data = &pdata_multimedia }
-};
-#endif
-
-#if defined(CONFIG_ANDROID_VMEM)
-static struct android_vmem_platform_data  pdata_vmultimedia = {
-        .name = "vmem_multimedia",
-        .no_allocator = 0,
-        .cached = 1,
-        .buffered = 1
-};
-
-static struct platform_device vmem_multimedia_device = {
-        .name = "android_vmem",
-        .id = -1,
-        .dev = { .platform_data = &pdata_vmultimedia }
-};
-#endif
-
-/*=======================================================================*/
 /* MT6575 SYSRAM                                                         */
 /*=======================================================================*/
 static struct platform_device camera_sysram_dev = {
@@ -1284,7 +1250,7 @@ static void parse_dfo_tag(struct tag *t)
     int nr = ((t->hdr.size << 2) - sizeof(struct tag_header)) / sizeof(tag_dfo_boot);
     tag_dfo_boot *p = 0;
     p = &(t->u.dfo_data);
-    printk(KERN_ALERT"%s start\n", __FUNCTION__);
+    printk(KERN_ALERT"%s start\n", __func__);
     printk(KERN_ALERT"tag_header size: %d, tag_dfo_boot size: %d\n"
             "hdr.size: %d\n",
             sizeof(struct tag_header), sizeof(tag_dfo_boot),
@@ -2530,32 +2496,6 @@ retval = platform_device_register(&dummychar_device);
 	}
 #endif
 
-
-#if defined(CONFIG_ANDROID_PMEM)
-    pdata_multimedia.start = PMEM_MM_START;;
-    pdata_multimedia.size = PMEM_MM_SIZE;
-    printk("PMEM start: 0x%lx size: 0x%lx\n", pdata_multimedia.start, pdata_multimedia.size);
-
-    retval = platform_device_register(&pmem_multimedia_device);
-    printk("[%s]: pmem_multimedia_device, retval=%d \n!", __func__, retval);
-    if (retval != 0){
-       return retval;
-    }
-#endif
-
-#if defined(CONFIG_ANDROID_VMEM)
-    pdata_vmultimedia.start = PMEM_MM_START;;
-    pdata_vmultimedia.size = PMEM_MM_SIZE;
-    printk("VMEM start: 0x%lx size: 0x%lx\n", pdata_vmultimedia.start, pdata_vmultimedia.size);
-
-    retval = platform_device_register(&vmem_multimedia_device);
-    printk("[%s]: vmem_multimedia_device, retval=%d \n!", __func__, retval);
-    if (retval != 0){
-	printk("vmem platform register failed\n");
-       return retval;
-    }
-#endif
-
 #ifdef CONFIG_CPU_FREQ
     retval = platform_device_register(&cpufreq_pdev);
     printk("[%s]: cpufreq_pdev, retval=%d \n!", __func__, retval);
@@ -2901,7 +2841,7 @@ static void display_early_memory_info(void)
 
 void __weak mtk_wcn_consys_memory_reserve(void)
 {
-    printk(KERN_ERR"weak reserve function: %s", __FUNCTION__);
+    printk(KERN_ERR"weak reserve function: %s", __func__);
 }
 
 void mt_reserve(void)

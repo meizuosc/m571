@@ -7,7 +7,7 @@
 #include <linux/spinlock.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/smp.h>
@@ -55,7 +55,7 @@ void __iomem  *clk_vdec_gcon_base;
 //#define MUX_LOG_TOP
 //#define MUX_LOG
 //#define PLL_LOG_TOP
-#define PLL_LOG
+//#define PLL_LOG
 
 #if defined (CONFIG_MTK_FPGA)
 #define Bring_Up

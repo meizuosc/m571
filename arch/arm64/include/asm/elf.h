@@ -113,7 +113,7 @@ typedef struct user_fpsimd_state elf_fpregset_t;
  * that it will "exec", and that there is sufficient room for the brk.
  */
 extern unsigned long randomize_et_dyn(unsigned long base);
-#define ELF_ET_DYN_BASE	(randomize_et_dyn(2 * TASK_SIZE_64 / 3))
+#define ELF_ET_DYN_BASE	(randomize_et_dyn(U32_MAX))
 
 /*
  * When the program starts, a1 contains a pointer to a function to be
@@ -124,6 +124,7 @@ extern unsigned long randomize_et_dyn(unsigned long base);
 
 #define SET_PERSONALITY(ex)		clear_thread_flag(TIF_32BIT);
 
+/* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 #define ARCH_DLINFO							\
 do {									\
 	NEW_AUX_ENT(AT_SYSINFO_EHDR,					\
@@ -137,11 +138,11 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 
 /* 1GB of VA */
 #ifdef CONFIG_COMPAT
-#define STACK_RND_MASK			(test_thread_flag(TIF_32BIT) ? \
-						0x7ff >> (PAGE_SHIFT - 12) : \
-						0x3ffff >> (PAGE_SHIFT - 12))
+#define STACK_RND_MASK			(test_thread_flag_relaxed(TIF_32BIT) ? \
+						((1UL << mmap_rnd_compat_bits) - 1) >> (PAGE_SHIFT - 12) : \
+						((1UL << mmap_rnd_bits) - 1) >> (PAGE_SHIFT - 12))
 #else
-#define STACK_RND_MASK			(0x3ffff >> (PAGE_SHIFT - 12))
+#define STACK_RND_MASK			(((1UL << mmap_rnd_bits) - 1) >> (PAGE_SHIFT - 12))
 #endif
 
 struct mm_struct;
@@ -151,7 +152,7 @@ extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #ifdef CONFIG_COMPAT
 #define COMPAT_ELF_PLATFORM		("v8l")
 
-#define COMPAT_ELF_ET_DYN_BASE		(randomize_et_dyn(2 * TASK_SIZE_32 / 3))
+#define COMPAT_ELF_ET_DYN_BASE		(randomize_et_dyn(0x10000000UL))
 
 /* AArch32 registers. */
 #define COMPAT_ELF_NGREG		18

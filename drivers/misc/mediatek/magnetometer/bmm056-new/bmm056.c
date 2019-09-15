@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -1783,7 +1783,7 @@ BMM050_RETURN_FUNCTION_TYPE bmm050api_get_raw_xyz(struct bmm050api_mdata *mdata)
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 #define BMM050_DEV_NAME         "bmm050"
 /*----------------------------------------------------------------------------*/
 
@@ -1793,8 +1793,8 @@ BMM050_RETURN_FUNCTION_TYPE bmm050api_get_raw_xyz(struct bmm050api_mdata *mdata)
 #define BMM050_BUFSIZE  0x20
 
 #define MSE_TAG					"[Msensor] "
-#define MSE_FUN(f)				printk(MSE_TAG"%s\n", __FUNCTION__)
-#define MSE_ERR(fmt, args...)		printk(KERN_ERR MSE_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define MSE_FUN(f)				printk(MSE_TAG"%s\n", __func__)
+#define MSE_ERR(fmt, args...)		printk(KERN_ERR MSE_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define MSE_LOG(fmt, args...)		printk(MSE_TAG fmt, ##args)
 
 static struct i2c_client *this_client = NULL;
@@ -2818,7 +2818,7 @@ static long bmm050_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned l
 			break;
 			
 		default:
-			MSE_ERR( "%s not supported = 0x%04x", __FUNCTION__, cmd);
+			MSE_ERR( "%s not supported = 0x%04x", __func__, cmd);
 			return -ENOIOCTLCMD;
 			break;		
 		}

@@ -6,7 +6,7 @@
 #include <linux/proc_fs.h>    /*proc_create API*/
 #include <linux/statfs.h>     /* kstatfs struct */
 #include <linux/file.h>       /*kernel write and kernel read*/
-#include <asm/uaccess.h>      /*copy_to_user copy_from_user */
+#include <linux/uaccess.h>      /*copy_to_user copy_from_user */
 #include <mach/env.h>
 
 static char env_get_char(int index);
@@ -409,7 +409,7 @@ write_env:
 	ret = write_env_area(env_buffer);
 	if (ret < 0) {
 		pr_err("[%s]%s error: write env area fail\n", 
-			MODULE_NAME, __FUNCTION__);
+			MODULE_NAME, __func__);
 		memset(env_buffer, 0x00, CFG_ENV_SIZE);
 		return -1;
 	}

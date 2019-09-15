@@ -117,6 +117,7 @@ static void tcp_mtu_probing(struct inet_connection_sock *icsk, struct sock *sk)
 			mss = tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low) >> 1;
 			mss = min(sysctl_tcp_base_mss, mss);
 			mss = max(mss, 68 - tp->tcp_header_len);
+			mss = max(mss, sysctl_tcp_min_snd_mss);
 			icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, mss);
 			tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		}
@@ -205,7 +206,8 @@ void tcp_delack_timer_handler(struct sock *sk)
 
 	sk_mem_reclaim_partial(sk);
 
-	if (sk->sk_state == TCP_CLOSE || !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
+	if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)) ||
+	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;
 
 	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
@@ -423,7 +425,7 @@ void tcp_retransmit_timer(struct sock *sk)
 	if (icsk->icsk_MMSRB == 1)
 	{
 	    	#ifdef CONFIG_MTK_NET_LOGGING  
-	        printk(KERN_DEBUG "[mtk_net][mmspb] tcp_retransmit_timer enter loss\n");
+	        pr_debug(KERN_DEBUG "[mtk_net][mmspb] tcp_retransmit_timer enter loss\n");
 	        #endif
 	}
 	tcp_enter_loss(sk, 0);
@@ -490,7 +492,8 @@ void tcp_write_timer_handler(struct sock *sk)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	int event;
 
-	if (sk->sk_state == TCP_CLOSE || !icsk->icsk_pending)
+	if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)) ||
+	    !icsk->icsk_pending)
 		goto out;
   if (icsk->icsk_MMSRB != 1)
   {

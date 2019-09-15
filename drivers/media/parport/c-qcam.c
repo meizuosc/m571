@@ -36,7 +36,7 @@
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
 #include <linux/videodev2.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>

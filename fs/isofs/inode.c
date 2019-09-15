@@ -125,6 +125,7 @@ static void destroy_inodecache(void)
 
 static int isofs_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	if (!(*flags & MS_RDONLY))
 		return -EROFS;
 	return 0;
@@ -726,6 +727,11 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	pri_bh = NULL;
 
 root_found:
+	/* We don't support read-write mounts */
+	if (!(s->s_flags & MS_RDONLY)) {
+		error = -EACCES;
+		goto out_freebh;
+	}
 
 	if (joliet_level && (pri == NULL || !opt.rock)) {
 		/* This is the case of Joliet with the norock mount flag.
@@ -1538,9 +1544,6 @@ struct inode *__isofs_iget(struct super_block *sb,
 static struct dentry *isofs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	/* We don't support read-write mounts */
-	if (!(flags & MS_RDONLY))
-		return ERR_PTR(-EACCES);
 	return mount_bdev(fs_type, flags, dev_name, data, isofs_fill_super);
 }
 

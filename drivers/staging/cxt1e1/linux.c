@@ -20,7 +20,7 @@
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include "pmcc4_sysdep.h"

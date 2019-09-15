@@ -19,7 +19,7 @@
 #include <linux/rtpm_prio.h>
 
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 
@@ -170,7 +170,7 @@ static struct proc_dir_entry *gt818_config_proc = NULL;
 #ifdef VELOCITY_CUSTOM_GT818B
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef TPD_VELOCITY_CUSTOM_X
 #define TPD_VELOCITY_CUSTOM_X 10
@@ -1492,7 +1492,7 @@ static int tpd_local_init(void)
     tpd->dev->id.product = (tpd_info.product_id_2 << 8 ) | tpd_info.product_id_1;
     tpd->dev->id.version = (tpd_info.version_2 << 8 ) | tpd_info.version_1;
 
-    TPD_DMESG("end %s, %d\n", __FUNCTION__, __LINE__);  
+    TPD_DMESG("end %s, %d\n", __func__, __LINE__);  
     tpd_type_cap = 1;
 
     return 0;

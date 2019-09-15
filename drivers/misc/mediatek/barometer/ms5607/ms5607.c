@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -44,7 +44,7 @@
 /*----------------------------------------------------------------------------*/
 #define I2C_DRIVERID_MS5607 345
 /*----------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 /*----------------------------------------------------------------------------*/
     
 /*----------------------------------------------------------------------------*/
@@ -152,8 +152,8 @@ static bool sensor_power = false;
 
 /*----------------------------------------------------------------------------*/
 #define BAR_TAG                  "[Barometer] "
-#define BAR_FUN(f)               printk(KERN_INFO BAR_TAG"%s\n", __FUNCTION__)
-#define BAR_ERR(fmt, args...)    printk(KERN_ERR BAR_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define BAR_FUN(f)               printk(KERN_INFO BAR_TAG"%s\n", __func__)
+#define BAR_ERR(fmt, args...)    printk(KERN_ERR BAR_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define BAR_LOG(fmt, args...)    printk(KERN_INFO BAR_TAG fmt, ##args)
 /*----------------------------------------------------------------------------*/
 /*

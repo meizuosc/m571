@@ -21,6 +21,9 @@ extern unsigned long __sw_hweight64(__u64 w);
  */
 #include <asm/bitops.h>
 
+/* 3.18 backport */
+#define smp_mb__after_atomic() smp_mb__after_clear_bit()
+
 #define for_each_set_bit(bit, addr, size) \
 	for ((bit) = find_first_bit((addr), (size));		\
 	     (bit) < (size);					\
@@ -43,7 +46,7 @@ extern unsigned long __sw_hweight64(__u64 w);
 	     (bit) < (size);					\
 	     (bit) = find_next_zero_bit((addr), (size), (bit) + 1))
 
-static __inline__ int get_bitmask_order(unsigned int count)
+static inline int get_bitmask_order(unsigned int count)
 {
 	int order;
 
@@ -51,7 +54,7 @@ static __inline__ int get_bitmask_order(unsigned int count)
 	return order;	/* We could be slightly more clever with -1 here... */
 }
 
-static __inline__ int get_count_order(unsigned int count)
+static inline int get_count_order(unsigned int count)
 {
 	int order;
 
@@ -61,7 +64,7 @@ static __inline__ int get_count_order(unsigned int count)
 	return order;
 }
 
-static inline unsigned long hweight_long(unsigned long w)
+static __always_inline unsigned long hweight_long(unsigned long w)
 {
 	return sizeof(w) == 4 ? hweight32(w) : hweight64(w);
 }

@@ -489,16 +489,11 @@ static int xts_aesni_setkey(struct crypto_tfm *tfm, const u8 *key,
 			    unsigned int keylen)
 {
 	struct aesni_xts_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 	int err;
 
-	/* key consists of keys of equal size concatenated, therefore
-	 * the length must be even
-	 */
-	if (keylen % 2) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
+	err = xts_check_key(tfm, key, keylen);
+	if (err)
+		return err;
 
 	/* first half of xts-key is for crypt */
 	err = aes_set_key_common(tfm, ctx->raw_crypt_ctx, key, keylen / 2);
@@ -989,7 +984,7 @@ static int __driver_rfc4106_decrypt(struct aead_request *req)
 		src = kmalloc(req->cryptlen + req->assoclen, GFP_ATOMIC);
 		if (!src)
 			return -ENOMEM;
-		assoc = (src + req->cryptlen + auth_tag_len);
+		assoc = (src + req->cryptlen);
 		scatterwalk_map_and_copy(src, req->src, 0, req->cryptlen, 0);
 		scatterwalk_map_and_copy(assoc, req->assoc, 0,
 			req->assoclen, 0);
@@ -1014,7 +1009,7 @@ static int __driver_rfc4106_decrypt(struct aead_request *req)
 		scatterwalk_done(&src_sg_walk, 0, 0);
 		scatterwalk_done(&assoc_sg_walk, 0, 0);
 	} else {
-		scatterwalk_map_and_copy(dst, req->dst, 0, req->cryptlen, 1);
+		scatterwalk_map_and_copy(dst, req->dst, 0, tempCipherLen, 1);
 		kfree(src);
 	}
 	return retval;
@@ -1373,4 +1368,4 @@ module_exit(aesni_exit);
 
 MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm, Intel AES-NI instructions optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("aes");
+MODULE_ALIAS_CRYPTO("aes");

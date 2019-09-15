@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -40,7 +40,7 @@
 #define POWER_NONE_MACRO MT65XX_POWER_NONE
 
 /*----------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 /*----------------------------------------------------------------------------*/
 #define CONFIG_MPU6050_LOWPASS   /*apply low pass filter on output*/       
 #define SW_CALIBRATION
@@ -153,8 +153,8 @@ static char selftestRes[8]= {0};
 
 /*----------------------------------------------------------------------------*/
 #define GSE_TAG                  "[Gsensor] "
-#define GSE_FUN(f)               printk(GSE_TAG"%s\n", __FUNCTION__)
-#define GSE_ERR(fmt, args...)    printk(GSE_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define GSE_FUN(f)               printk(GSE_TAG"%s\n", __func__)
+#define GSE_ERR(fmt, args...)    printk(GSE_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define GSE_LOG(fmt, args...)    printk(GSE_TAG fmt, ##args)
 /*----------------------------------------------------------------------------*/
 static struct data_resolution mpu6050_data_resolution[] = {

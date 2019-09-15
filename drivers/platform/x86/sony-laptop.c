@@ -63,7 +63,7 @@
 #include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/sonypi.h>
 #include <linux/sony-laptop.h>
 #include <linux/rfkill.h>

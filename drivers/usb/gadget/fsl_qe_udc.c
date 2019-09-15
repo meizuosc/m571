@@ -110,7 +110,7 @@ static void done(struct qe_ep *ep, struct qe_req *req, int status)
 				: DMA_FROM_DEVICE);
 
 	if (status && (status != -ESHUTDOWN))
-		dev_vdbg(udc->dev, "complete %s req %p stat %d len %u/%u\n",
+		dev_vdbg(udc->dev, "complete %s req %pK stat %d len %u/%u\n",
 			ep->ep.name, &req->req, status,
 			req->req.actual, req->req.length);
 
@@ -1881,11 +1881,8 @@ static int qe_get_frame(struct usb_gadget *gadget)
 
 	tmp = in_be16(&udc->usb_param->frame_n);
 	if (tmp & 0x8000)
-		tmp = tmp & 0x07ff;
-	else
-		tmp = -EINVAL;
-
-	return (int)tmp;
+		return tmp & 0x07ff;
+	return -EINVAL;
 }
 
 static int fsl_qe_start(struct usb_gadget *gadget,

@@ -234,7 +234,7 @@
 #include <linux/i8253.h>
 #include <linux/cpuidle.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/desc.h>
 #include <asm/olpc.h>
 #include <asm/paravirt.h>
@@ -392,7 +392,7 @@ static struct cpuidle_device apm_cpuidle_device;
 /*
  * Local variables
  */
-static struct {
+__visible struct {
 	unsigned long	offset;
 	unsigned short	segment;
 } apm_bios_entry;

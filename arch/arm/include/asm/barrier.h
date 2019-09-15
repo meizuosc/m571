@@ -17,6 +17,12 @@
 #define isb() __asm__ __volatile__ ("isb" : : : "memory")
 #define dsb() __asm__ __volatile__ ("dsb" : : : "memory")
 #define dmb() __asm__ __volatile__ ("dmb" : : : "memory")
+#ifdef CONFIG_THUMB2_KERNEL
+#define CSDB	".inst.w 0xf3af8014"
+#else
+#define CSDB	".inst	0xe320f014"
+#endif
+#define csdb() __asm__ __volatile__(CSDB : : : "memory")
 #elif defined(CONFIG_CPU_XSC3) || __LINUX_ARM_ARCH__ == 6
 #define isb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c5, 4" \
 				    : : "r" (0) : "memory")
@@ -35,6 +41,13 @@
 #define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
 				    : : "r" (0) : "memory")
 #define dmb() __asm__ __volatile__ ("" : : : "memory")
+#endif
+
+#ifndef CSDB
+#define CSDB
+#endif
+#ifndef csdb
+#define csdb()
 #endif
 
 #ifdef CONFIG_ARCH_HAS_BARRIERS
@@ -78,6 +91,25 @@ do {									\
 #define smp_read_barrier_depends()	do { } while(0)
 
 #define set_mb(var, value)	do { var = value; smp_mb(); } while (0)
+
+#ifdef CONFIG_CPU_SPECTRE
+static inline unsigned long array_index_mask_nospec(unsigned long idx,
+						    unsigned long sz)
+{
+	unsigned long mask;
+
+	asm volatile(
+		"cmp	%1, %2\n"
+	"	sbc	%0, %1, %1\n"
+	CSDB
+	: "=r" (mask)
+	: "r" (idx), "Ir" (sz)
+	: "cc");
+
+	return mask;
+}
+#define array_index_mask_nospec array_index_mask_nospec
+#endif
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __ASM_BARRIER_H */

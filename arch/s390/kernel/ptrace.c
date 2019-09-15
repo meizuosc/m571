@@ -26,7 +26,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/switch_to.h>
 #include "entry.h"
@@ -756,7 +756,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	long ret = 0;
 
 	/* Do the secure computing check first. */
-	if (secure_computing(regs->gprs[2])) {
+	if (secure_computing()) {
 		/* seccomp failures shouldn't expose any additional code. */
 		ret = -1;
 		goto out;

@@ -40,7 +40,7 @@
 #include <linux/hw_breakpoint.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
@@ -1450,9 +1450,9 @@ static inline unsigned long brk_rnd(void)
 
 	/* 8MB for 32bit, 1GB for 64bit */
 	if (is_32bit_task())
-		rnd = (long)(get_random_int() % (1<<(23-PAGE_SHIFT)));
+		rnd = (get_random_long() % (1<<(23-PAGE_SHIFT)));
 	else
-		rnd = (long)(get_random_int() % (1<<(30-PAGE_SHIFT)));
+		rnd = (get_random_long() % (1<<(30-PAGE_SHIFT)));
 
 	return rnd << PAGE_SHIFT;
 }

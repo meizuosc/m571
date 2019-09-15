@@ -164,7 +164,7 @@ struct pool {
 
 	struct pool_features pf;
 	unsigned low_water_triggered:1;	/* A dm event has been sent */
-	unsigned no_free_space:1;	/* A -ENOSPC warning has been issued */
+	unsigned no_free_space:1;	/* bios will be requeued if set */
 
 	struct dm_bio_prison *prison;
 	struct dm_kcopyd_client *copier;
@@ -989,6 +989,20 @@ static void retry_on_resume(struct bio *bio)
 	spin_unlock_irqrestore(&pool->lock, flags);
 }
 
+static void handle_unserviceable_bio(struct pool *pool, struct bio *bio)
+{
+	/*
+	 * When pool is read-only, no cell locking is needed because
+	 * nothing is changing.
+	 */
+	WARN_ON_ONCE(get_pool_mode(pool) != PM_READ_ONLY);
+
+	if (pool->no_free_space)
+		retry_on_resume(bio);
+	else
+		bio_io_error(bio);
+}
+
 static void no_space(struct pool *pool, struct dm_bio_prison_cell *cell)
 {
 	struct bio *bio;
@@ -998,7 +1012,7 @@ static void no_space(struct pool *pool, struct dm_bio_prison_cell *cell)
 	cell_release(pool, cell, &bios);
 
 	while ((bio = bio_list_pop(&bios)))
-		retry_on_resume(bio);
+		handle_unserviceable_bio(pool, bio);
 }
 
 static void process_discard(struct thin_c *tc, struct bio *bio)
@@ -1252,7 +1266,7 @@ static void process_bio_read_only(struct thin_c *tc, struct bio *bio)
 	switch (r) {
 	case 0:
 		if (lookup_result.shared && (rw == WRITE) && bio->bi_size)
-			bio_io_error(bio);
+			handle_unserviceable_bio(tc->pool, bio);
 		else {
 			inc_all_io_entry(tc->pool, bio);
 			remap_and_issue(tc, bio, lookup_result.block);
@@ -1261,7 +1275,7 @@ static void process_bio_read_only(struct thin_c *tc, struct bio *bio)
 
 	case -ENODATA:
 		if (rw != READ) {
-			bio_io_error(bio);
+			handle_unserviceable_bio(tc->pool, bio);
 			break;
 		}
 
@@ -1482,6 +1496,14 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_SUBMITTED;
 	}
 
+	/*
+	 * We must hold the virtual cell before doing the lookup, otherwise
+	 * there's a race with discard.
+	 */
+	build_virtual_key(tc->td, block, &key);
+	if (dm_bio_detain(tc->pool->prison, &key, bio, &cell1, &cell_result))
+		return DM_MAPIO_SUBMITTED;
+
 	r = dm_thin_find_block(td, block, 0, &result);
 
 	/*
@@ -1505,12 +1527,9 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 			 * shared flag will be set in their case.
 			 */
 			thin_defer_bio(tc, bio);
+			cell_defer_no_holder_no_free(tc, &cell1);
 			return DM_MAPIO_SUBMITTED;
 		}
-
-		build_virtual_key(tc->td, block, &key);
-		if (dm_bio_detain(tc->pool->prison, &key, bio, &cell1, &cell_result))
-			return DM_MAPIO_SUBMITTED;
 
 		build_data_key(tc->td, result.block, &key);
 		if (dm_bio_detain(tc->pool->prison, &key, bio, &cell2, &cell_result)) {
@@ -1529,9 +1548,10 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		if (get_pool_mode(tc->pool) == PM_READ_ONLY) {
 			/*
 			 * This block isn't provisioned, and we have no way
-			 * of doing so.  Just error it.
+			 * of doing so.
 			 */
-			bio_io_error(bio);
+			handle_unserviceable_bio(tc->pool, bio);
+			cell_defer_no_holder_no_free(tc, &cell1);
 			return DM_MAPIO_SUBMITTED;
 		}
 		/* fall through */
@@ -1542,6 +1562,7 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		 * provide the hint to load the metadata into cache.
 		 */
 		thin_defer_bio(tc, bio);
+		cell_defer_no_holder_no_free(tc, &cell1);
 		return DM_MAPIO_SUBMITTED;
 
 	default:
@@ -1551,6 +1572,7 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		 * pool is switched to fail-io mode.
 		 */
 		bio_io_error(bio);
+		cell_defer_no_holder_no_free(tc, &cell1);
 		return DM_MAPIO_SUBMITTED;
 	}
 }
@@ -2109,7 +2131,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 						metadata_low_callback,
 						pool);
 	if (r)
-		goto out_free_pt;
+		goto out_flags_changed;
 
 	pt->callbacks.congested_fn = pool_is_congested;
 	dm_table_add_target_callbacks(ti->table, &pt->callbacks);
@@ -2281,7 +2303,7 @@ static void pool_postsuspend(struct dm_target *ti)
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
 
-	cancel_delayed_work(&pool->waker);
+	cancel_delayed_work_sync(&pool->waker);
 	flush_workqueue(pool->wq);
 	(void) commit_or_fallback(pool);
 }
@@ -2456,6 +2478,12 @@ static int pool_message(struct dm_target *ti, unsigned argc, char **argv)
 	int r = -EINVAL;
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
+
+	if (get_pool_mode(pool) >= PM_READ_ONLY) {
+		DMERR("%s: unable to service pool target messages in READ_ONLY or FAIL mode",
+		      dm_device_name(pool->pool_md));
+		return -EINVAL;
+	}
 
 	if (!strcasecmp(argv[0], "create_thin"))
 		r = process_create_thin_mesg(argc, argv, pool);

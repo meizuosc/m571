@@ -1,5 +1,5 @@
 #include <asm/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <cust_acc.h>
 
@@ -28,8 +28,8 @@
 
 /*----------------------------------------------------------------------------*/
 #define SHF_TAG                  "[shf_kernel] "
-#define SHF_FUN(f)               printk( SHF_TAG"%s\n", __FUNCTION__)
-#define SHF_ERR(fmt, args...)    printk(KERN_ERR SHF_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define SHF_FUN(f)               printk( SHF_TAG"%s\n", __func__)
+#define SHF_ERR(fmt, args...)    printk(KERN_ERR SHF_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define SHF_LOG(fmt, args...)    printk( SHF_TAG fmt, ##args)
 /*----------------------------------------------------------------------------*/
 

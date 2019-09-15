@@ -4,7 +4,7 @@
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
 #include <linux/utsname.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/sched.h>
 #include <linux/mt_wq_debug.h>
 #include <linux/xlog.h>

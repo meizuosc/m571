@@ -331,7 +331,7 @@ out:
 	put_cpu();
 }
 
-static int __cpuinit profile_cpu_callback(struct notifier_block *info,
+static int profile_cpu_callback(struct notifier_block *info,
 					unsigned long action, void *__cpu)
 {
 	int node, cpu = (unsigned long)__cpu;
@@ -422,7 +422,7 @@ void profile_tick(int type)
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int prof_cpu_mask_proc_show(struct seq_file *m, void *v)
 {

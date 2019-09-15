@@ -84,14 +84,21 @@ static long ged_dispatch(GED_BRIDGE_PACKAGE *psBridgePackageKM)
 {
     int ret = -EFAULT;
     void *pvInt, *pvOut;
-    typedef int (ged_bridge_func_type)(void*, void*);
+    typedef int (ged_bridge_func_type)(void *, void *);
     ged_bridge_func_type* pFunc = NULL;
-    
-    if ((psBridgePackageKM->i32InBufferSize >=0) && (psBridgePackageKM->i32OutBufferSize >=0) &&
-        (psBridgePackageKM->i32InBufferSize + psBridgePackageKM->i32OutBufferSize < GED_IOCTL_PARAM_BUF_SIZE))
+
+	/* We make sure the both size and the sum of them are GE 0 integer.
+	 * The sum will not overflow to zero, because we will get zero from two GE 0 integers
+	 * if and only if they are both zero in a 2's complement numeral system.
+	 * That is: if overflow happen, the sum will be a negative number.
+	 */
+    if (psBridgePackageKM->i32InBufferSize >= 0 && psBridgePackageKM->i32OutBufferSize >= 0
+            && psBridgePackageKM->i32InBufferSize + psBridgePackageKM->i32OutBufferSize >= 0
+            && psBridgePackageKM->i32InBufferSize + psBridgePackageKM->i32OutBufferSize
+            < GED_IOCTL_PARAM_BUF_SIZE)
     {
         pvInt = gvIOCTLParamBuf;
-        pvOut = (void*)((char*)pvInt + (uintptr_t)psBridgePackageKM->i32InBufferSize);
+        pvOut = (void *)((char *)pvInt + (uintptr_t)psBridgePackageKM->i32InBufferSize);
         if (psBridgePackageKM->i32InBufferSize > 0)
         {
             if (0 != ged_copy_from_user(pvInt, psBridgePackageKM->pvParamIn, psBridgePackageKM->i32InBufferSize))
@@ -101,23 +108,36 @@ static long ged_dispatch(GED_BRIDGE_PACKAGE *psBridgePackageKM)
             }
         }
 
+		/* Make sure that the UM will never break the KM.
+		 * Check IO size are both matched the size of IO sturct.
+		 */
+#define SET_FUNC_AND_CHECK(func, struct_name) do { \
+	pFunc = (ged_bridge_func_type *) func; \
+	if (sizeof(GED_BRIDGE_IN_##struct_name) > psBridgePackageKM->i32InBufferSize || \
+			sizeof(GED_BRIDGE_OUT_##struct_name) > psBridgePackageKM->i32OutBufferSize) { \
+		GED_LOGE("GED_BRIDGE_COMMAND_##cmd fail io_size:%d/%d, expected: %zu/%zu", \
+				psBridgePackageKM->i32InBufferSize, psBridgePackageKM->i32OutBufferSize, \
+				sizeof(GED_BRIDGE_IN_##struct_name), sizeof(GED_BRIDGE_OUT_##struct_name)); \
+		goto dispatch_exit; \
+	} } while (0)
+
         // we will change the below switch into a function pointer mapping table in the future
         switch(GED_GET_BRIDGE_ID(psBridgePackageKM->ui32FunctionID))
         {
         case GED_BRIDGE_COMMAND_LOG_BUF_GET:
-            pFunc = (ged_bridge_func_type*)ged_bridge_log_buf_get;
+            SET_FUNC_AND_CHECK(ged_bridge_log_buf_get, LOGBUFGET);
             break;
         case GED_BRIDGE_COMMAND_LOG_BUF_WRITE:
-            pFunc = (ged_bridge_func_type*)ged_bridge_log_buf_write;
+            SET_FUNC_AND_CHECK(ged_bridge_log_buf_write, LOGBUFWRITE);
             break;
         case GED_BRIDGE_COMMAND_LOG_BUF_RESET:
-            pFunc = (ged_bridge_func_type*)ged_bridge_log_buf_reset;
+            SET_FUNC_AND_CHECK(ged_bridge_log_buf_reset, LOGBUFRESET);
             break;            
         case GED_BRIDGE_COMMAND_BOOST_GPU_FREQ:
-            pFunc = (ged_bridge_func_type*)ged_bridge_boost_gpu_freq;
+            SET_FUNC_AND_CHECK(ged_bridge_boost_gpu_freq, BOOSTGPUFREQ);
             break;
         case GED_BRIDGE_COMMAND_MONITOR_3D_FENCE:
-            pFunc = (ged_bridge_func_type*)ged_bridge_monitor_3D_fence;
+            SET_FUNC_AND_CHECK(ged_bridge_monitor_3D_fence, MONITOR3DFENCE);
             break;
         default:
             GED_LOGE("Unknown Bridge ID: %u\n", GED_GET_BRIDGE_ID(psBridgePackageKM->ui32FunctionID));
@@ -138,6 +158,7 @@ static long ged_dispatch(GED_BRIDGE_PACKAGE *psBridgePackageKM)
         }
     }
 
+dispatch_exit:
     return ret;
 }
 

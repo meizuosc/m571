@@ -26,7 +26,7 @@
  *
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
@@ -91,6 +91,8 @@ struct mr_table {
 #endif
 };
 
+#include <linux/nospec.h>
+
 struct ipmr_rule {
 	struct fib_rule		common;
 };
@@ -136,7 +138,7 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 			      struct mfc_cache *c, struct rtmsg *rtm);
 static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 				 int cmd);
-static void mroute_clean_tables(struct mr_table *mrt);
+static void mroute_clean_tables(struct mr_table *mrt, bool all);
 static void ipmr_expire_process(unsigned long arg);
 
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
@@ -348,7 +350,7 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 static void ipmr_free_table(struct mr_table *mrt)
 {
 	del_timer_sync(&mrt->ipmr_expire_timer);
-	mroute_clean_tables(mrt);
+	mroute_clean_tables(mrt, true);
 	kfree(mrt);
 }
 
@@ -454,7 +456,7 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mr_table *mrt;
 	struct flowi4 fl4 = {
 		.flowi4_oif	= dev->ifindex,
-		.flowi4_iif	= skb->skb_iif,
+		.flowi4_iif	= skb->skb_iif ? : LOOPBACK_IFINDEX,
 		.flowi4_mark	= skb->mark,
 	};
 	int err;
@@ -881,8 +883,10 @@ static struct mfc_cache *ipmr_cache_alloc(void)
 {
 	struct mfc_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_KERNEL);
 
-	if (c)
+	if (c) {
+		c->mfc_un.res.last_assert = jiffies - MFC_ASSERT_THRESH - 1;
 		c->mfc_un.res.minvif = MAXVIFS;
+	}
 	return c;
 }
 
@@ -1199,7 +1203,7 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
  *	Close the multicast socket, and clear the vif tables etc
  */
 
-static void mroute_clean_tables(struct mr_table *mrt)
+static void mroute_clean_tables(struct mr_table *mrt, bool all)
 {
 	int i;
 	LIST_HEAD(list);
@@ -1208,8 +1212,9 @@ static void mroute_clean_tables(struct mr_table *mrt)
 	/* Shut down all active vif entries */
 
 	for (i = 0; i < mrt->maxvif; i++) {
-		if (!(mrt->vif_table[i].flags & VIFF_STATIC))
-			vif_delete(mrt, i, 0, &list);
+		if (!all && (mrt->vif_table[i].flags & VIFF_STATIC))
+			continue;
+		vif_delete(mrt, i, 0, &list);
 	}
 	unregister_netdevice_many(&list);
 
@@ -1217,7 +1222,7 @@ static void mroute_clean_tables(struct mr_table *mrt)
 
 	for (i = 0; i < MFC_LINES; i++) {
 		list_for_each_entry_safe(c, next, &mrt->mfc_cache_array[i], list) {
-			if (c->mfc_flags & MFC_STATIC)
+			if (!all && (c->mfc_flags & MFC_STATIC))
 				continue;
 			list_del_rcu(&c->list);
 			mroute_netlink_event(mrt, c, RTM_DELROUTE);
@@ -1252,7 +1257,7 @@ static void mrtsock_destruct(struct sock *sk)
 						    NETCONFA_IFINDEX_ALL,
 						    net->ipv4.devconf_all);
 			RCU_INIT_POINTER(mrt->mroute_sk, NULL);
-			mroute_clean_tables(mrt);
+			mroute_clean_tables(mrt, false);
 		}
 	}
 	rtnl_unlock();
@@ -1570,6 +1575,7 @@ int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 			return -EFAULT;
 		if (vr.vifi >= mrt->maxvif)
 			return -EINVAL;
+		vr.vifi = array_index_nospec(vr.vifi, mrt->maxvif);
 		read_lock(&mrt_lock);
 		vif = &mrt->vif_table[vr.vifi];
 		if (VIF_EXISTS(mrt, vr.vifi)) {
@@ -1672,8 +1678,8 @@ static inline int ipmr_forward_finish(struct sk_buff *skb)
 {
 	struct ip_options *opt = &(IPCB(skb)->opt);
 
-	IP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTFORWDATAGRAMS);
-	IP_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTOCTETS, skb->len);
+	IP_INC_STATS(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP_ADD_STATS(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTOCTETS, skb->len);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
@@ -1735,7 +1741,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		 * to blackhole.
 		 */
 
-		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_FRAGFAILS);
+		IP_INC_STATS(dev_net(dev), IPSTATS_MIB_FRAGFAILS);
 		ip_rt_put(rt);
 		goto out_free;
 	}
@@ -2187,7 +2193,7 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 
 int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		   __be32 saddr, __be32 daddr,
-		   struct rtmsg *rtm, int nowait)
+		   struct rtmsg *rtm, int nowait, u32 portid)
 {
 	struct mfc_cache *cache;
 	struct mr_table *mrt;
@@ -2232,6 +2238,7 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 			return -ENOMEM;
 		}
 
+		NETLINK_CB(skb2).portid = portid;
 		skb_push(skb2, sizeof(struct iphdr));
 		skb_reset_network_header(skb2);
 		iph = ip_hdr(skb2);

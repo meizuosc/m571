@@ -36,7 +36,7 @@
 
 #include <asm/processor.h>
 #include <asm/bios_ebda.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
@@ -1163,7 +1163,7 @@ void mark_rodata_ro(void)
 	 * has been zapped already via cleanup_highmem().
 	 */
 	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
-	set_memory_nx(rodata_start, (all_end - rodata_start) >> PAGE_SHIFT);
+	set_memory_nx(text_end, (all_end - text_end) >> PAGE_SHIFT);
 
 	rodata_test();
 

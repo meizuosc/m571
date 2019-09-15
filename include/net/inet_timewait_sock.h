@@ -103,6 +103,7 @@ struct inet_timewait_sock {
 #define tw_family		__tw_common.skc_family
 #define tw_state		__tw_common.skc_state
 #define tw_reuse		__tw_common.skc_reuse
+#define tw_reuseport		__tw_common.skc_reuseport
 #define tw_bound_dev_if		__tw_common.skc_bound_dev_if
 #define tw_node			__tw_common.skc_nulls_node
 #define tw_bind_node		__tw_common.skc_bind_node
@@ -116,6 +117,7 @@ struct inet_timewait_sock {
 #define tw_dport		__tw_common.skc_dport
 #define tw_num			__tw_common.skc_num
 #define tw_portpair		__tw_common.skc_portpair
+#define tw_cookie		__tw_common.skc_cookie
 
 	int			tw_timeout;
 	volatile unsigned char	tw_substate;

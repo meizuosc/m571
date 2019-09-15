@@ -12,7 +12,7 @@
 #include <linux/cdev.h>
 #include <linux/delay.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "verify/vdec_verify_vdec.h"
 #include <linux/kthread.h>
 #include <linux/sched.h>
@@ -1195,7 +1195,7 @@ static int uvvp_vdec_ioctl(struct file *file,
             vVDecVerifyThread(param); //MPV_thread = kthread_run(vVDecVerifyThread, param, "Vdec_thread");
             if (IS_ERR(MPV_thread))
             {
-                printk("[%s]: failed to create MPV thread\n", __FUNCTION__);
+                printk("[%s]: failed to create MPV thread\n", __func__);
                 return 0;
             }
             else
@@ -1212,7 +1212,7 @@ static int uvvp_vdec_ioctl(struct file *file,
             MPV_thread = kthread_run(vVDecVerifyThread, param1, "Vdec_thread");
             if (IS_ERR(MPV_thread))
             {
-                printk("[%s]: failed to create MPV thread\n", __FUNCTION__);
+                printk("[%s]: failed to create MPV thread\n", __func__);
                 return 0;
             }
             else

@@ -25,7 +25,7 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "sclp.h"
 
 #define SCLP_VT220_MAJOR		TTY_MAJOR

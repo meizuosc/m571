@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -48,7 +48,7 @@
 //#define L3G4200D_DEFAULT_FS		L3G4200D_FS_1000
 //#define L3G4200D_DEFAULT_LSB		L3G4200D_FS_250_LSB
 /*---------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 /*----------------------------------------------------------------------------*/
 #define CONFIG_L3G4200D_LOWPASS   /*apply low pass filter on output*/       
 /*----------------------------------------------------------------------------*/
@@ -157,8 +157,8 @@ static bool sensor_power = false;
 
 /*----------------------------------------------------------------------------*/
 #define GYRO_TAG                  "[Gyroscope] "
-#define GYRO_FUN(f)               printk(KERN_INFO GYRO_TAG"%s\n", __FUNCTION__)
-#define GYRO_ERR(fmt, args...)    printk(KERN_ERR GYRO_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define GYRO_FUN(f)               printk(KERN_INFO GYRO_TAG"%s\n", __func__)
+#define GYRO_ERR(fmt, args...)    printk(KERN_ERR GYRO_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define GYRO_LOG(fmt, args...)    printk(KERN_INFO GYRO_TAG fmt, ##args)
 /*----------------------------------------------------------------------------*/
 

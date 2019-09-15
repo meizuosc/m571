@@ -112,7 +112,16 @@ static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 
 static bool regs_use_siar(struct pt_regs *regs)
 {
-	return !!regs->result;
+	/*
+	 * When we take a performance monitor exception the regs are setup
+	 * using perf_read_regs() which overloads some fields, in particular
+	 * regs->result to tell us whether to use SIAR.
+	 *
+	 * However if the regs are from another exception, eg. a syscall, then
+	 * they have not been setup using perf_read_regs() and so regs->result
+	 * is something random.
+	 */
+	return ((TRAP(regs) == 0xf00) && regs->result);
 }
 
 /*
@@ -1816,7 +1825,7 @@ static void power_pmu_setup(int cpu)
 	cpuhw->mmcr[0] = MMCR0_FC;
 }
 
-static int __cpuinit
+static int
 power_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
@@ -1833,7 +1842,7 @@ power_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu
 	return NOTIFY_OK;
 }
 
-int __cpuinit register_power_pmu(struct power_pmu *pmu)
+int register_power_pmu(struct power_pmu *pmu)
 {
 	if (ppmu)
 		return -EBUSY;		/* something's already registered */

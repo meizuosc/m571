@@ -133,7 +133,7 @@ static inline struct musb *dev_to_musb(struct device *dev)
 /*-------------------------------------------------------------------------*/
 
 #ifndef CONFIG_BLACKFIN
-static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
+static int musb_ulpi_read(struct usb_phy *phy, u32 reg)
 {
 	void __iomem *addr = phy->io_priv;
 	int	i = 0;
@@ -152,7 +152,7 @@ static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
 	 * ULPICarKitControlDisableUTMI after clearing POWER_SUSPENDM.
 	 */
 
-	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)offset);
+	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)reg);
 	musb_writeb(addr, MUSB_ULPI_REG_CONTROL,
 			MUSB_ULPI_REG_REQ | MUSB_ULPI_RDN_WR);
 
@@ -177,7 +177,7 @@ out:
 	return ret;
 }
 
-static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
+static int musb_ulpi_write(struct usb_phy *phy, u32 val, u32 reg)
 {
 	void __iomem *addr = phy->io_priv;
 	int	i = 0;
@@ -192,8 +192,8 @@ static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
 	power &= ~MUSB_POWER_SUSPENDM;
 	musb_writeb(addr, MUSB_POWER, power);
 
-	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)offset);
-	musb_writeb(addr, MUSB_ULPI_REG_DATA, (u8)data);
+	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)reg);
+	musb_writeb(addr, MUSB_ULPI_REG_DATA, (u8)val);
 	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, MUSB_ULPI_REG_REQ);
 
 	while (!(musb_readb(addr, MUSB_ULPI_REG_CONTROL)
@@ -241,7 +241,7 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 
 	prefetch((u8 *)src);
 
-	dev_dbg(musb->controller, "%cX ep%d fifo %p count %d buf %p\n",
+	dev_dbg(musb->controller, "%cX ep%d fifo %pK count %d buf %pK\n",
 			'T', hw_ep->epnum, fifo, len, src);
 
 	/* we can't assume unaligned reads work */
@@ -284,7 +284,7 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 	if (unlikely(len == 0))
 		return;
 
-	dev_dbg(musb->controller, "%cX ep%d fifo %p count %d buf %p\n",
+	dev_dbg(musb->controller, "%cX ep%d fifo %pK count %d buf %pK\n",
 			'R', hw_ep->epnum, fifo, len, dst);
 
 	/* we can't assume unaligned writes work */

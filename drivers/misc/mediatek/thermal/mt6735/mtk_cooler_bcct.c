@@ -5,7 +5,7 @@
 #include <linux/kobject.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/err.h>
 #include <linux/syscalls.h>
 #include "mach/mtk_thermal_monitor.h"
@@ -319,6 +319,8 @@ static ssize_t _cl_bcct_write(struct file *filp, const char __user *buf, size_t 
     //int ret = 0;
 	char tmp[128] = {0};
 	int klog_on, limit0, limit1, limit2;
+
+	len = (len < (128 - 1)) ? len : (128 - 1);
 
 	/* write data to the buffer */
 	if ( copy_from_user(tmp, buf, len) ) {

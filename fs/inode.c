@@ -17,6 +17,7 @@
 #include <linux/prefetch.h>
 #include <linux/buffer_head.h> /* for inode_has_buffers */
 #include <linux/ratelimit.h>
+#include <trace/events/writeback.h>
 #include "internal.h"
 
 /*
@@ -29,7 +30,7 @@
  * inode_sb_list_lock protects:
  *   sb->s_inodes, inode->i_sb_list
  * bdi->wb.list_lock protects:
- *   bdi->wb.b_{dirty,io,more_io}, inode->i_wb_list
+ *   bdi->wb.b_{dirty,io,more_io,dirty_time}, inode->i_wb_list
  * inode_hash_lock protects:
  *   inode_hashtable, inode->i_hash
  *
@@ -336,8 +337,10 @@ EXPORT_SYMBOL(set_nlink);
  */
 void inc_nlink(struct inode *inode)
 {
-	if (WARN_ON(inode->i_nlink == 0))
+	if (unlikely(inode->i_nlink == 0)) {
+		WARN_ON(!(inode->i_state & I_LINKABLE));
 		atomic_long_dec(&inode->i_sb->s_remove_count);
+	}
 
 	inode->__i_nlink++;
 }
@@ -418,7 +421,8 @@ static void inode_lru_list_add(struct inode *inode)
  */
 void inode_add_lru(struct inode *inode)
 {
-	if (!(inode->i_state & (I_DIRTY | I_SYNC | I_FREEING | I_WILL_FREE)) &&
+	if (!(inode->i_state & (I_DIRTY_ALL | I_SYNC |
+				I_FREEING | I_WILL_FREE)) &&
 	    !atomic_read(&inode->i_count) && inode->i_sb->s_flags & MS_ACTIVE)
 		inode_lru_list_add(inode);
 }
@@ -653,7 +657,7 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
 			spin_unlock(&inode->i_lock);
 			continue;
 		}
-		if (inode->i_state & I_DIRTY && !kill_dirty) {
+		if (inode->i_state & I_DIRTY_ALL && !kill_dirty) {
 			spin_unlock(&inode->i_lock);
 			busy = 1;
 			continue;
@@ -983,6 +987,41 @@ void unlock_new_inode(struct inode *inode)
 EXPORT_SYMBOL(unlock_new_inode);
 
 /**
+ * lock_two_nondirectories - take two i_mutexes on non-directory objects
+ *
+ * Lock any non-NULL argument that is not a directory.
+ * Zero, one or two objects may be locked by this function.
+ *
+ * @inode1: first inode to lock
+ * @inode2: second inode to lock
+ */
+void lock_two_nondirectories(struct inode *inode1, struct inode *inode2)
+{
+	if (inode1 > inode2)
+		swap(inode1, inode2);
+
+	if (inode1 && !S_ISDIR(inode1->i_mode))
+		mutex_lock(&inode1->i_mutex);
+	if (inode2 && !S_ISDIR(inode2->i_mode) && inode2 != inode1)
+		mutex_lock_nested(&inode2->i_mutex, I_MUTEX_NONDIR2);
+}
+EXPORT_SYMBOL(lock_two_nondirectories);
+
+/**
+ * unlock_two_nondirectories - release locks from lock_two_nondirectories()
+ * @inode1: first inode to unlock
+ * @inode2: second inode to unlock
+ */
+void unlock_two_nondirectories(struct inode *inode1, struct inode *inode2)
+{
+	if (inode1 && !S_ISDIR(inode1->i_mode))
+		mutex_unlock(&inode1->i_mutex);
+	if (inode2 && !S_ISDIR(inode2->i_mode) && inode2 != inode1)
+		mutex_unlock(&inode2->i_mutex);
+}
+EXPORT_SYMBOL(unlock_two_nondirectories);
+
+/**
  * iget5_locked - obtain an inode from a mounted file system
  * @sb:		super block of file system
  * @hashval:	hash value (usually inode number) to get
@@ -1284,6 +1323,56 @@ struct inode *ilookup(struct super_block *sb, unsigned long ino)
 }
 EXPORT_SYMBOL(ilookup);
 
+/**
+ * find_inode_nowait - find an inode in the inode cache
+ * @sb:		super block of file system to search
+ * @hashval:	hash value (usually inode number) to search for
+ * @match:	callback used for comparisons between inodes
+ * @data:	opaque data pointer to pass to @match
+ *
+ * Search for the inode specified by @hashval and @data in the inode
+ * cache, where the helper function @match will return 0 if the inode
+ * does not match, 1 if the inode does match, and -1 if the search
+ * should be stopped.  The @match function must be responsible for
+ * taking the i_lock spin_lock and checking i_state for an inode being
+ * freed or being initialized, and incrementing the reference count
+ * before returning 1.  It also must not sleep, since it is called with
+ * the inode_hash_lock spinlock held.
+ *
+ * This is a even more generalized version of ilookup5() when the
+ * function must never block --- find_inode() can block in
+ * __wait_on_freeing_inode() --- or when the caller can not increment
+ * the reference count because the resulting iput() might cause an
+ * inode eviction.  The tradeoff is that the @match funtion must be
+ * very carefully implemented.
+ */
+struct inode *find_inode_nowait(struct super_block *sb,
+				unsigned long hashval,
+				int (*match)(struct inode *, unsigned long,
+					     void *),
+				void *data)
+{
+	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
+	struct inode *inode, *ret_inode = NULL;
+	int mval;
+
+	spin_lock(&inode_hash_lock);
+	hlist_for_each_entry(inode, head, i_hash) {
+		if (inode->i_sb != sb)
+			continue;
+		mval = match(inode, hashval, data);
+		if (mval == 0)
+			continue;
+		if (mval == 1)
+			ret_inode = inode;
+		goto out;
+	}
+out:
+	spin_unlock(&inode_hash_lock);
+	return ret_inode;
+}
+EXPORT_SYMBOL(find_inode_nowait);
+
 int insert_inode_locked(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
@@ -1434,11 +1523,20 @@ static void iput_final(struct inode *inode)
  */
 void iput(struct inode *inode)
 {
-	if (inode) {
-		BUG_ON(inode->i_state & I_CLEAR);
-
-		if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock))
-			iput_final(inode);
+	if (!inode)
+		return;
+	BUG_ON(inode->i_state & I_CLEAR);
+retry:
+	if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock)) {
+		if (inode->i_nlink && (inode->i_state & I_DIRTY_TIME)) {
+			atomic_inc(&inode->i_count);
+			inode->i_state &= ~I_DIRTY_TIME;
+			spin_unlock(&inode->i_lock);
+			trace_writeback_lazytime_iput(inode);
+			mark_inode_dirty_sync(inode);
+			goto retry;
+		}
+		iput_final(inode);
 	}
 }
 EXPORT_SYMBOL(iput);
@@ -1497,14 +1595,9 @@ static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 	return 0;
 }
 
-/*
- * This does the actual work of updating an inodes time or version.  Must have
- * had called mnt_want_write() before calling this.
- */
-static int update_time(struct inode *inode, struct timespec *time, int flags)
+int generic_update_time(struct inode *inode, struct timespec *time, int flags)
 {
-	if (inode->i_op->update_time)
-		return inode->i_op->update_time(inode, time, flags);
+	int iflags = I_DIRTY_TIME;
 
 	if (flags & S_ATIME)
 		inode->i_atime = *time;
@@ -1514,8 +1607,26 @@ static int update_time(struct inode *inode, struct timespec *time, int flags)
 		inode->i_ctime = *time;
 	if (flags & S_MTIME)
 		inode->i_mtime = *time;
-	mark_inode_dirty_sync(inode);
+
+	if (!(inode->i_sb->s_flags & MS_LAZYTIME) || (flags & S_VERSION))
+		iflags |= I_DIRTY_SYNC;
+	__mark_inode_dirty(inode, iflags);
 	return 0;
+}
+EXPORT_SYMBOL(generic_update_time);
+
+/*
+ * This does the actual work of updating an inodes time or version.  Must have
+ * had called mnt_want_write() before calling this.
+ */
+static int update_time(struct inode *inode, struct timespec *time, int flags)
+{
+	int (*update_time)(struct inode *, struct timespec *, int);
+
+	update_time = inode->i_op->update_time ? inode->i_op->update_time :
+		generic_update_time;
+
+	return update_time(inode, time, flags);
 }
 
 /**
@@ -1602,12 +1713,12 @@ int should_remove_suid(struct dentry *dentry)
 }
 EXPORT_SYMBOL(should_remove_suid);
 
-static int __remove_suid(struct dentry *dentry, int kill)
+static int __remove_suid(struct vfsmount *mnt, struct dentry *dentry, int kill)
 {
 	struct iattr newattrs;
 
 	newattrs.ia_valid = ATTR_FORCE | kill;
-	return notify_change(dentry, &newattrs);
+	return notify_change2(mnt, dentry, &newattrs);
 }
 
 int file_remove_suid(struct file *file)
@@ -1630,9 +1741,9 @@ int file_remove_suid(struct file *file)
 	if (killpriv)
 		error = security_inode_killpriv(dentry);
 	if (!error && killsuid)
-		error = __remove_suid(dentry, killsuid);
-	if (!error && (inode->i_sb->s_flags & MS_NOSEC))
-		inode->i_flags |= S_NOSEC;
+		error = __remove_suid(file->f_path.mnt, dentry, killsuid);
+	if (!error)
+		inode_has_no_xattr(inode);
 
 	return error;
 }
@@ -1828,8 +1939,14 @@ void inode_init_owner(struct inode *inode, const struct inode *dir,
 	inode->i_uid = current_fsuid();
 	if (dir && dir->i_mode & S_ISGID) {
 		inode->i_gid = dir->i_gid;
+
+		/* Directories are special, and always inherit S_ISGID */
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
+		else if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP) &&
+			 !in_group_p(inode->i_gid) &&
+			 !capable_wrt_inode_uidgid(dir, CAP_FSETID))
+			mode &= ~S_ISGID;
 	} else
 		inode->i_gid = current_fsgid();
 	inode->i_mode = mode;
@@ -1903,3 +2020,34 @@ void inode_dio_done(struct inode *inode)
 		wake_up_bit(&inode->i_state, __I_DIO_WAKEUP);
 }
 EXPORT_SYMBOL(inode_dio_done);
+
+/*
+ * inode_set_flags - atomically set some inode flags
+ *
+ * Note: the caller should be holding i_mutex, or else be sure that
+ * they have exclusive access to the inode structure (i.e., while the
+ * inode is being instantiated).  The reason for the cmpxchg() loop
+ * --- which wouldn't be necessary if all code paths which modify
+ * i_flags actually followed this rule, is that there is at least one
+ * code path which doesn't today --- for example,
+ * __generic_file_aio_write() calls file_remove_suid() without holding
+ * i_mutex --- so we use cmpxchg() out of an abundance of caution.
+ *
+ * In the long run, i_mutex is overkill, and we should probably look
+ * at using the i_lock spinlock to protect i_flags, and then make sure
+ * it is so documented in include/linux/fs.h and that all code follows
+ * the locking convention!!
+ */
+void inode_set_flags(struct inode *inode, unsigned int flags,
+		     unsigned int mask)
+{
+	unsigned int old_flags, new_flags;
+
+	WARN_ON_ONCE(flags & ~mask);
+	do {
+		old_flags = ACCESS_ONCE(inode->i_flags);
+		new_flags = (old_flags & ~mask) | flags;
+	} while (unlikely(cmpxchg(&inode->i_flags, old_flags,
+				  new_flags) != old_flags));
+}
+EXPORT_SYMBOL(inode_set_flags);

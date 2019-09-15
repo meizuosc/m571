@@ -7,7 +7,7 @@
 #include <linux/unistd.h> 
 #include <linux/sched.h> 
 #include <linux/fs.h> 
-#include <asm/uaccess.h> 
+#include <linux/uaccess.h> 
 #include <linux/version.h>
 #include <linux/spinlock.h>
 #include <linux/semaphore.h>
@@ -49,7 +49,7 @@ do {    \
     }   \
 } while(0)
 
-#define MSG_FUNC() MSG(FUNC, "%s\n", __FUNCTION__)
+#define MSG_FUNC() MSG(FUNC, "%s\n", __func__)
 
 typedef struct mc_session_handle mc_session_handle_t;
 

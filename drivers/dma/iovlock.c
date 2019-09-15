@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 #include <net/tcp.h> /* for memcpy_toiovec */
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int num_pages_spanned(struct iovec *iov)
 {

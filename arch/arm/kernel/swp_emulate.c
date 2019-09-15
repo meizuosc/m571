@@ -28,7 +28,7 @@
 
 #include <asm/opcodes.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Error-checking SWP macros implemented using ldrex{b}/strex{b}

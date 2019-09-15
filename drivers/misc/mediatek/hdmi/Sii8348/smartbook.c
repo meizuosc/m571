@@ -9,7 +9,7 @@
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/power_supply.h>
 #include <linux/kthread.h>
 #include <linux/wakelock.h>
@@ -656,7 +656,7 @@ static int __init smb_init(void)
     smb_dir = proc_mkdir("smb", NULL);
     if (!smb_dir)
     {
-        smb_print("[%s]: mkdir /proc/smb failed\n", __FUNCTION__);
+        smb_print("[%s]: mkdir /proc/smb failed\n", __func__);
     }
     else
     {

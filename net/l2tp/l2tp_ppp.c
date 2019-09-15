@@ -608,6 +608,13 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	lock_sock(sk);
 
 	error = -EINVAL;
+
+	if (sockaddr_len != sizeof(struct sockaddr_pppol2tp) &&
+	    sockaddr_len != sizeof(struct sockaddr_pppol2tpv3) &&
+	    sockaddr_len != sizeof(struct sockaddr_pppol2tpin6) &&
+	    sockaddr_len != sizeof(struct sockaddr_pppol2tpv3in6))
+		goto end;
+
 	if (sp->sa_protocol != PX_PROTO_OL2TP)
 		goto end;
 
@@ -1576,7 +1583,7 @@ static void pppol2tp_next_tunnel(struct net *net, struct pppol2tp_seq_data *pd)
 
 static void pppol2tp_next_session(struct net *net, struct pppol2tp_seq_data *pd)
 {
-	pd->session = l2tp_session_find_nth(pd->tunnel, pd->session_idx);
+	pd->session = l2tp_session_get_nth(pd->tunnel, pd->session_idx, true);
 	pd->session_idx++;
 
 	if (pd->session == NULL) {
@@ -1703,10 +1710,14 @@ static int pppol2tp_seq_show(struct seq_file *m, void *v)
 
 	/* Show the tunnel or session context.
 	 */
-	if (pd->session == NULL)
+	if (!pd->session) {
 		pppol2tp_seq_tunnel_show(m, pd->tunnel);
-	else
+	} else {
 		pppol2tp_seq_session_show(m, pd->session);
+		if (pd->session->deref)
+			pd->session->deref(pd->session);
+		l2tp_session_dec_refcount(pd->session);
+	}
 
 out:
 	return 0;

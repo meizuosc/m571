@@ -3,7 +3,7 @@
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/poll.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/skbuff.h>

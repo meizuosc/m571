@@ -189,6 +189,14 @@ struct cgroup {
 	struct dentry *dentry;		/* cgroup fs entry, RCU protected */
 
 	/*
+	 * Monotonically increasing unique serial number which defines a
+	 * uniform order among all cgroups.  It's guaranteed that all
+	 * ->children lists are in the ascending order of ->serial_nr.
+	 * It's used to allow interrupting and resuming iterations.
+	 */
+	u64 serial_nr;
+
+	/*
 	 * This is a copy of dentry->d_name, and it's needed because
 	 * we can't use dentry->d_name in cgroup_path().
 	 *
@@ -271,6 +279,8 @@ enum {
 	 *
 	 * - memcg: use_hierarchy is on by default and the cgroup file for
 	 *   the flag is not created.
+	 *
+	 * - blkcg: blk-throttle becomes properly hierarchical.
 	 *
 	 * The followings are planned changes.
 	 *
@@ -538,10 +548,11 @@ static inline const char *cgroup_name(const struct cgroup *cgrp)
 int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 
-int cgroup_is_removed(const struct cgroup *cgrp);
 bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor);
 
 int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
+int task_cgroup_path_from_hierarchy(struct task_struct *task, int hierarchy_id,
+				    char *buf, size_t buflen);
 
 int cgroup_task_count(const struct cgroup *cgrp);
 
@@ -578,7 +589,6 @@ struct cgroup_subsys {
 	void (*css_offline)(struct cgroup *cgrp);
 	void (*css_free)(struct cgroup *cgrp);
 
-	int (*allow_attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
 	int (*can_attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
 	void (*cancel_attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
 	void (*attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
@@ -712,6 +722,8 @@ static inline struct cgroup* task_cgroup(struct task_struct *task,
 {
 	return task_subsys_state(task, subsys_id)->cgroup;
 }
+
+struct cgroup *cgroup_next_sibling(struct cgroup *pos);
 
 /**
  * cgroup_for_each_child - iterate through children of a cgroup
@@ -869,17 +881,6 @@ unsigned short css_id(struct cgroup_subsys_state *css);
 unsigned short css_depth(struct cgroup_subsys_state *css);
 struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id);
 
-/*
- * Default Android check for whether the current process is allowed to move a
- * task across cgroups, either because CAP_SYS_NICE is set or because the uid
- * of the calling process is the same as the moved task or because we are
- * running as root.
- * Returns 0 if this is allowed, or -EACCES otherwise.
- */
-int subsys_cgroup_allow_attach(struct cgroup *cgrp,
-			       struct cgroup_taskset *tset);
-
-
 #else /* !CONFIG_CGROUPS */
 
 static inline int cgroup_init_early(void) { return 0; }
@@ -903,11 +904,6 @@ static inline int cgroup_attach_task_all(struct task_struct *from,
 	return 0;
 }
 
-static inline int subsys_cgroup_allow_attach(struct cgroup *cgrp,
-					     struct cgroup_taskset *tset)
-{
-	return 0;
-}
 #endif /* !CONFIG_CGROUPS */
 
 #endif /* _LINUX_CGROUP_H */

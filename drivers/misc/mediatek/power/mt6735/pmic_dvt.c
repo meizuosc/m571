@@ -26,7 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/time.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <mach/upmu_common.h>
 #include <mach/upmu_sw.h>

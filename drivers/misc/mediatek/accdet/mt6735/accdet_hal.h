@@ -14,7 +14,7 @@
 #include <linux/ctype.h>
 
 #include <linux/semaphore.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <linux/workqueue.h>
 #include <linux/switch.h>
@@ -24,7 +24,7 @@
 #include <linux/kdev_t.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/input.h>
 #include <linux/wakelock.h>

@@ -42,7 +42,7 @@ extern bool is_ipoh_bootup;
 #define DSI_POLLREG32(cmdq, addr,mask,value) DISP_REG_CMDQ_POLLING(cmdq, addr,value,mask)
 
 #define BIT_TO_VALUE(TYPE,bit)  \
-	do { \   
+	do { \
 		TYPE r;\
 		*(unsigned long*)(&r) = ((unsigned int)0x00000000);	  \
 		r.bit = ~(r.bit);\
@@ -93,10 +93,10 @@ extern bool is_ipoh_bootup;
 	else printk("MIPI write fail\n");		\
 }
 
-#define MIPITX_INREG32(addr)								\		
+#define MIPITX_INREG32(addr)								\
   	({														\
   		unsigned int val = 0;										\
-		if(0) val = INREG32(addr);								\	
+		if(0) val = INREG32(addr);								\
 		if(dsi_reg_op_debug) 								\
 		{													\
 			printk("[mipitx/inreg]%p=0x%08x\n", (void*)addr, val);	\
@@ -123,10 +123,10 @@ extern bool is_ipoh_bootup;
 	
 #define MIPITX_MASKREG32(x, y, z)  MIPITX_OUTREG32(x, (MIPITX_INREG32(x)&~(y))|(z))
 #else
-#define MIPITX_INREG32(addr)								\		
+#define MIPITX_INREG32(addr)								\
   	({														\
   		unsigned int val = 0;										\
-		val = INREG32(addr);								\	
+		val = INREG32(addr);								\
 		if(dsi_reg_op_debug) 								\
 		{													\
 			printk("[mipitx/inreg]%p=0x%08x\n", (void*)addr, val);	\

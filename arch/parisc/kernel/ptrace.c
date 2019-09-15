@@ -20,7 +20,7 @@
 #include <linux/compat.h>
 #include <linux/signal.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>

@@ -13,7 +13,7 @@
 #include <linux/syscalls.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/string.h>
 #include <linux/spinlock.h>
 #include "mach/mtk_thermal_monitor.h"

@@ -67,7 +67,7 @@ static struct vfsmount *shm_mnt;
 #include <linux/seq_file.h>
 #include <linux/magic.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 
 #define BLOCKS_PER_PAGE  (PAGE_CACHE_SIZE/512)
@@ -1306,6 +1306,18 @@ unlock:
 	return error;
 }
 
+/*
+ * This is like autoremove_wake_function, but it removes the wait queue
+ * entry unconditionally - even if something else had already woken the
+ * target.
+ */
+static int synchronous_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+{
+	int ret = default_wake_function(wait, mode, sync, key);
+	list_del_init(&wait->task_list);
+	return ret;
+}
+
 static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct inode *inode = file_inode(vma->vm_file);
@@ -1339,7 +1351,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		    vmf->pgoff >= shmem_falloc->start &&
 		    vmf->pgoff < shmem_falloc->next) {
 			wait_queue_head_t *shmem_falloc_waitq;
-			DEFINE_WAIT(shmem_fault_wait);
+			DEFINE_WAIT_FUNC(shmem_fault_wait, synchronous_wake_function);
 
 			ret = VM_FAULT_NOPAGE;
 			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
@@ -1919,6 +1931,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 		spin_lock(&inode->i_lock);
 		inode->i_private = NULL;
 		wake_up_all(&shmem_falloc_waitq);
+		WARN_ON_ONCE(!list_empty(&shmem_falloc_waitq.task_list));
 		spin_unlock(&inode->i_lock);
 		error = 0;
 		goto out;
@@ -1962,9 +1975,11 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 									NULL);
 		if (error) {
 			/* Remove the !PageUptodate pages we added */
-			shmem_undo_range(inode,
-				(loff_t)start << PAGE_CACHE_SHIFT,
-				(loff_t)index << PAGE_CACHE_SHIFT, true);
+			if (index > start) {
+				shmem_undo_range(inode,
+				 (loff_t)start << PAGE_CACHE_SHIFT,
+				 ((loff_t)index << PAGE_CACHE_SHIFT) - 1, true);
+			}
 			goto undone;
 		}
 
@@ -2059,6 +2074,37 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 	return error;
 }
 
+static int
+shmem_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	struct inode *inode;
+	int error = -ENOSPC;
+
+	inode = shmem_get_inode(dir->i_sb, dir, mode, 0, VM_NORESERVE, 0);
+	if (inode) {
+		error = security_inode_init_security(inode, dir,
+						     NULL,
+						     shmem_initxattrs, NULL);
+		if (error) {
+			if (error != -EOPNOTSUPP) {
+				iput(inode);
+				return error;
+			}
+		}
+#ifdef CONFIG_TMPFS_POSIX_ACL
+		error = generic_acl_init(inode, dir);
+		if (error) {
+			iput(inode);
+			return error;
+		}
+#else
+		error = 0;
+#endif
+		d_tmpfile(dentry, inode);
+	}
+	return error;
+}
+
 static int shmem_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int error;
@@ -2081,16 +2127,20 @@ static int shmem_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = old_dentry->d_inode;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * No ordinary (disk based) filesystem counts links as inodes;
 	 * but each new link needs a new dentry, pinning lowmem, and
 	 * tmpfs dentries cannot be pruned until they are unlinked.
+	 * But if an O_TMPFILE file is linked into the tmpfs, the
+	 * first link must skip that, to get the accounting right.
 	 */
-	ret = shmem_reserve_inode(inode->i_sb);
-	if (ret)
-		goto out;
+	if (inode->i_nlink) {
+		ret = shmem_reserve_inode(inode->i_sb);
+		if (ret)
+			goto out;
+	}
 
 	dir->i_size += BOGO_DIRENT_SIZE;
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
@@ -2819,6 +2869,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
 	.rmdir		= shmem_rmdir,
 	.mknod		= shmem_mknod,
 	.rename		= shmem_rename,
+	.tmpfile	= shmem_tmpfile,
 #endif
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,

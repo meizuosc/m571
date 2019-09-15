@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
@@ -1424,7 +1424,7 @@ static long vcodec_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned 
         case VCODEC_GET_CPU_LOADING_INFO:
         {
             VAL_UINT8_T *user_data_addr;
-            VAL_VCODEC_CPU_LOADING_INFO_T _temp;
+            VAL_VCODEC_CPU_LOADING_INFO_T _temp = {0};
 
             MFV_LOGD("VCODEC_GET_CPU_LOADING_INFO +\n");
             user_data_addr = (VAL_UINT8_T *)arg;
@@ -1457,6 +1457,15 @@ static long vcodec_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned 
             if (ret)
             {
                 MFV_LOGE("[ERROR] VCODEC_GET_CORE_LOADING, copy_from_user failed: %lu\n", ret);
+                return -EFAULT;
+            }
+            if (rTempCoreLoading.CPUid > num_possible_cpus()) {
+                MFV_LOGE("[ERROR] rTempCoreLoading.CPUid(%d) > num_possible_cpus(%d)\n",
+                    rTempCoreLoading.CPUid, num_possible_cpus());
+                return -EFAULT;
+            }
+            if (rTempCoreLoading.CPUid < 0) {
+                MFV_LOGE("[ERROR] rTempCoreLoading.CPUid < 0\n");
                 return -EFAULT;
             }
             rTempCoreLoading.Loading = get_cpu_load(rTempCoreLoading.CPUid);
@@ -2619,4 +2628,3 @@ module_exit(vcodec_driver_exit);
 MODULE_AUTHOR("Legis, Lu <legis.lu@mediatek.com>");
 MODULE_DESCRIPTION("Denali-3 Vcodec Driver");
 MODULE_LICENSE("GPL");
-

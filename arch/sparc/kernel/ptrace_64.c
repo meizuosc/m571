@@ -29,7 +29,7 @@
 
 #include <asm/asi.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/psrcompat.h>
 #include <asm/visasm.h>
 #include <asm/spitfire.h>
@@ -308,7 +308,7 @@ static int genregs64_set(struct task_struct *target,
 	}
 
 	if (!ret) {
-		unsigned long y;
+		unsigned long y = regs->y;
 
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 &y,

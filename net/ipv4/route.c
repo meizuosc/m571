@@ -65,7 +65,7 @@
 #define pr_fmt(fmt) "IPv4: " fmt
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -515,7 +515,8 @@ void __ip_select_ident(struct iphdr *iph, int segs)
 }
 EXPORT_SYMBOL(__ip_select_ident);
 
-static void __build_flow_key(struct flowi4 *fl4, struct sock *sk,
+static void __build_flow_key(const struct net *net, struct flowi4 *fl4,
+			     const struct sock *sk,
 			     const struct iphdr *iph,
 			     int oif, u8 tos,
 			     u8 prot, u32 mark, int flow_flags)
@@ -532,22 +533,23 @@ static void __build_flow_key(struct flowi4 *fl4, struct sock *sk,
 			   RT_SCOPE_UNIVERSE, prot,
 			   flow_flags,
 			   iph->daddr, iph->saddr, 0, 0,
-			   sk ? sock_i_uid(sk) : 0);
+			   sock_net_uid(net, sk));
 }
 
 static void build_skb_flow_key(struct flowi4 *fl4, const struct sk_buff *skb,
-			       struct sock *sk)
+			       const struct sock *sk)
 {
+	const struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph = ip_hdr(skb);
 	int oif = skb->dev->ifindex;
 	u8 tos = RT_TOS(iph->tos);
 	u8 prot = iph->protocol;
 	u32 mark = skb->mark;
 
-	__build_flow_key(fl4, sk, iph, oif, tos, prot, mark, 0);
+	__build_flow_key(net, fl4, sk, iph, oif, tos, prot, mark, 0);
 }
 
-static void build_sk_flow_key(struct flowi4 *fl4, struct sock *sk)
+static void build_sk_flow_key(struct flowi4 *fl4,const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	const struct ip_options_rcu *inet_opt;
@@ -561,12 +563,11 @@ static void build_sk_flow_key(struct flowi4 *fl4, struct sock *sk)
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
 			   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
 			   inet_sk_flowi_flags(sk),
-			   daddr, inet->inet_saddr, 0, 0,
-			   sock_i_uid(sk));
+			   daddr, inet->inet_saddr, 0, 0, sk->sk_uid);
 	rcu_read_unlock();
 }
 
-static void ip_rt_build_flow_key(struct flowi4 *fl4, struct sock *sk,
+static void ip_rt_build_flow_key(struct flowi4 *fl4,const struct sock *sk,
 				 const struct sk_buff *skb)
 {
 	if (skb)
@@ -715,8 +716,10 @@ static void __ip_do_redirect(struct rtable *rt, struct sk_buff *skb, struct flow
 			goto reject_redirect;
 	}
 
-	n = ipv4_neigh_lookup(&rt->dst, NULL, &new_gw);
-	if (n) {
+	n = __ipv4_neigh_lookup(rt->dst.dev, new_gw);
+	if (!n)
+		n = neigh_create(&arp_tbl, &new_gw, rt->dst.dev);
+	if (!IS_ERR(n)) {
 		if (!(n->nud_state & NUD_VALID)) {
 			neigh_event_send(n, NULL);
 		} else {
@@ -762,7 +765,7 @@ static void ip_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_buf
 
 	rt = (struct rtable *) dst;
 
-	__build_flow_key(&fl4, sk, iph, oif, tos, prot, mark, 0);
+	__build_flow_key(sock_net(sk), &fl4, sk, iph, oif, tos, prot, mark, 0);
 	__ip_do_redirect(rt, skb, &fl4, true);
 }
 
@@ -873,6 +876,10 @@ static int ip_error(struct sk_buff *skb)
 	bool send;
 	int code;
 
+	/* IP on this device is disabled. */
+	if (!in_dev)
+		goto out;
+
 	net = dev_net(rt->dst.dev);
 	if (!IN_DEV_FORWARD(in_dev)) {
 		switch (rt->dst.error) {
@@ -976,7 +983,7 @@ void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
 	if (!mark)
 		mark = IP4_REPLY_MARK(net, skb->mark);
 
-	__build_flow_key(&fl4, NULL, iph, oif,
+	__build_flow_key(net, &fl4, NULL, iph, oif,
 			 RT_TOS(iph->tos), protocol, mark, flow_flags);
 	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
@@ -992,7 +999,7 @@ static void __ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 	struct flowi4 fl4;
 	struct rtable *rt;
 
-	__build_flow_key(&fl4, sk, iph, 0, 0, 0, 0, 0);
+	__build_flow_key(sock_net(sk), &fl4, sk, iph, 0, 0, 0, 0, 0);
 
 	if (!fl4.flowi4_mark)
 		fl4.flowi4_mark = IP4_REPLY_MARK(sock_net(sk), skb->mark);
@@ -1011,6 +1018,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 	struct rtable *rt;
 	struct dst_entry *odst = NULL;
 	bool new = false;
+	struct net *net = sock_net(sk);
 
 	bh_lock_sock(sk);
 	odst = sk_dst_get(sk);
@@ -1020,7 +1028,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 		goto out;
 	}
 
-	__build_flow_key(&fl4, sk, iph, 0, 0, 0, 0, 0);
+	__build_flow_key(net, &fl4, sk, iph, 0, 0, 0, 0, 0);
 
 	rt = (struct rtable *)odst;
 	if (odst->obsolete && odst->ops->check(odst, 0) == NULL) {
@@ -1060,7 +1068,7 @@ void ipv4_redirect(struct sk_buff *skb, struct net *net,
 	struct flowi4 fl4;
 	struct rtable *rt;
 
-	__build_flow_key(&fl4, NULL, iph, oif,
+	__build_flow_key(net, &fl4, NULL, iph, oif,
 			 RT_TOS(iph->tos), protocol, mark, flow_flags);
 	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
@@ -1075,9 +1083,10 @@ void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk)
 	const struct iphdr *iph = (const struct iphdr *) skb->data;
 	struct flowi4 fl4;
 	struct rtable *rt;
+	struct net *net = sock_net(sk);
 
-	__build_flow_key(&fl4, sk, iph, 0, 0, 0, 0, 0);
-	rt = __ip_route_output_key(sock_net(sk), &fl4);
+	__build_flow_key(net, &fl4, sk, iph, 0, 0, 0, 0, 0);
+	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
 		__ip_do_redirect(rt, skb, &fl4, false);
 		ip_rt_put(rt);
@@ -1523,11 +1532,10 @@ static int __mkroute_input(struct sk_buff *skb,
 
 	do_cache = res->fi && !itag;
 	if (out_dev == in_dev && err && IN_DEV_TX_REDIRECTS(out_dev) &&
+	    skb->protocol == htons(ETH_P_IP) &&
 	    (IN_DEV_SHARED_MEDIA(out_dev) ||
-	     inet_addr_onlink(out_dev, saddr, FIB_RES_GW(*res)))) {
-		flags |= RTCF_DOREDIRECT;
-		do_cache = false;
-	}
+	     inet_addr_onlink(out_dev, saddr, FIB_RES_GW(*res))))
+		IPCB(skb)->flags |= IPSKB_DOREDIRECT;
 
 	if (skb->protocol != htons(ETH_P_IP)) {
 		/* Not IP (i.e. ARP). Do not create route, if it is
@@ -1793,6 +1801,7 @@ int ip_route_input_noref(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 {
 	int res;
 
+	tos &= IPTOS_RT_MASK;
 	rcu_read_lock();
 
 	/* Multicast recognition logic is moved from route cache to here.
@@ -1882,6 +1891,18 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		 */
 		if (fi && res->prefixlen < 4)
 			fi = NULL;
+	} else if ((type == RTN_LOCAL) && (orig_oif != 0) &&
+		   (orig_oif != dev_out->ifindex)) {
+		/* For local routes that require a particular output interface
+		 * we do not want to cache the result.  Caching the result
+		 * causes incorrect behaviour when there are multiple source
+		 * addresses on the interface, the end result being that if the
+		 * intended recipient is waiting on that interface for the
+		 * packet he won't receive it because it will be delivered on
+		 * the loopback interface and the IP_PKTINFO ipi_ifindex will
+		 * be set to the loopback interface as well.
+		 */
+		fi = NULL;
 	}
 
 	fnhe = NULL;
@@ -2264,6 +2285,8 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 	r->rtm_flags	= (rt->rt_flags & ~0xFFFF) | RTM_F_CLONED;
 	if (rt->rt_flags & RTCF_NOTIFY)
 		r->rtm_flags |= RTM_F_NOTIFY;
+	if (IPCB(skb)->flags & IPSKB_DOREDIRECT)
+		r->rtm_flags |= RTCF_DOREDIRECT;
 
 	if (nla_put_be32(skb, RTA_DST, dst))
 		goto nla_put_failure;
@@ -2322,7 +2345,8 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 		    IPV4_DEVCONF_ALL(net, MC_FORWARDING)) {
 			int err = ipmr_get_route(net, skb,
 						 fl4->saddr, fl4->daddr,
-						 r, nowait);
+						 r, nowait, portid);
+
 			if (err <= 0) {
 				if (!nowait) {
 					if (err == 0)

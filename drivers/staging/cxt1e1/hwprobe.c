@@ -17,7 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/rtnetlink.h>
 #include <linux/pci.h>
 #include "pmcc4_sysdep.h"

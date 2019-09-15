@@ -2,7 +2,7 @@
 #include <linux/thermal.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 //#include "wmt_tm.h"
 #include <mach/mtk_thermal_monitor.h>
 #include <linux/timer.h>
@@ -962,6 +962,7 @@ ssize_t wmt_tm_wfd_write(struct file *filp, const char __user *buf, size_t len, 
 	int ret = 0;
 	char tmp[MAX_LEN] = {0};
 
+	len = min(len,MAX_LEN-1);
 	/* write data to the buffer */
 	if (copy_from_user(tmp, buf, len)) {
 		return -EFAULT;
@@ -1003,6 +1004,8 @@ ssize_t wmt_tm_pid_write(struct file *filp, const char __user *buf, size_t len, 
 {
 	int ret = 0;
 	char tmp[MAX_LEN] = {0};
+
+	len = (len < (MAX_LEN - 1)) ? len : (MAX_LEN - 1);
 
 	/* write data to the buffer */
 	if ( copy_from_user(tmp, buf, len) ) {

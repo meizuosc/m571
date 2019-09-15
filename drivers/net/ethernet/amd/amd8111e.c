@@ -90,7 +90,7 @@ Revision History:
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define AMD8111E_VLAN_TAG_USED 1

@@ -19,7 +19,7 @@
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
 #include <asm/user.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/xsave.h>
 #include <asm/smap.h>
 
@@ -370,7 +370,7 @@ static inline void drop_fpu(struct task_struct *tsk)
 	preempt_disable();
 	tsk->fpu_counter = 0;
 	__drop_fpu(tsk);
-	clear_used_math();
+	clear_stopped_child_used_math(tsk);
 	preempt_enable();
 }
 

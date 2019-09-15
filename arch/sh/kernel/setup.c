@@ -29,7 +29,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/memblock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/elf.h>
@@ -172,7 +172,7 @@ disable:
 #endif
 }
 
-void __cpuinit calibrate_delay(void)
+void calibrate_delay(void)
 {
 	struct clk *clk = clk_get(NULL, "cpu_clk");
 

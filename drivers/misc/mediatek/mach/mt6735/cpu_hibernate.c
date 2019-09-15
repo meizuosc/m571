@@ -14,7 +14,7 @@
 #include <linux/device.h>
 #include <linux/suspend.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
 

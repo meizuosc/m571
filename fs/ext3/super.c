@@ -28,7 +28,7 @@
 #include <linux/log2.h>
 #include <linux/cleancache.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define CREATE_TRACE_POINTS
 
@@ -2587,6 +2587,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 #ifdef CONFIG_QUOTA
 	int i;
 #endif
+
+	sync_filesystem(sb);
 
 	/* Store the original options */
 	old_sb_flags = sb->s_flags;

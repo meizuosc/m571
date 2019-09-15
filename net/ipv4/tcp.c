@@ -281,7 +281,7 @@
 #include <net/netdma.h>
 #include <net/sock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 
 int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
@@ -580,26 +580,6 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		else
 			answ = tp->write_seq - tp->snd_nxt;
 		break;
-		/* MTK_NET_CHANGES */
-        case SIOCKILLSOCK:
-         {
-             struct uid_err uid_e;
-             if (copy_from_user(&uid_e, (char __user *)arg, sizeof(uid_e)))
-                 return -EFAULT;
-             printk(KERN_WARNING "SIOCKILLSOCK uid = %d , err = %d",
-			 	         uid_e.appuid, uid_e.errNum);
-             if (uid_e.errNum == 0)
-             {
-                 // handle BR release problem
-                 tcp_v4_handle_retrans_time_by_uid(uid_e);
-             }
-             else
-             {
-             tcp_v4_reset_connections_by_uid(uid_e);
-             }			 	         
-
-	         return 0;
-         }
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -747,6 +727,12 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 				ret = -EAGAIN;
 				break;
 			}
+			/* if __tcp_splice_read() got nothing while we have
+			 * an skb in receive queue, we do not want to loop.
+			 * This might happen with URG data.
+			 */
+			if (!skb_queue_empty(&sk->sk_receive_queue))
+				break;
 			sk_wait_data(sk, &timeo);
 			if (signal_pending(current)) {
 				ret = sock_intr_errno(timeo);
@@ -2340,9 +2326,15 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tcp_set_ca_state(sk, TCP_CA_Open);
 	tcp_clear_retrans(tp);
 	inet_csk_delack_init(sk);
+	/* Initialize rcv_mss to TCP_MIN_MSS to avoid division by 0
+	 * issue in __tcp_select_window()
+	 */
+	icsk->icsk_ack.rcv_mss = TCP_MIN_MSS;
 	tcp_init_send_head(sk);
 	memset(&tp->rx_opt, 0, sizeof(tp->rx_opt));
 	__sk_dst_reset(sk);
+	dst_release(sk->sk_rx_dst);
+	sk->sk_rx_dst = NULL;
 
 	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
@@ -2521,7 +2513,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_REPAIR_QUEUE:
 		if (!tp->repair)
 			err = -EPERM;
-		else if (val < TCP_QUEUES_NR)
+		else if ((unsigned int)val < TCP_QUEUES_NR)
 			tp->repair_queue = val;
 		else
 			err = -EINVAL;
@@ -2653,8 +2645,10 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 
 #ifdef CONFIG_TCP_MD5SIG
 	case TCP_MD5SIG:
-		/* Read the IP->Key mappings from userspace */
-		err = tp->af_specific->md5_parse(sk, optval, optlen);
+		if ((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))
+			err = tp->af_specific->md5_parse(sk, optval, optlen);
+		else
+			err = -EINVAL;
 		break;
 #endif
 	case TCP_USER_TIMEOUT:
@@ -3391,6 +3385,43 @@ void tcp_done(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_done);
 
+int tcp_abort(struct sock *sk, int err)
+{
+	if (sk->sk_state == TCP_TIME_WAIT) {
+		inet_twsk_put((struct inet_timewait_sock *)sk);
+		return -EOPNOTSUPP;
+	}
+
+	/* Don't race with userspace socket closes such as tcp_close. */
+	lock_sock(sk);
+
+	if (sk->sk_state == TCP_LISTEN) {
+		tcp_set_state(sk, TCP_CLOSE);
+		inet_csk_listen_stop(sk);
+	}
+
+	/* Don't race with BH socket closes such as inet_csk_listen_stop. */
+	local_bh_disable();
+	bh_lock_sock(sk);
+
+	if (!sock_flag(sk, SOCK_DEAD)) {
+		sk->sk_err = err;
+		/* This barrier is coupled with smp_rmb() in tcp_poll() */
+		smp_wmb();
+		sk->sk_error_report(sk);
+		if (tcp_need_reset(sk->sk_state))
+			tcp_send_active_reset(sk, GFP_ATOMIC);
+		tcp_done(sk);
+	}
+
+	bh_unlock_sock(sk);
+	local_bh_enable();
+	release_sock(sk);
+	sock_put(sk);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tcp_abort);
+
 extern struct tcp_congestion_ops tcp_reno;
 
 static __initdata unsigned long thash_entries;
@@ -3425,6 +3456,7 @@ void __init tcp_init(void)
 	int max_rshare, max_wshare, cnt;
 	unsigned int i;
 
+	BUILD_BUG_ON(TCP_MIN_SND_MSS <= MAX_TCP_OPTION_SPACE);
 	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) > sizeof(skb->cb));
 
 	percpu_counter_init(&tcp_sockets_allocated, 0);
@@ -3505,16 +3537,24 @@ void __init tcp_init(void)
 static int tcp_is_local(struct net *net, __be32 addr) {
 	struct rtable *rt;
 	struct flowi4 fl4 = { .daddr = addr };
+	int is_local;
 	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR_OR_NULL(rt))
 		return 0;
-	return rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK);
+
+	is_local = rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK);
+	ip_rt_put(rt);
+	return is_local;
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static int tcp_is_local6(struct net *net, struct in6_addr *addr) {
 	struct rt6_info *rt6 = rt6_lookup(net, addr, addr, 0, 0);
-	return rt6 && rt6->dst.dev && (rt6->dst.dev->flags & IFF_LOOPBACK);
+	int is_local;
+
+	is_local = rt6 && rt6->dst.dev && (rt6->dst.dev->flags & IFF_LOOPBACK);
+	ip6_rt_put(rt6);
+	return is_local;
 }
 #endif
 
@@ -3528,9 +3568,7 @@ int tcp_nuke_addr(struct net *net, struct sockaddr *addr)
 	int family = addr->sa_family;
 	unsigned int bucket;
 	
-	/*mtk_net:debug log*/
-  int count = 0; 
-	struct in_addr *in;
+	struct in_addr *in = NULL;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	struct in6_addr *in6 = NULL ;
 #endif
@@ -3543,9 +3581,7 @@ int tcp_nuke_addr(struct net *net, struct sockaddr *addr)
 	} else {
 		return -EAFNOSUPPORT;
 	}
-		/*mtk_net:debug log*/
-  printk(KERN_INFO "[mtk_net][tcp]tcp_nuke_addr: tcp_hashinfo.ehash_mask = %d\n",tcp_hashinfo.ehash_mask);
-	for (bucket = 0; bucket < tcp_hashinfo.ehash_mask; bucket++) {
+	for (bucket = 0; bucket <= tcp_hashinfo.ehash_mask; bucket++) {
 		struct hlist_nulls_node *node;
 		struct sock *sk;
 		spinlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, bucket);
@@ -3591,18 +3627,20 @@ restart:
 			sock_hold(sk);
 			spin_unlock_bh(lock);
 
+			lock_sock(sk);
+			// TODO:
+			// Check for SOCK_DEAD again, it could have changed.
+			// Add a write barrier, see tcp_reset().
 			local_bh_disable();
-			bh_lock_sock(sk);
-			sk->sk_err = ETIMEDOUT;
-			sk->sk_error_report(sk);
-			count++;
-            /*mtk_net: skip closed sk*/
-			if(sk->sk_state != TCP_CLOSE && sk->sk_shutdown != SHUTDOWN_MASK)
-				{
-					printk(KERN_INFO "[mtk_net][tcp]skip ALPS01866438 Google Issue!\n");			 
-				}
-			tcp_done(sk);
-			bh_unlock_sock(sk);
+
+			if (!sock_flag(sk, SOCK_DEAD)) {
+				smp_wmb();  /* be consistent with tcp_reset */
+				sk->sk_err = ETIMEDOUT;
+				sk->sk_error_report(sk);
+				tcp_done(sk);
+			}
+
+			release_sock(sk);
 			local_bh_enable();
 			sock_put(sk);
 
@@ -3610,6 +3648,6 @@ restart:
 		}
 		spin_unlock_bh(lock);
 	}
-	printk(KERN_INFO "[mtk_net][tcp]tcp_nuke_addr : count = %d\n",count);
+
 	return 0;
 }

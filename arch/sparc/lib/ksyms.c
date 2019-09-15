@@ -10,7 +10,7 @@
 #include <linux/types.h>
 
 #include <asm/checksum.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ftrace.h>
 
 /* string functions */
@@ -125,10 +125,6 @@ EXPORT_SYMBOL(copy_user_page);
 /* RAID code needs this */
 void VISenter(void);
 EXPORT_SYMBOL(VISenter);
-
-/* CRYPTO code needs this */
-void VISenterhalf(void);
-EXPORT_SYMBOL(VISenterhalf);
 
 extern void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
 extern void xor_vis_3(unsigned long, unsigned long *, unsigned long *,

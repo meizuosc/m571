@@ -143,13 +143,13 @@ static inline void dbg_print(int level, const char *fmt, ...)
 #define DBGPRINT	dbg_print
 
 #define DBGENTER(level)	do { \
-		dbg_print(level, "%s: Enter\n", __FUNCTION__); \
+		dbg_print(level, "%s: Enter\n", __func__); \
 		dbg_indent++; \
 	} while (0)
 
 #define DBGLEAVE(level)	do { \
 		dbg_indent--; \
-		dbg_print(level, "%s: Leave\n", __FUNCTION__); \
+		dbg_print(level, "%s: Leave\n", __func__); \
 	} while (0)
 
 // Debug Macros
@@ -168,8 +168,8 @@ static inline void dbg_print(int level, const char *fmt, ...)
         }                                                   \
     } while (0)
 
-#define MSG_FUNC_ENTER(f)   MSG(FUNC, "<FB_ENTER>: %s\n", __FUNCTION__)
-#define MSG_FUNC_LEAVE(f)   MSG(FUNC, "<FB_LEAVE>: %s\n", __FUNCTION__)
+#define MSG_FUNC_ENTER(f)   MSG(FUNC, "<FB_ENTER>: %s\n", __func__)
+#define MSG_FUNC_LEAVE(f)   MSG(FUNC, "<FB_LEAVE>: %s\n", __func__)
 
 
 #else	/* MTKFB_DBG */

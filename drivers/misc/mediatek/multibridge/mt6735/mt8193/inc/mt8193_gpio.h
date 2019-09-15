@@ -15,7 +15,7 @@
 #include <linux/vmalloc.h>
 #include <linux/disp_assert_layer.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>

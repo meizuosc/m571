@@ -1023,7 +1023,7 @@ static int write_numa_topology(int fd, struct perf_header *h __maybe_unused,
 		if (ret < 0)
 			break;
 
-		ret = write_topo_node(fd, i);
+		ret = write_topo_node(fd, j);
 		if (ret < 0)
 			break;
 	}
@@ -1729,7 +1729,7 @@ static int process_nrcpus(struct perf_file_section *section __maybe_unused,
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
-	ph->env.nr_cpus_online = nr;
+	ph->env.nr_cpus_avail = nr;
 
 	ret = readn(fd, &nr, sizeof(nr));
 	if (ret != sizeof(nr))
@@ -1738,7 +1738,7 @@ static int process_nrcpus(struct perf_file_section *section __maybe_unused,
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
-	ph->env.nr_cpus_avail = nr;
+	ph->env.nr_cpus_online = nr;
 	return 0;
 }
 

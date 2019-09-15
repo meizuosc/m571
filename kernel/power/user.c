@@ -26,7 +26,7 @@
 #include <linux/cpu.h>
 #include <linux/freezer.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "power.h"
 

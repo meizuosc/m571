@@ -28,7 +28,7 @@
 #include <linux/list.h>
 #include <linux/syscalls.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "spufs.h"
 

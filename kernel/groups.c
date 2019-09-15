@@ -7,7 +7,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/user_namespace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* init to 2 - one for init_task, one to ensure it is never freed */
 struct group_info init_groups = { .usage = ATOMIC_INIT(2) };

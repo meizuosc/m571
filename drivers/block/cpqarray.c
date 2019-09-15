@@ -40,7 +40,7 @@
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
 #include <linux/scatterlist.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 

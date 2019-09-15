@@ -36,7 +36,7 @@ static void blk_done_softirq(struct softirq_action *h)
 	}
 }
 
-#if defined(CONFIG_SMP) && defined(CONFIG_USE_GENERIC_SMP_HELPERS)
+#ifdef CONFIG_SMP
 static void trigger_softirq(void *data)
 {
 	struct request *rq = data;
@@ -71,14 +71,14 @@ static int raise_blk_irq(int cpu, struct request *rq)
 
 	return 1;
 }
-#else /* CONFIG_SMP && CONFIG_USE_GENERIC_SMP_HELPERS */
+#else /* CONFIG_SMP */
 static int raise_blk_irq(int cpu, struct request *rq)
 {
 	return 1;
 }
 #endif
 
-static int __cpuinit blk_cpu_notify(struct notifier_block *self,
+static int blk_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	/*
@@ -98,7 +98,7 @@ static int __cpuinit blk_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata blk_cpu_notifier = {
+static struct notifier_block blk_cpu_notifier = {
 	.notifier_call	= blk_cpu_notify,
 };
 

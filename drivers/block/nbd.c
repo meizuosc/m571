@@ -33,7 +33,7 @@
 #include <linux/net.h>
 #include <linux/kthread.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/types.h>
 
 #include <linux/nbd.h>
@@ -581,8 +581,8 @@ static void do_nbd_request(struct request_queue *q)
 		BUG_ON(nbd->magic != NBD_MAGIC);
 
 		if (unlikely(!nbd->sock)) {
-			dev_err(disk_to_dev(nbd->disk),
-				"Attempted send on closed socket\n");
+			dev_err_ratelimited(disk_to_dev(nbd->disk),
+					    "Attempted send on closed socket\n");
 			req->errors++;
 			nbd_end_request(req);
 			spin_lock_irq(q->queue_lock);
@@ -815,10 +815,6 @@ static int __init nbd_init(void)
 		return -EINVAL;
 	}
 
-	nbd_dev = kcalloc(nbds_max, sizeof(*nbd_dev), GFP_KERNEL);
-	if (!nbd_dev)
-		return -ENOMEM;
-
 	part_shift = 0;
 	if (max_part > 0) {
 		part_shift = fls(max_part);
@@ -840,6 +836,10 @@ static int __init nbd_init(void)
 	if (nbds_max > 1UL << (MINORBITS - part_shift))
 		return -EINVAL;
 
+	nbd_dev = kcalloc(nbds_max, sizeof(*nbd_dev), GFP_KERNEL);
+	if (!nbd_dev)
+		return -ENOMEM;
+
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = alloc_disk(1 << part_shift);
 		if (!disk)
@@ -859,6 +859,7 @@ static int __init nbd_init(void)
 		 * Tell the block layer that we are not a rotational device
 		 */
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, disk->queue);
+		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, disk->queue);
 		disk->queue->limits.discard_granularity = 512;
 		disk->queue->limits.max_discard_sectors = UINT_MAX;
 		disk->queue->limits.discard_zeroes_data = 0;

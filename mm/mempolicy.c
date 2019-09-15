@@ -93,7 +93,7 @@
 #include <linux/mmu_notifier.h>
 
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/random.h>
 
 #include "internal.h"
@@ -1537,7 +1537,6 @@ asmlinkage long compat_sys_get_mempolicy(int __user *policy,
 asmlinkage long compat_sys_set_mempolicy(int mode, compat_ulong_t __user *nmask,
 				     compat_ulong_t maxnode)
 {
-	long err = 0;
 	unsigned long __user *nm = NULL;
 	unsigned long nr_bits, alloc_size;
 	DECLARE_BITMAP(bm, MAX_NUMNODES);
@@ -1546,13 +1545,12 @@ asmlinkage long compat_sys_set_mempolicy(int mode, compat_ulong_t __user *nmask,
 	alloc_size = ALIGN(nr_bits, BITS_PER_LONG) / 8;
 
 	if (nmask) {
-		err = compat_get_bitmap(bm, nmask, nr_bits);
+		if (compat_get_bitmap(bm, nmask, nr_bits))
+			return -EFAULT;
 		nm = compat_alloc_user_space(alloc_size);
-		err |= copy_to_user(nm, bm, alloc_size);
+		if (copy_to_user(nm, bm, alloc_size))
+			return -EFAULT;
 	}
-
-	if (err)
-		return -EFAULT;
 
 	return sys_set_mempolicy(mode, nm, nr_bits+1);
 }
@@ -1561,7 +1559,6 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
 			     compat_ulong_t mode, compat_ulong_t __user *nmask,
 			     compat_ulong_t maxnode, compat_ulong_t flags)
 {
-	long err = 0;
 	unsigned long __user *nm = NULL;
 	unsigned long nr_bits, alloc_size;
 	nodemask_t bm;
@@ -1570,13 +1567,12 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
 	alloc_size = ALIGN(nr_bits, BITS_PER_LONG) / 8;
 
 	if (nmask) {
-		err = compat_get_bitmap(nodes_addr(bm), nmask, nr_bits);
+		if (compat_get_bitmap(nodes_addr(bm), nmask, nr_bits))
+			return -EFAULT;
 		nm = compat_alloc_user_space(alloc_size);
-		err |= copy_to_user(nm, nodes_addr(bm), alloc_size);
+		if (copy_to_user(nm, nodes_addr(bm), alloc_size))
+			return -EFAULT;
 	}
-
-	if (err)
-		return -EFAULT;
 
 	return sys_mbind(start, len, mode, nm, nr_bits+1, flags);
 }
@@ -2133,12 +2129,14 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
  *
  * Remember policies even when nobody has shared memory mapped.
  * The policies are kept in Red-Black tree linked from the inode.
- * They are protected by the sp->lock spinlock, which should be held
+ * They are protected by the sp->lock rwlock, which should be held
  * for any accesses to the tree.
  */
 
-/* lookup first element intersecting start-end */
-/* Caller holds sp->lock */
+/*
+ * lookup first element intersecting start-end.  Caller holds sp->lock for
+ * reading or for writing
+ */
 static struct sp_node *
 sp_lookup(struct shared_policy *sp, unsigned long start, unsigned long end)
 {
@@ -2169,8 +2167,10 @@ sp_lookup(struct shared_policy *sp, unsigned long start, unsigned long end)
 	return rb_entry(n, struct sp_node, nd);
 }
 
-/* Insert a new shared policy into the list. */
-/* Caller holds sp->lock */
+/*
+ * Insert a new shared policy into the list.  Caller holds sp->lock for
+ * writing.
+ */
 static void sp_insert(struct shared_policy *sp, struct sp_node *new)
 {
 	struct rb_node **p = &sp->root.rb_node;
@@ -2202,13 +2202,13 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
 
 	if (!sp->root.rb_node)
 		return NULL;
-	spin_lock(&sp->lock);
+	read_lock(&sp->lock);
 	sn = sp_lookup(sp, idx, idx+1);
 	if (sn) {
 		mpol_get(sn->policy);
 		pol = sn->policy;
 	}
-	spin_unlock(&sp->lock);
+	read_unlock(&sp->lock);
 	return pol;
 }
 
@@ -2373,7 +2373,7 @@ static int shared_policy_replace(struct shared_policy *sp, unsigned long start,
 	int ret = 0;
 
 restart:
-	spin_lock(&sp->lock);
+	write_lock(&sp->lock);
 	n = sp_lookup(sp, start, end);
 	/* Take care of old policies in the same range. */
 	while (n && n->start < end) {
@@ -2406,7 +2406,7 @@ restart:
 	}
 	if (new)
 		sp_insert(sp, new);
-	spin_unlock(&sp->lock);
+	write_unlock(&sp->lock);
 	ret = 0;
 
 err_out:
@@ -2418,7 +2418,7 @@ err_out:
 	return ret;
 
 alloc_new:
-	spin_unlock(&sp->lock);
+	write_unlock(&sp->lock);
 	ret = -ENOMEM;
 	n_new = kmem_cache_alloc(sn_cache, GFP_KERNEL);
 	if (!n_new)
@@ -2444,7 +2444,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 	int ret;
 
 	sp->root = RB_ROOT;		/* empty tree == default mempolicy */
-	spin_lock_init(&sp->lock);
+	rwlock_init(&sp->lock);
 
 	if (mpol) {
 		struct vm_area_struct pvma;
@@ -2510,14 +2510,14 @@ void mpol_free_shared_policy(struct shared_policy *p)
 
 	if (!p->root.rb_node)
 		return;
-	spin_lock(&p->lock);
+	write_lock(&p->lock);
 	next = rb_first(&p->root);
 	while (next) {
 		n = rb_entry(next, struct sp_node, nd);
 		next = rb_next(&n->nd);
 		sp_delete(p, n);
 	}
-	spin_unlock(&p->lock);
+	write_unlock(&p->lock);
 }
 
 #ifdef CONFIG_NUMA_BALANCING

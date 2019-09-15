@@ -468,7 +468,7 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 int usb_stor_bulk_srb(struct us_data* us, unsigned int pipe,
 		      struct scsi_cmnd* srb)
 {
-	unsigned int partial;
+	unsigned int partial = 0;
 	int result = usb_stor_bulk_transfer_sglist(us, pipe, scsi_sglist(srb),
 				      scsi_sg_count(srb), scsi_bufflen(srb),
 				      &partial);
@@ -491,7 +491,7 @@ int usb_stor_bulk_transfer_sg(struct us_data* us, unsigned int pipe,
 		void *buf, unsigned int length_left, int use_sg, int *residual)
 {
 	int result;
-	unsigned int partial;
+	unsigned int partial = 0;
 
 	/* are we scatter-gathering? */
 	if (use_sg) {
@@ -922,10 +922,15 @@ int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	/* COMMAND STAGE */
 	/* let's send the command via the control pipe */
+	/*
+	 * Command is sometime (f.e. after scsi_eh_prep_cmnd) on the stack.
+	 * Stack may be vmallocated.  So no DMA for us.  Make a copy.
+	 */
+	memcpy(us->iobuf, srb->cmnd, srb->cmd_len);
 	result = usb_stor_ctrl_transfer(us, us->send_ctrl_pipe,
 				      US_CBI_ADSC, 
 				      USB_TYPE_CLASS | USB_RECIP_INTERFACE, 0, 
-				      us->ifnum, srb->cmnd, srb->cmd_len);
+				      us->ifnum, us->iobuf, srb->cmd_len);
 
 	/* check the return code for the command */
 	usb_stor_dbg(us, "Call to usb_stor_ctrl_transfer() returned %d\n",

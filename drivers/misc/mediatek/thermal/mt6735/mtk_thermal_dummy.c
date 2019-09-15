@@ -1,4 +1,4 @@
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 //#include <asm/system.h>
 
 #include <linux/kernel.h>

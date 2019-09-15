@@ -30,7 +30,7 @@
 #include <asm/io.h>
 
 #include <cmdq_core.h>
-#include <jpeg_cmdq.h>
+#include "jpeg_cmdq.h"
 //============================================================
 
 //#include <linux/uaccess.h>

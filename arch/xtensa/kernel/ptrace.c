@@ -24,7 +24,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/elf.h>
 #include <asm/coprocessor.h>

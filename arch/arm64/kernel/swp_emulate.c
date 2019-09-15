@@ -28,7 +28,7 @@
 
 #include <asm/opcodes.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/system_misc.h>
 #include <linux/debugfs.h>
 

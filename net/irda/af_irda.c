@@ -54,7 +54,7 @@
 #include <linux/poll.h>
 
 #include <asm/ioctls.h>		/* TIOCOUTQ, TIOCINQ */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/sock.h>
 #include <net/tcp_states.h>
@@ -788,6 +788,13 @@ static int irda_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EINVAL;
 
 	lock_sock(sk);
+
+	/* Ensure that the socket is not already bound */
+	if (self->ias_obj) {
+		err = -EINVAL;
+		goto out;
+	}
+
 #ifdef CONFIG_IRDA_ULTRA
 	/* Special care for Ultra sockets */
 	if ((sk->sk_type == SOCK_DGRAM) &&
@@ -1039,8 +1046,11 @@ static int irda_connect(struct socket *sock, struct sockaddr *uaddr,
 	}
 
 	/* Check if we have opened a local TSAP */
-	if (!self->tsap)
-		irda_open_tsap(self, LSAP_ANY, addr->sir_name);
+	if (!self->tsap) {
+		err = irda_open_tsap(self, LSAP_ANY, addr->sir_name);
+		if (err)
+			goto out;
+	}
 
 	/* Move to connecting socket, start sending Connect Requests */
 	sock->state = SS_CONNECTING;
@@ -1103,7 +1113,13 @@ static int irda_create(struct net *net, struct socket *sock, int protocol,
 	struct sock *sk;
 	struct irda_sock *self;
 
+	if (protocol < 0 || protocol > SK_PROTOCOL_MAX)
+		return -EINVAL;
+
 	IRDA_DEBUG(2, "%s()\n", __func__);
+
+	if (protocol < 0 || protocol > SK_PROTOCOL_MAX)
+		return -EINVAL;
 
 	if (net != &init_net)
 		return -EAFNOSUPPORT;
@@ -2043,7 +2059,11 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			err = -EINVAL;
 			goto out;
 		}
-		irias_insert_object(ias_obj);
+
+		/* Only insert newly allocated objects */
+		if (free_ias)
+			irias_insert_object(ias_obj);
+
 		kfree(ias_opt);
 		break;
 	case IRLMP_IAS_DEL:

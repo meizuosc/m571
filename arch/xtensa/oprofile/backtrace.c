@@ -10,7 +10,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 
 /* Address of common_exception_return, used to check the

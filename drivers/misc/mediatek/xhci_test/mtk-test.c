@@ -19,7 +19,7 @@
 #include <linux/scatterlist.h>
 #include <asm/unaligned.h>
 #include <linux/usb/ch9.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "mtk-test.h"
 #include "xhci.h"
 #include "mtk-usb-hcd.h"

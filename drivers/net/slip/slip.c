@@ -64,7 +64,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -163,7 +163,7 @@ static int sl_alloc_bufs(struct slip *sl, int mtu)
 	if (cbuff == NULL)
 		goto err_exit;
 	slcomp = slhc_init(16, 16);
-	if (slcomp == NULL)
+	if (IS_ERR(slcomp))
 		goto err_exit;
 #endif
 	spin_lock_bh(&sl->lock);

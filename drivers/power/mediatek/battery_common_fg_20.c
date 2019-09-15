@@ -55,7 +55,7 @@
 #include <linux/suspend.h>
 
 #include <asm/scatterlist.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -3347,7 +3347,7 @@ static void battery_timer_pause(void)
 	battery_suspended = KAL_TRUE;
 	mutex_unlock(&bat_mutex);
 
-	battery_log(BAT_LOG_CRTI, "@bs=1@\n" );
+	battery_log(BAT_LOG_FULL, "@bs=1@\n" );
 #endif
 
     get_xtime_and_monotonic_and_sleep_offset(&xts, &tom, &g_bat_time_before_sleep);

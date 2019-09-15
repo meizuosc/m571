@@ -164,7 +164,7 @@ static void n_tty_set_room(struct tty_struct *tty)
 		 */
 		WARN_RATELIMIT(test_bit(TTY_LDISC_HALTED, &tty->flags),
 			       "scheduling buffer work for halted ldisc\n");
-		schedule_work(&tty->port->buf.work);
+		queue_work(system_unbound_wq, &tty->port->buf.work);
 	}
 }
 
@@ -1342,8 +1342,7 @@ handle_newline:
 			ldata->canon_data++;
 			raw_spin_unlock_irqrestore(&ldata->read_lock, flags);
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-			if (waitqueue_active(&tty->read_wait))
-				wake_up_interruptible(&tty->read_wait);
+			wake_up_interruptible(&tty->read_wait);
 			return;
 		}
 	}
@@ -1464,8 +1463,7 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	if ((!ldata->icanon && (ldata->read_cnt >= tty->minimum_to_wake)) ||
 		L_EXTPROC(tty)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-		if (waitqueue_active(&tty->read_wait))
-			wake_up_interruptible(&tty->read_wait);
+		wake_up_interruptible(&tty->read_wait);
 	}
 
 	/*

@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/cdev.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
 #include <linux/miscdevice.h>

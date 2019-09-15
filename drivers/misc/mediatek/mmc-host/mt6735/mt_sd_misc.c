@@ -34,7 +34,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_MTK_EMMC_SUPPORT
 /* extern struct excel_info PartInfoEmmc[PART_NUM]; */

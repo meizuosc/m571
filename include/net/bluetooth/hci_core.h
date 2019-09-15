@@ -126,6 +126,9 @@ struct le_scan_params {
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
 
+/* Min encryption key size to match with SMP */
+#define HCI_MIN_ENC_KEY_SIZE            7
+
 struct amp_assoc {
 	__u16	len;
 	__u16	offset;
@@ -308,6 +311,8 @@ struct hci_conn {
 
 	bdaddr_t	dst;
 	__u8		dst_type;
+	bdaddr_t	src;
+	__u8		src_type;
 	__u16		handle;
 	__u16		state;
 	__u8		mode;
@@ -319,7 +324,6 @@ struct hci_conn {
 	__u16		interval;
 	__u16		pkt_type;
 	__u16		link_policy;
-	__u32		link_mode;
 	__u8		key_type;
 	__u8		auth_type;
 	__u8		sec_level;
@@ -446,6 +450,10 @@ enum {
 	HCI_CONN_SSP_ENABLED,
 	HCI_CONN_POWER_SAVE,
 	HCI_CONN_REMOTE_OOB,
+	HCI_CONN_MASTER,
+	HCI_CONN_ENCRYPT,
+	HCI_CONN_AUTH,
+	HCI_CONN_SECURE,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
@@ -916,7 +924,7 @@ static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
 	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return;
 
-	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;
+	encrypt = test_bit(HCI_CONN_ENCRYPT, &conn->flags) ? 0x01 : 0x00;
 	l2cap_security_cfm(conn, status, encrypt);
 
 	if (conn->security_cfm_cb)
@@ -957,7 +965,7 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return;
 
-	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;
+	encrypt = test_bit(HCI_CONN_ENCRYPT, &conn->flags) ? 0x01 : 0x00;
 
 	read_lock(&hci_cb_list_lock);
 	list_for_each_entry(cb, &hci_cb_list, list) {

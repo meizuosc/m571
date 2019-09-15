@@ -37,7 +37,7 @@
 #include <linux/page-flags.h>
 #include <asm/byteorder.h>
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sn9c102.h"
 

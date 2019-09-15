@@ -22,7 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm_types.h>
 #include <linux/mm.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <linux/vmalloc.h>
 
@@ -2364,7 +2364,7 @@ void msg2133_init_class()
 //WARP CHECK IS NEED --XB.PANG
 //#endif 
 
-	TPD_DMESG("end %s, %d\n", __FUNCTION__, __LINE__);  
+	TPD_DMESG("end %s, %d\n", __func__, __LINE__);  
 		
     return 0; 
  }

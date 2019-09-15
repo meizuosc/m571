@@ -21,7 +21,7 @@
 #include <linux/vmalloc.h>
 #include <linux/disp_assert_layer.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <asm/mach-types.h>
 #include <asm/cacheflush.h>
@@ -39,7 +39,7 @@
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
 
 #include <generated/autoconf.h>
@@ -54,7 +54,7 @@
 #include <linux/kthread.h>
 #include <linux/rtpm_prio.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <asm/mach-types.h>
 #include <asm/cacheflush.h>
@@ -64,7 +64,7 @@
 #include <mach/irqs.h>
 #include <linux/vmalloc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef TMFL_TDA19989
 #define TMFL_TDA19989

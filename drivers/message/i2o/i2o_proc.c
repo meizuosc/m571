@@ -50,7 +50,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 /* Structure used to define /proc entries */

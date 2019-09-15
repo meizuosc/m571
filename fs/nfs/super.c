@@ -56,7 +56,7 @@
 #include <linux/nsproxy.h>
 #include <linux/rcupdate.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "nfs4_fs.h"
 #include "callback.h"
@@ -1816,7 +1816,7 @@ static int nfs_parse_devname(const char *dev_name,
 		/* kill possible hostname list: not supported */
 		comma = strchr(dev_name, ',');
 		if (comma != NULL && comma < end)
-			*comma = 0;
+			len = comma - dev_name;
 	}
 
 	if (len > maxnamlen)
@@ -2132,6 +2132,8 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	struct nfs_mount_data *options = (struct nfs_mount_data *)raw_data;
 	struct nfs4_mount_data *options4 = (struct nfs4_mount_data *)raw_data;
 	u32 nfsvers = nfss->nfs_client->rpc_ops->version;
+
+	sync_filesystem(sb);
 
 	/*
 	 * Userspace mount programs that send binary options generally send

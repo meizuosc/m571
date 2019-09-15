@@ -1759,7 +1759,7 @@ static void kernel_reportAPI(const AE_DEFECT_ATTR attr, const int db_opt, const 
 	}
 }
 
-#ifndef PARTIAL_BUILD
+#if 0/*disable aee_kernel_dal_api*/
 void aee_kernel_dal_api(const char *file, const int line, const char *msg)
 {
 	LOGW("aee_kernel_dal_api : <%s:%d> %s ", file, line, msg);
@@ -1792,10 +1792,10 @@ void aee_kernel_dal_api(const char *file, const int line, const char *msg)
 			strncpy(dal_show->msg, msg, sizeof(dal_show->msg) - 1);
 			dal_show->msg[sizeof(dal_show->msg) - 1] = 0;
 			DAL_Printf("%s", dal_show->msg);
-			kfree(dal_show);
 		} else {
 			LOGD("DAL not allowed (mode %d)\n", aee_mode);
 		}
+		kfree(dal_show);
 	}
 	up(&aed_dal_sem);
 #endif
@@ -1803,8 +1803,7 @@ void aee_kernel_dal_api(const char *file, const int line, const char *msg)
 #else
 void aee_kernel_dal_api(const char *file, const int line, const char *msg)
 {
-	LOGW("aee_kernel_dal_api : <%s:%d> %s ", file, line, msg);
-	return;
+	LOGW("aee_kernel_dal_api has been phased out! caller info: <%s:%d> %s ", file, line, msg);
 }
 #endif
 EXPORT_SYMBOL(aee_kernel_dal_api);
@@ -1840,6 +1839,7 @@ static void external_exception(const char *assert_type, const int *log, int log_
 
 	if (NULL == ee_log) {
 		LOGE("%s : memory alloc() fail\n", __func__);
+		kfree(eerec);
 		return;
 	}
 

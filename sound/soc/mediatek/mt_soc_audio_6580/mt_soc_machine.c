@@ -90,7 +90,7 @@
 #include <linux/mutex.h>
 #include <linux/xlog.h>
 #include <mach/irqs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <mach/mt_reg_base.h>

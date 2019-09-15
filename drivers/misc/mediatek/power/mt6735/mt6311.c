@@ -16,7 +16,7 @@
 #include <linux/kthread.h>
 #include <linux/wakelock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 
 #include <mach/mt_typedefs.h>

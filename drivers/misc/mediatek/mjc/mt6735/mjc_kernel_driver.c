@@ -9,7 +9,7 @@
 #include <linux/xlog.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/earlysuspend.h>
 

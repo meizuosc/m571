@@ -43,7 +43,7 @@
 #include <linux/slab.h>
 #include <linux/compat.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/div64.h>
 #include <asm/timex.h>
@@ -396,34 +396,6 @@ static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 	}
 }
 
-#ifdef CONFIG_TIMER_STATS
-void __timer_stats_timer_set_start_info(struct timer_list *timer, void *addr)
-{
-	if (timer->start_site)
-		return;
-
-	timer->start_site = addr;
-	memcpy(timer->start_comm, current->comm, TASK_COMM_LEN);
-	timer->start_pid = current->pid;
-}
-
-static void timer_stats_account_timer(struct timer_list *timer)
-{
-	unsigned int flag = 0;
-
-	if (likely(!timer->start_site))
-		return;
-	if (unlikely(tbase_get_deferrable(timer->base)))
-		flag |= TIMER_STATS_FLAG_DEFERRABLE;
-
-	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
-				 timer->function, timer->start_comm, flag);
-}
-
-#else
-static void timer_stats_account_timer(struct timer_list *timer) {}
-#endif
-
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
 
 static struct debug_obj_descr timer_debug_descr;
@@ -628,11 +600,6 @@ static void do_init_timer(struct timer_list *timer, unsigned int flags,
 	timer->entry.next = NULL;
 	timer->base = (void *)((unsigned long)base | flags);
 	timer->slack = -1;
-#ifdef CONFIG_TIMER_STATS
-	timer->start_site = NULL;
-	timer->start_pid = -1;
-	memset(timer->start_comm, 0, TASK_COMM_LEN);
-#endif
 	lockdep_init_map(&timer->lockdep_map, name, key, 0);
 }
 
@@ -737,7 +704,6 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 	unsigned long flags;
 	int ret = 0 , cpu;
 
-	timer_stats_timer_set_start_info(timer);
 	BUG_ON(!timer->function);
 
 	base = lock_timer_base(timer, &flags);
@@ -805,9 +771,7 @@ EXPORT_SYMBOL(mod_timer_pending);
  * Algorithm:
  *   1) calculate the maximum (absolute) time
  *   2) calculate the highest bit where the expires and new max are different
- *   3) use this bit to make a mask
- *   4) use the bitmask to round down the maximum time, so that all last
- *      bits are zeros
+ *   3) round down the maximum time, so that all the lower bits are zeros
  */
 static inline
 unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
@@ -829,11 +793,10 @@ unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 	if (mask == 0)
 		return expires;
 
-	bit = find_last_bit(&mask, BITS_PER_LONG);
+	bit = __fls(mask);
 
-	mask = (1UL << bit) - 1;
-
-	expires_limit = expires_limit & ~(mask);
+	/* Round down by zero-ing the lower bits */
+	expires_limit = (expires_limit >> bit) << bit;
 
 	return expires_limit;
 }
@@ -932,13 +895,25 @@ EXPORT_SYMBOL(add_timer);
  */
 void add_timer_on(struct timer_list *timer, int cpu)
 {
-	struct tvec_base *base = per_cpu(tvec_bases, cpu);
+	struct tvec_base *new_base = per_cpu(tvec_bases, cpu);
+	struct tvec_base *base;
 	unsigned long flags;
 
-	timer_stats_timer_set_start_info(timer);
 	BUG_ON(timer_pending(timer) || !timer->function);
-	spin_lock_irqsave(&base->lock, flags);
-	timer_set_base(timer, base);
+
+	/*
+	 * If @timer was on a different CPU, it should be migrated with the
+	 * old base locked to prevent other operations proceeding with the
+	 * wrong base locked.  See lock_timer_base().
+	 */
+	base = lock_timer_base(timer, &flags);
+	if (base != new_base) {
+		timer_set_base(timer, NULL);
+		spin_unlock(&base->lock);
+		base = new_base;
+		spin_lock(&base->lock);
+		timer_set_base(timer, base);
+	}
 	debug_activate(timer, timer->expires);
 	internal_add_timer(base, timer);
 	/*
@@ -973,7 +948,6 @@ int del_timer(struct timer_list *timer)
 
 	debug_assert_init(timer);
 
-	timer_stats_timer_clear_start_info(timer);
 	if (timer_pending(timer)) {
 		base = lock_timer_base(timer, &flags);
 		ret = detach_if_pending(timer, base, true);
@@ -1001,10 +975,9 @@ int try_to_del_timer_sync(struct timer_list *timer)
 
 	base = lock_timer_base(timer, &flags);
 
-	if (base->running_timer != timer) {
-		timer_stats_timer_clear_start_info(timer);
+	if (base->running_timer != timer)
 		ret = detach_if_pending(timer, base, true);
-	}
+
 	spin_unlock_irqrestore(&base->lock, flags);
 
 	return ret;
@@ -1181,8 +1154,6 @@ static inline void __run_timers(struct tvec_base *base)
 			fn = timer->function;
 			data = timer->data;
 			irqsafe = tbase_get_irqsafe(timer->base);
-
-			timer_stats_account_timer(timer);
 
 			base->running_timer = timer;
 			detach_expired_timer(timer, base);
@@ -1516,11 +1487,11 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 }
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
-static int __cpuinit init_timers_cpu(int cpu)
+static int init_timers_cpu(int cpu)
 {
 	int j;
 	struct tvec_base *base;
-	static char __cpuinitdata tvec_base_done[NR_CPUS];
+	static char tvec_base_done[NR_CPUS];
 
 	if (!tvec_base_done[cpu]) {
 		static char boot_done;
@@ -1588,7 +1559,7 @@ static void migrate_timer_list(struct tvec_base *new_base, struct list_head *hea
 	}
 }
 
-static void __cpuinit migrate_timers(int cpu)
+static void migrate_timers(int cpu)
 {
 	struct tvec_base *old_base;
 	struct tvec_base *new_base;
@@ -1621,7 +1592,7 @@ static void __cpuinit migrate_timers(int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __cpuinit timer_cpu_notify(struct notifier_block *self,
+static int timer_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -1646,7 +1617,7 @@ static int __cpuinit timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata timers_nb = {
+static struct notifier_block timers_nb = {
 	.notifier_call	= timer_cpu_notify,
 };
 
@@ -1660,7 +1631,6 @@ void __init init_timers(void)
 
 	err = timer_cpu_notify(&timers_nb, (unsigned long)CPU_UP_PREPARE,
 			       (void *)(long)smp_processor_id());
-	init_timer_stats();
 
 	BUG_ON(err != NOTIFY_OK);
 	register_cpu_notifier(&timers_nb);

@@ -56,7 +56,7 @@
 #ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/compiler.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #define s_space "%%sr1"
 #define d_space "%%sr2"
 #else

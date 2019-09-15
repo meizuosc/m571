@@ -247,7 +247,7 @@ int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,
 			err = usb_submit_urb(this_urb, GFP_ATOMIC);
 			if (err) {
 				dev_dbg(&port->dev,
-					"usb_submit_urb %p (write bulk) failed (%d)\n",
+					"usb_submit_urb %pK (write bulk) failed (%d)\n",
 					this_urb, err);
 				clear_bit(i, &portdata->out_busy);
 				spin_lock_irqsave(&intfdata->susp_lock, flags);

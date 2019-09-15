@@ -588,10 +588,19 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 {
 	int err = 0;
 
+	/*
+	 *  If 'CONFIG_USER_NS' is not defined, current_user_ns()
+	 * is already defined as '&init_user_ns'.
+	 *  In GCC 6 it makes tautological-compare warning.
+	 *  So just compare when 'CONFIG_USER_NS' is defined.
+	 * - jollaman999 -
+	 */
+#ifdef CONFIG_USER_NS
 	/* Only support the initial namespaces for now. */
 	if ((current_user_ns() != &init_user_ns) ||
 	    (task_active_pid_ns(current) != &init_pid_ns))
 		return -EPERM;
+#endif
 
 	switch (msg_type) {
 	case AUDIT_LIST:
@@ -701,6 +710,12 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				return err;
 		}
 		if (status_get->mask & AUDIT_STATUS_PID) {
+			/* NOTE: we are using task_tgid_vnr() below because
+			 *       the s.pid value is relative to the namespace
+			 *       of the caller; at present this doesn't matter
+			 *       much since you can really only run auditd
+			 *       from the initial pid namespace, but something
+			 *       to keep in mind if this changes */
 			int new_pid = status_get->pid;
 
 			if (audit_enabled != AUDIT_OFF)
@@ -1632,7 +1647,7 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 			 " euid=%u suid=%u fsuid=%u"
 			 " egid=%u sgid=%u fsgid=%u ses=%u tty=%s",
 			 sys_getppid(),
-			 tsk->pid,
+			 task_tgid_nr(tsk),
 			 from_kuid(&init_user_ns, audit_get_loginuid(tsk)),
 			 from_kuid(&init_user_ns, cred->uid),
 			 from_kgid(&init_user_ns, cred->gid),

@@ -23,13 +23,15 @@ config ARM64
 	select HARDIRQS_SW_RESEND
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_MMAP_RND_BITS
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_C_RECORDMCOUNT
+	select HAVE_CC_STACKPROTECTOR
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
@@ -74,6 +76,27 @@ config NO_IOPORT
 
 config STACKTRACE_SUPPORT
 	def_bool y
+
+config ARCH_MMAP_RND_BITS_MIN
+       default 14 if ARM64_64K_PAGES
+       default 18
+
+# max bits determined by the following formula:
+#  VA_BITS - PAGE_SHIFT - 3
+#  VA_BITS is always 39
+config ARCH_MMAP_RND_BITS_MAX
+       default 20 if ARM64_64K_PAGES
+       default 24
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+       default 11
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+       default 16
+
+config ILLEGAL_POINTER_VALUE
+	hex
+	default 0xdead000000000000
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -182,7 +205,6 @@ config ARCH_MT6735
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select MTK_SYSTRACKER
 	select MTK_SYS_CIRQ
@@ -203,7 +225,6 @@ config ARCH_MT6735M
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select MTK_SYSTRACKER
 	select MTK_SYS_CIRQ
@@ -224,7 +245,6 @@ config ARCH_MT6753
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select MTK_SYSTRACKER
 	select MTK_SYS_CIRQ
@@ -245,7 +265,6 @@ config ARCH_MT6752
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select MTK_SYSTRACKER
 	select MTK_L2C_SHARE
@@ -292,7 +311,6 @@ config ARCH_MT6795
 	select NEED_MACH_MEMORY_H
 	select FIQ_GLUE
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select ARCH_REQUIRE_GPIOLIB
 	select MTK_SYS_CIRQ
@@ -330,7 +348,6 @@ config ARM64_64K_PAGES
 
 config SMP
 	bool "Symmetric Multi-Processing"
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU.  If
 	  you say N here, the kernel will run on single and
@@ -578,9 +595,7 @@ config HOTPLUG_CPU
 
 source kernel/Kconfig.preempt
 
-config HZ
-	int
-	default 100
+source kernel/Kconfig.hz
 
 config ARCH_HAS_HOLES_MEMORYMODEL
 	def_bool y if SPARSEMEM
@@ -748,6 +763,24 @@ config ARCH_HIBERNATION_POSSIBLE
         bool
         depends on MMU
         default y if ARCH_SUSPEND_POSSIBLE
+
+endmenu
+
+menu "Expermimental Security Enhancements"
+
+config KUSER_HELPERS_SELECTIVE_DISABLE
+	bool "Disable KUSER_HELPERS selectively"
+	depends on ARM64
+	help
+	  Kuser_Helpers is a set of functions in the vector page at a fixed address that
+	  are used to support applications compiled for legacy ARM <7.  These functions
+	  being at a fixed address creates an ASLR bypass.
+
+	  Do not enable this feature unless you know what you are doing, this is
+	  experimental, and will break any application that uses the Kuser_Helpers or
+	  registers a signal handler and uses the kernel trampolines.
+
+	  If unsure, say N.
 
 endmenu
 

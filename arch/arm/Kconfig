@@ -24,12 +24,13 @@ config ARM
 	select HARDIRQS_SW_RESEND
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_MMAP_RND_BITS if MMU
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_BPF_JIT
 	select HAVE_C_RECORDMCOUNT
+	select HAVE_CC_STACKPROTECTOR
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_CONTIGUOUS if MMU
 	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL)
@@ -158,12 +159,9 @@ config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y
 
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
 config RWSEM_XCHGADD_ALGORITHM
 	bool
+	default y
 
 config ARCH_HAS_ILOG2_U32
 	bool
@@ -281,6 +279,14 @@ config MMU
 	help
 	  Select if you want MMU-based virtualised addressing space
 	  support by paged memory management. If unsure, say 'Y'.
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 8
+
+config ARCH_MMAP_RND_BITS_MAX
+	default 14 if PAGE_OFFSET=0x40000000
+	default 15 if PAGE_OFFSET=0x80000000
+	default 16
 
 #
 # The "ARM system type" choice list is ordered alphabetically by option
@@ -741,7 +747,6 @@ config ARCH_MT6735
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select VFP_OPT
 	select MTK_SYSTRACKER
@@ -760,7 +765,6 @@ config ARCH_MT6735M
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select VFP_OPT
 	select MTK_SYSTRACKER
@@ -779,7 +783,6 @@ config ARCH_MT6753
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select VFP_OPT
 	select MTK_SYSTRACKER
@@ -798,7 +801,6 @@ config ARCH_MT6752
 	select HAVE_SMP
 	select NEED_MACH_MEMORY_H
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select VFP_OPT
 	select MTK_SYSTRACKER
@@ -845,7 +847,6 @@ config ARCH_MT6795
 	select NEED_MACH_MEMORY_H
 	select FIQ_GLUE
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_DEBUG
 	select GENERIC_SCHED_CLOCK
 	select ARM_ERRATA_828419
 	select ARM_ERRATA_828420
@@ -1761,7 +1762,6 @@ config SMP
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAVE_SMP
 	depends on MMU
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -2046,7 +2046,7 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP && HOTPLUG
+	depends on SMP
 	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.

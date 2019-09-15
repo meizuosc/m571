@@ -46,6 +46,7 @@ parameter is applicable:
 	BLACKFIN Blackfin architecture is enabled.
 	CLK	Common clock infrastructure is enabled.
 	CMA	Contiguous Memory Area support is enabled.
+	DM	Device mapper support is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	DYNAMIC_DEBUG Build in debug messages and enable them at runtime
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
@@ -741,6 +742,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Disable PIN 1 of APIC timer
 			Can be useful to work around chipset bugs.
 
+	dm=		[DM] Allows early creation of a device-mapper device.
+			See Documentation/device-mapper/boot.txt.
+
+	dmasound=	[HW,OSS] Sound subsystem buffers
+
 	dma_debug=off	If the kernel is compiled with DMA_API_DEBUG support,
 			this option disables the debugging code at boot.
 
@@ -955,6 +961,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			When zero, profiling data is discarded and associated
 			debugfs files are removed at module unload time.
 
+	goldfish	[X86] Enable the goldfish android emulator platform.
+			Don't use this when you are not running on the
+			android emulator
+
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT.
 
@@ -1061,6 +1071,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
 	i8042.reset	[HW] Reset the controller during init and cleanup
 	i8042.unlock	[HW] Unlock (ignore) the keylock
+	i8042.kbdreset  [HW] Reset device connected to KBD port
 
 	i810=		[HW,DRM]
 
@@ -2884,6 +2895,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	spia_pedr=
 	spia_peddr=
 
+	stack_guard_gap=	[MM]
+			override the default stack gap protection. The value
+			is in page units and it defines how many pages prior
+			to (for stacks growing down) resp. after (for stacks
+			growing up) the main stack are reserved for no other
+			mapping. Default value is 256 pages.
+
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.
 
@@ -3347,6 +3365,21 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			whatever reason, this option can be used.  Note
 			that this also can be controlled per-workqueue for
 			workqueues visible under /sys/bus/workqueue/.
+
+	workqueue.power_efficient
+			Per-cpu workqueues are generally preferred because
+			they show better performance thanks to cache
+			locality; unfortunately, per-cpu workqueues tend to
+			be more power hungry than unbound workqueues.
+
+			Enabling this makes the per-cpu workqueues which
+			were observed to contribute significantly to power
+			consumption unbound, leading to measurably lower
+			power usage at the cost of small performance
+			overhead.
+
+			The default value of this parameter is determined by
+			the config option CONFIG_WQ_POWER_EFFICIENT_DEFAULT.
 
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms

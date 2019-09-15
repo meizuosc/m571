@@ -3,7 +3,7 @@
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
 #include <linux/utsname.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/stacktrace.h>
 #include <asm/stacktrace.h>
 

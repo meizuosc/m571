@@ -15,8 +15,6 @@ CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
 OBJCOPYFLAGS	:=-O binary -R .note -R .note.gnu.build-id -R .comment -S
 GZFLAGS		:=-9
 
-LIBGCC 		:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
-
 ifeq ($(CHINAUNICOM_CUSTOMIZE),true)
 cflags-$(CONFIG_ARCH_MT6753) += -DMEIZU_OP_CUSTOMIZE
 endif
@@ -25,6 +23,7 @@ KBUILD_DEFCONFIG := defconfig
 cflags-$(CONFIG_ARCH_MT6753)   += -DMEIZU_M81
 KBUILD_CFLAGS  += $(cflags-y)
 KBUILD_CFLAGS	+= -mgeneral-regs-only
+KBUILD_CFLAGS	+= $(call cc-ifversion, -ge, 0500, -DCONFIG_ARCH_SUPPORTS_INT128)
 KBUILD_CFLAGS	+= -fno-pic
 KBUILD_CPPFLAGS	+= -mlittle-endian
 AS		+= -EL
@@ -45,7 +44,6 @@ export	TEXT_OFFSET GZFLAGS
 core-y		+= arch/arm64/kernel/ arch/arm64/mm/
 core-$(CONFIG_CRYPTO) += arch/arm64/crypto/
 libs-y		:= arch/arm64/lib/ $(libs-y)
-libs-y		+= $(LIBGCC)
 
 # Default target when executing plain make
 ifeq ($(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE),y)
@@ -67,10 +65,13 @@ dtbs: $(DRVGEN_FILE_LIST)
 
 boot := arch/arm64/boot
 
-Image Image.gz: vmlinux
+Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-zinstall install: vmlinux
+Image.%: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+zinstall install:
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 %.dtb: scripts

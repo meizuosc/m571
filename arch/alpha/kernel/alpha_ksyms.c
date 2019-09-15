@@ -7,7 +7,7 @@
 
 #include <linux/module.h>
 #include <asm/console.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/checksum.h>
 #include <asm/fpu.h>
 #include <asm/machvec.h>

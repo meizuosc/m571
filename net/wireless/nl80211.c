@@ -55,7 +55,7 @@ __cfg80211_wdev_from_attrs(struct net *netns, struct nlattr **attrs)
 	struct wireless_dev *result = NULL;
 	bool have_ifidx = attrs[NL80211_ATTR_IFINDEX];
 	bool have_wdev_id = attrs[NL80211_ATTR_WDEV];
-	u64 wdev_id;
+	u64 wdev_id = 0;
 	int wiphy_idx = -1;
 	int ifidx = -1;
 
@@ -310,8 +310,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_WPA_VERSIONS] = { .type = NLA_U32 },
 	[NL80211_ATTR_PID] = { .type = NLA_U32 },
 	[NL80211_ATTR_4ADDR] = { .type = NLA_U8 },
-	[NL80211_ATTR_PMKID] = { .type = NLA_BINARY,
-				 .len = WLAN_PMKID_LEN },
+	[NL80211_ATTR_PMKID] = { .len = WLAN_PMKID_LEN },
 	[NL80211_ATTR_DURATION] = { .type = NLA_U32 },
 	[NL80211_ATTR_COOKIE] = { .type = NLA_U64 },
 	[NL80211_ATTR_TX_RATES] = { .type = NLA_NESTED },
@@ -366,6 +365,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_SCAN_FLAGS] = { .type = NLA_U32 },
 	[NL80211_ATTR_P2P_CTWINDOW] = { .type = NLA_U8 },
 	[NL80211_ATTR_P2P_OPPPS] = { .type = NLA_U8 },
+	[NL80211_ATTR_LOCAL_MESH_POWER_MODE] = {. type = NLA_U32 },
 	[NL80211_ATTR_ACL_POLICY] = {. type = NLA_U32 },
 	[NL80211_ATTR_MAC_ADDRS] = { .type = NLA_NESTED },
 	[NL80211_ATTR_STA_CAPABILITY] = { .type = NLA_U16 },
@@ -384,6 +384,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_VENDOR_ID] = { .type = NLA_U32 },
 	[NL80211_ATTR_VENDOR_SUBCMD] = { .type = NLA_U32 },
 	[NL80211_ATTR_VENDOR_DATA] = { .type = NLA_BINARY },
+	[NL80211_ATTR_IFACE_SOCKET_OWNER] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -451,6 +452,14 @@ nl80211_match_policy[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1] = {
 	[NL80211_SCHED_SCAN_MATCH_ATTR_SSID] = { .type = NLA_BINARY,
 						 .len = IEEE80211_MAX_SSID_LEN },
 	[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI] = { .type = NLA_U32 },
+};
+
+/* policy for packet pattern attributes */
+static const struct nla_policy
+nl80211_packet_pattern_policy[MAX_NL80211_WOWLAN_PKTPAT + 1] = {
+	[NL80211_WOWLAN_PKTPAT_MASK] = { .type = NLA_BINARY, },
+	[NL80211_WOWLAN_PKTPAT_PATTERN] = { .type = NLA_BINARY, },
+	[NL80211_WOWLAN_PKTPAT_OFFSET] = { .type = NLA_U32 },
 };
 
 static int nl80211_prepare_wdev_dump(struct sk_buff *skb,
@@ -2244,13 +2253,40 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 		}
 	}
 
-	if (wdev->ssid_len) {
-		if (nla_put(msg, NL80211_ATTR_SSID, wdev->ssid_len, wdev->ssid))
-			goto nla_put_failure;
+	wdev_lock(wdev);
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_AP:
+		if (wdev->ssid_len &&
+		    nla_put(msg, NL80211_ATTR_SSID, wdev->ssid_len, wdev->ssid))
+			goto nla_put_failure_locked;
+		break;
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_ADHOC: {
+		const u8 *ssid_ie;
+		if (!wdev->current_bss)
+			break;
+		rcu_read_lock();
+		ssid_ie = ieee80211_bss_get_ie(&wdev->current_bss->pub,
+					       WLAN_EID_SSID);
+		if (ssid_ie &&
+		    nla_put(msg, NL80211_ATTR_SSID, ssid_ie[1], ssid_ie + 2))
+			goto nla_put_failure_rcu_locked;
+		rcu_read_unlock();
+		break;
+		}
+	default:
+		/* nothing */
+		break;
 	}
+	wdev_unlock(wdev);
 
 	return genlmsg_end(msg, hdr);
 
+ nla_put_failure_rcu_locked:
+	rcu_read_unlock();
+ nla_put_failure_locked:
+	wdev_unlock(wdev);
  nla_put_failure:
 	genlmsg_cancel(msg, hdr);
 	return -EMSGSIZE;
@@ -2459,6 +2495,9 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	enum nl80211_iftype type = NL80211_IFTYPE_UNSPECIFIED;
 	u32 flags;
 
+	/* to avoid failing a new interface creation due to pending removal */
+	cfg80211_destroy_ifaces(rdev);
+
 	memset(&params, 0, sizeof(params));
 
 	if (!info->attrs[NL80211_ATTR_IFNAME])
@@ -2502,6 +2541,9 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		nlmsg_free(msg);
 		return PTR_ERR(wdev);
 	}
+
+	if (info->attrs[NL80211_ATTR_IFACE_SOCKET_OWNER])
+		wdev->owner_nlportid = info->snd_portid;
 
 	switch (type) {
 	case NL80211_IFTYPE_MESH_POINT:
@@ -2668,6 +2710,9 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->get_key)
 		return -EOPNOTSUPP;
 
+	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
+		return -ENOENT;
+
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
@@ -2686,10 +2731,6 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	if (mac_addr &&
 	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr))
 		goto nla_put_failure;
-
-	if (pairwise && mac_addr &&
-	    !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
-		return -ENOENT;
 
 	err = rdev_get_key(rdev, dev, key_idx, pairwise, mac_addr, &cookie,
 			   get_key_callback);
@@ -2861,7 +2902,7 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	wdev_lock(dev->ieee80211_ptr);
 	err = nl80211_key_allowed(dev->ieee80211_ptr);
 
-	if (key.type == NL80211_KEYTYPE_PAIRWISE && mac_addr &&
+	if (key.type == NL80211_KEYTYPE_GROUP && mac_addr &&
 	    !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
 		err = -ENOENT;
 
@@ -4072,6 +4113,16 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
 
+	/* HT/VHT requires QoS, but if we don't have that just ignore HT/VHT
+	 * as userspace might just pass through the capabilities from the IEs
+	 * directly, rather than enforcing this restriction and returning an
+	 * error in this case.
+	 */
+	if (!(params.sta_flags_set & BIT(NL80211_STA_FLAG_WME))) {
+		params.ht_capa = NULL;
+		params.vht_capa = NULL;
+	}
+
 	/* When you run into this, adjust the code below for the new flag */
 	BUILD_BUG_ON(NL80211_STA_FLAG_MAX != 7);
 
@@ -5074,6 +5125,10 @@ static int validate_scan_freqs(struct nlattr *freqs)
 	struct nlattr *attr1, *attr2;
 	int n_channels = 0, tmp1, tmp2;
 
+	nla_for_each_nested(attr1, freqs, tmp1)
+		if (nla_len(attr1) != sizeof(u32))
+			return 0;
+
 	nla_for_each_nested(attr1, freqs, tmp1) {
 		n_channels++;
 		/*
@@ -5315,6 +5370,7 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 	enum ieee80211_band band;
 	size_t ie_len;
 	struct nlattr *tb[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1];
+	s32 default_match_rssi = NL80211_SCAN_RSSI_THOLD_OFF;
 
 	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN) ||
 	    !rdev->ops->sched_scan_start)
@@ -5353,11 +5409,40 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 	if (n_ssids > wiphy->max_sched_scan_ssids)
 		return -EINVAL;
 
-	if (info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH])
+	/*
+	 * First, count the number of 'real' matchsets. Due to an issue with
+	 * the old implementation, matchsets containing only the RSSI attribute
+	 * (NL80211_SCHED_SCAN_MATCH_ATTR_RSSI) are considered as the 'default'
+	 * RSSI for all matchsets, rather than their own matchset for reporting
+	 * all APs with a strong RSSI. This is needed to be compatible with
+	 * older userspace that treated a matchset with only the RSSI as the
+	 * global RSSI for all other matchsets - if there are other matchsets.
+	 */
+	if (info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH]) {
 		nla_for_each_nested(attr,
 				    info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH],
-				    tmp)
-			n_match_sets++;
+				    tmp) {
+			struct nlattr *rssi;
+
+			err = nla_parse(tb, NL80211_SCHED_SCAN_MATCH_ATTR_MAX,
+					nla_data(attr), nla_len(attr),
+					nl80211_match_policy);
+			if (err)
+				return err;
+			/* add other standalone attributes here */
+			if (tb[NL80211_SCHED_SCAN_MATCH_ATTR_SSID]) {
+				n_match_sets++;
+				continue;
+			}
+			rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
+			if (rssi)
+				default_match_rssi = nla_get_s32(rssi);
+		}
+	}
+
+	/* However, if there's no other matchset, add the RSSI one */
+	if (!n_match_sets && default_match_rssi != NL80211_SCAN_RSSI_THOLD_OFF)
+		n_match_sets = 1;
 
 	if (n_match_sets > wiphy->max_match_sets)
 		return -EINVAL;
@@ -5485,6 +5570,15 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 				  nl80211_match_policy);
 			ssid = tb[NL80211_SCHED_SCAN_MATCH_ATTR_SSID];
 			if (ssid) {
+				if (WARN_ON(i >= n_match_sets)) {
+					/* this indicates a programming error,
+					 * the loop above should have verified
+					 * things properly
+					 */
+					err = -EINVAL;
+					goto out_free;
+				}
+
 				if (nla_len(ssid) > IEEE80211_MAX_SSID_LEN) {
 					err = -EINVAL;
 					goto out_free;
@@ -5493,16 +5587,31 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 				       nla_data(ssid), nla_len(ssid));
 				request->match_sets[i].ssid.ssid_len =
 					nla_len(ssid);
+				/* special attribute - old implemenation w/a */
+				request->match_sets[i].rssi_thold =
+					default_match_rssi;
+				rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
+				if (rssi)
+					request->match_sets[i].rssi_thold =
+						nla_get_s32(rssi);
 			}
-			rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
-			if (rssi)
-				request->rssi_thold = nla_get_u32(rssi);
-			else
-				request->rssi_thold =
-						   NL80211_SCAN_RSSI_THOLD_OFF;
 			i++;
 		}
+
+		/* there was no other matchset, so the RSSI one is alone */
+		if (i == 0)
+			request->match_sets[0].rssi_thold = default_match_rssi;
+
+		request->min_rssi_thold = INT_MAX;
+		for (i = 0; i < n_match_sets; i++)
+			request->min_rssi_thold =
+				min(request->match_sets[i].rssi_thold,
+				    request->min_rssi_thold);
+	} else {
+		request->min_rssi_thold = NL80211_SCAN_RSSI_THOLD_OFF;
 	}
+
+	request->rssi_thold = request->min_rssi_thold;
 
 	if (info->attrs[NL80211_ATTR_IE]) {
 		request->ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
@@ -5530,6 +5639,9 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 
 	err = rdev_sched_scan_start(rdev, dev, request);
 	if (!err) {
+		if (info->attrs[NL80211_ATTR_IFACE_SOCKET_OWNER])
+			request->owner_nlportid = info->snd_portid;
+
 		rdev->sched_scan_req = request;
 		nl80211_send_sched_scan(rdev, dev,
 					NL80211_CMD_START_SCHED_SCAN);
@@ -6478,25 +6590,6 @@ __cfg80211_alloc_vendor_skb(struct cfg80211_registered_device *rdev,
 	kfree_skb(skb);
 	return NULL;
 }
-
-#ifdef CONFIG_NL80211_FASTSCAN
-static int nl80211_fastscan_do(struct sk_buff *skb, struct genl_info *info)
-{
-	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	int err;
-
-	if (!info->attrs[NL80211_ATTR_FASTSCAN])
-		return -EINVAL;
-
-	err = -EOPNOTSUPP;
-	if (rdev&&rdev->ops->fastscan_cmd) {
-		err = rdev->ops->fastscan_cmd(&rdev->wiphy,nla_data(info->attrs[NL80211_ATTR_FASTSCAN]),
-				nla_len(info->attrs[NL80211_ATTR_FASTSCAN]));
-	}
-
-	return err;
-}
-#endif
 
 #ifdef CONFIG_NL80211_TESTMODE
 static struct genl_multicast_group nl80211_testmode_mcgrp = {
@@ -7972,7 +8065,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 		nla_for_each_nested(pat, tb[NL80211_WOWLAN_TRIG_PKT_PATTERN],
 				    rem) {
 			nla_parse(pat_tb, MAX_NL80211_WOWLAN_PKTPAT,
-				  nla_data(pat), nla_len(pat), NULL);
+				  nla_data(pat), nla_len(pat), nl80211_packet_pattern_policy);
 			err = -EINVAL;
 			if (!pat_tb[NL80211_WOWLAN_PKTPAT_MASK] ||
 			    !pat_tb[NL80211_WOWLAN_PKTPAT_PATTERN])
@@ -8065,6 +8158,9 @@ static int nl80211_set_rekey_data(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
+	if (!tb[NL80211_REKEY_DATA_REPLAY_CTR] || !tb[NL80211_REKEY_DATA_KEK] ||
+	    !tb[NL80211_REKEY_DATA_KCK])
+		return -EINVAL;
 	if (nla_len(tb[NL80211_REKEY_DATA_REPLAY_CTR]) != NL80211_REPLAY_CTR_LEN)
 		return -ERANGE;
 	if (nla_len(tb[NL80211_REKEY_DATA_KEK]) != NL80211_KEK_LEN)
@@ -8291,6 +8387,7 @@ static int nl80211_update_ft_ies(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 
 	if (!info->attrs[NL80211_ATTR_MDID] ||
+	    !info->attrs[NL80211_ATTR_IE] ||
 	    !is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
 		return -EINVAL;
 
@@ -8867,15 +8964,6 @@ static struct genl_ops nl80211_ops[] = {
 				  NL80211_FLAG_NEED_RTNL,
 	},
 #endif
-#ifdef CONFIG_NL80211_FASTSCAN
-		{
-			.cmd = NL80211_CMD_FAST_SCAN,
-			.doit = nl80211_fastscan_do,
-			.policy = nl80211_policy,
-			.internal_flags = NL80211_FLAG_NEED_WIPHY,
-		},
-#endif
-
 	{
 		.cmd = NL80211_CMD_CONNECT,
 		.doit = nl80211_connect,
@@ -10858,14 +10946,27 @@ static int nl80211_netlink_notify(struct notifier_block * nb,
 	struct wireless_dev *wdev;
 	struct cfg80211_beacon_registration *reg, *tmp;
 
-	if (state != NETLINK_URELEASE)
+	if (state != NETLINK_URELEASE || notify->protocol != NETLINK_GENERIC)
 		return NOTIFY_DONE;
 
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(rdev, &cfg80211_rdev_list, list) {
-		list_for_each_entry_rcu(wdev, &rdev->wdev_list, list)
+		bool schedule_destroy_work = false;
+		bool schedule_scan_stop = false;
+		struct cfg80211_sched_scan_request *sched_scan_req =
+			rcu_dereference(rdev->sched_scan_req);
+
+		if (sched_scan_req && notify->portid &&
+		    sched_scan_req->owner_nlportid == notify->portid)
+			schedule_scan_stop = true;
+
+		list_for_each_entry_rcu(wdev, &rdev->wdev_list, list) {
 			cfg80211_mlme_unregister_socket(wdev, notify->portid);
+
+			if (wdev->owner_nlportid == notify->portid)
+				schedule_destroy_work = true;
+		}
 
 		spin_lock_bh(&rdev->beacon_registrations_lock);
 		list_for_each_entry_safe(reg, tmp, &rdev->beacon_registrations,
@@ -10877,6 +10978,25 @@ static int nl80211_netlink_notify(struct notifier_block * nb,
 			}
 		}
 		spin_unlock_bh(&rdev->beacon_registrations_lock);
+
+		if (schedule_destroy_work) {
+			struct cfg80211_iface_destroy *destroy;
+
+			destroy = kzalloc(sizeof(*destroy), GFP_ATOMIC);
+			if (destroy) {
+				destroy->nlportid = notify->portid;
+				spin_lock(&rdev->destroy_list_lock);
+				list_add(&destroy->list, &rdev->destroy_list);
+				spin_unlock(&rdev->destroy_list_lock);
+				schedule_work(&rdev->destroy_work);
+			}
+		} else if (schedule_scan_stop) {
+			sched_scan_req->owner_nlportid = 0;
+
+			if (rdev->ops->sched_scan_stop &&
+			    rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN)
+				schedule_work(&rdev->sched_scan_stop_wk);
+		}
 	}
 
 	rcu_read_unlock();

@@ -197,14 +197,26 @@ struct cgroup_event {
 static LIST_HEAD(roots);
 static int root_count;
 
-static DEFINE_IDA(hierarchy_ida);
-static int next_hierarchy_id;
-static DEFINE_SPINLOCK(hierarchy_id_lock);
+/*
+ * Hierarchy ID allocation and mapping.  It follows the same exclusion
+ * rules as other root ops - both cgroup_mutex and cgroup_root_mutex for
+ * writes, either for reads.
+ */
+static DEFINE_IDR(cgroup_hierarchy_idr);
 
 /* dummytop is a shorthand for the dummy hierarchy's top cgroup */
 #define dummytop (&rootnode.top_cgroup)
 
 static struct cgroup_name root_cgroup_name = { .name = "/" };
+
+/*
+ * Assign a monotonically increasing serial number to cgroups.  It
+ * guarantees cgroups with bigger numbers are newer than those with smaller
+ * numbers.  Also, as cgroups are always appended to the parent's
+ * ->children list, it guarantees that sibling cgroups are always sorted in
+ * the ascending serial number order on the list.
+ */
+static atomic64_t cgroup_serial_nr_cursor = ATOMIC64_INIT(0);
 
 /* This flag indicates whether tasks in the fork and exit paths should
  * check for fork/exit handlers to call. This avoids us having to do
@@ -231,7 +243,7 @@ static int css_refcnt(struct cgroup_subsys_state *css)
 }
 
 /* convenient tests for these bits */
-inline int cgroup_is_removed(const struct cgroup *cgrp)
+static inline bool cgroup_is_removed(const struct cgroup *cgrp)
 {
 	return test_bit(CGRP_REMOVED, &cgrp->flags);
 }
@@ -984,7 +996,7 @@ static void cgroup_d_remove_dir(struct dentry *dentry)
 	parent = dentry->d_parent;
 	spin_lock(&parent->d_lock);
 	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-	list_del_init(&dentry->d_u.d_child);
+	list_del_init(&dentry->d_child);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&parent->d_lock);
 	remove_dir(dentry);
@@ -1434,29 +1446,30 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
 }
 
-static bool init_root_id(struct cgroupfs_root *root)
+static int cgroup_init_root_id(struct cgroupfs_root *root)
 {
-	int ret = 0;
+	int id;
 
-	do {
-		if (!ida_pre_get(&hierarchy_ida, GFP_KERNEL))
-			return false;
-		spin_lock(&hierarchy_id_lock);
-		/* Try to allocate the next unused ID */
-		ret = ida_get_new_above(&hierarchy_ida, next_hierarchy_id,
-					&root->hierarchy_id);
-		if (ret == -ENOSPC)
-			/* Try again starting from 0 */
-			ret = ida_get_new(&hierarchy_ida, &root->hierarchy_id);
-		if (!ret) {
-			next_hierarchy_id = root->hierarchy_id + 1;
-		} else if (ret != -EAGAIN) {
-			/* Can only get here if the 31-bit IDR is full ... */
-			BUG_ON(ret);
-		}
-		spin_unlock(&hierarchy_id_lock);
-	} while (ret);
-	return true;
+	lockdep_assert_held(&cgroup_mutex);
+	lockdep_assert_held(&cgroup_root_mutex);
+
+	id = idr_alloc_cyclic(&cgroup_hierarchy_idr, root, 2, 0, GFP_KERNEL);
+	if (id < 0)
+		return id;
+
+	root->hierarchy_id = id;
+	return 0;
+}
+
+static void cgroup_exit_root_id(struct cgroupfs_root *root)
+{
+	lockdep_assert_held(&cgroup_mutex);
+	lockdep_assert_held(&cgroup_root_mutex);
+
+	if (root->hierarchy_id) {
+		idr_remove(&cgroup_hierarchy_idr, root->hierarchy_id);
+		root->hierarchy_id = 0;
+	}
 }
 
 static int cgroup_test_super(struct super_block *sb, void *data)
@@ -1490,10 +1503,6 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
-	if (!init_root_id(root)) {
-		kfree(root);
-		return ERR_PTR(-ENOMEM);
-	}
 	init_cgroup_root(root);
 
 	root->subsys_mask = opts->subsys_mask;
@@ -1508,17 +1517,15 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 	return root;
 }
 
-static void cgroup_drop_root(struct cgroupfs_root *root)
+static void cgroup_free_root(struct cgroupfs_root *root)
 {
-	if (!root)
-		return;
+	if (root) {
+		/* hierarhcy ID shoulid already have been released */
+		WARN_ON_ONCE(root->hierarchy_id);
 
-	BUG_ON(!root->hierarchy_id);
-	spin_lock(&hierarchy_id_lock);
-	ida_remove(&hierarchy_ida, root->hierarchy_id);
-	spin_unlock(&hierarchy_id_lock);
-	ida_destroy(&root->cgroup_ida);
-	kfree(root);
+		ida_destroy(&root->cgroup_ida);
+		kfree(root);
+	}
 }
 
 static int cgroup_set_super(struct super_block *sb, void *data)
@@ -1605,7 +1612,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	sb = sget(fs_type, cgroup_test_super, cgroup_set_super, 0, &opts);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
-		cgroup_drop_root(opts.new_root);
+		cgroup_free_root(opts.new_root);
 		goto drop_modules;
 	}
 
@@ -1646,6 +1653,10 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		 * have some link structures left over
 		 */
 		ret = allocate_cg_links(css_set_count, &tmp_cg_links);
+		if (ret)
+			goto unlock_drop;
+
+		ret = cgroup_init_root_id(root);
 		if (ret)
 			goto unlock_drop;
 
@@ -1692,7 +1703,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		 * We re-used an existing hierarchy - the new root (if
 		 * any) is not needed
 		 */
-		cgroup_drop_root(opts.new_root);
+		cgroup_free_root(opts.new_root);
 
 		if (root->flags != opts.flags) {
 			if ((root->flags | opts.flags) & CGRP_ROOT_SANE_BEHAVIOR) {
@@ -1713,6 +1724,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	return dget(sb->s_root);
 
  unlock_drop:
+	cgroup_exit_root_id(root);
 	mutex_unlock(&cgroup_root_mutex);
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&inode->i_mutex);
@@ -1765,13 +1777,15 @@ static void cgroup_kill_sb(struct super_block *sb) {
 		root_count--;
 	}
 
+	cgroup_exit_root_id(root);
+
 	mutex_unlock(&cgroup_root_mutex);
 	mutex_unlock(&cgroup_mutex);
 
 	simple_xattrs_free(&cgrp->xattrs);
 
 	kill_litter_super(sb);
-	cgroup_drop_root(root);
+	cgroup_free_root(root);
 }
 
 static struct file_system_type cgroup_fs_type = {
@@ -1832,6 +1846,38 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cgroup_path);
+
+/**
+ * task_cgroup_path_from_hierarchy - cgroup path of a task on a hierarchy
+ * @task: target task
+ * @hierarchy_id: the hierarchy to look up @task's cgroup from
+ * @buf: the buffer to write the path into
+ * @buflen: the length of the buffer
+ *
+ * Determine @task's cgroup on the hierarchy specified by @hierarchy_id and
+ * copy its path into @buf.  This function grabs cgroup_mutex and shouldn't
+ * be used inside locks used by cgroup controller callbacks.
+ */
+int task_cgroup_path_from_hierarchy(struct task_struct *task, int hierarchy_id,
+				    char *buf, size_t buflen)
+{
+	struct cgroupfs_root *root;
+	struct cgroup *cgrp = NULL;
+	int ret = -ENOENT;
+
+	mutex_lock(&cgroup_mutex);
+
+	root = idr_find(&cgroup_hierarchy_idr, hierarchy_id);
+	if (root) {
+		cgrp = task_cgroup_from_root(task, root);
+		ret = cgroup_path(cgrp, buf, buflen);
+	}
+
+	mutex_unlock(&cgroup_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(task_cgroup_path_from_hierarchy);
 
 /*
  * Control Group taskset
@@ -2106,43 +2152,6 @@ out_free_group_list:
 	return retval;
 }
 
-static int cgroup_allow_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
-{
-	struct cgroup_subsys *ss;
-	int ret;
-
-	for_each_subsys(cgrp->root, ss) {
-		if (ss->allow_attach) {
-			ret = ss->allow_attach(cgrp, tset);
-			if (ret)
-				return ret;
-		} else {
-			return -EACCES;
-		}
-	}
-
-	return 0;
-}
-
-int subsys_cgroup_allow_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
-{
-	const struct cred *cred = current_cred(), *tcred;
-	struct task_struct *task;
-
-	if (capable(CAP_SYS_NICE))
-		return 0;
-
-	cgroup_taskset_for_each(task, cgrp, tset) {
-		tcred = __task_cred(task);
-
-		if (current != task && cred->euid != tcred->uid &&
-		    cred->euid != tcred->suid)
-			return -EACCES;
-	}
-
-	return 0;
-}
-
 /*
  * Find the task_struct of the task to attach by vpid and pass it along to the
  * function to attach either it or all tasks in its threadgroup. Will lock
@@ -2174,18 +2183,9 @@ retry_find_task:
 		if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
 		    !uid_eq(cred->euid, tcred->uid) &&
 		    !uid_eq(cred->euid, tcred->suid)) {
-			/*
-			 * if the default permission check fails, give each
-			 * cgroup a chance to extend the permission check
-			 */
-			struct cgroup_taskset tset = { };
-			tset.single.task = tsk;
-			tset.single.cgrp = cgrp;
-			ret = cgroup_allow_attach(cgrp, &tset);
-			if (ret) {
-				rcu_read_unlock();
-				goto out_unlock_cgroup;
-			}
+			rcu_read_unlock();
+			ret = -EACCES;
+			goto out_unlock_cgroup;
 		}
 	} else
 		tsk = current;
@@ -2914,7 +2914,8 @@ int cgroup_rm_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 
 	list_for_each_entry(set, &ss->cftsets, node) {
 		if (set->cfts == cfts) {
-			list_del_init(&set->node);
+			list_del(&set->node);
+			kfree(set);
 			cgroup_cfts_commit(ss, cfts, false);
 			return 0;
 		}
@@ -3001,6 +3002,55 @@ static void cgroup_enable_task_cg_lists(void)
 	read_unlock(&tasklist_lock);
 	write_unlock(&css_set_lock);
 }
+
+/**
+ * cgroup_next_sibling - find the next sibling of a given cgroup
+ * @pos: the current cgroup
+ *
+ * This function returns the next sibling of @pos and should be called
+ * under RCU read lock.  The only requirement is that @pos is accessible.
+ * The next sibling is guaranteed to be returned regardless of @pos's
+ * state.
+ */
+struct cgroup *cgroup_next_sibling(struct cgroup *pos)
+{
+	struct cgroup *next;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	/*
+	 * @pos could already have been removed.  Once a cgroup is removed,
+	 * its ->sibling.next is no longer updated when its next sibling
+	 * changes.  As CGRP_REMOVED is set on removal which is fully
+	 * serialized, if we see it unasserted, it's guaranteed that the
+	 * next sibling hasn't finished its grace period even if it's
+	 * already removed, and thus safe to dereference from this RCU
+	 * critical section.  If ->sibling.next is inaccessible,
+	 * cgroup_is_removed() is guaranteed to be visible as %true here.
+	 */
+	if (likely(!cgroup_is_removed(pos))) {
+		next = list_entry_rcu(pos->sibling.next, struct cgroup, sibling);
+		if (&next->sibling != &pos->parent->children)
+			return next;
+		return NULL;
+	}
+
+	/*
+	 * Can't dereference the next pointer.  Each cgroup is given a
+	 * monotonically increasing unique serial number and always
+	 * appended to the sibling list, so the next one can be found by
+	 * walking the parent's children until we see a cgroup with higher
+	 * serial number than @pos's.
+	 *
+	 * While this path can be slow, it's taken only when either the
+	 * current cgroup is removed or iteration and removal race.
+	 */
+	list_for_each_entry_rcu(next, &pos->parent->children, sibling)
+		if (next->serial_nr > pos->serial_nr)
+			return next;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(cgroup_next_sibling);
 
 /**
  * cgroup_next_descendant_pre - find the next descendant for pre-order walk
@@ -4257,6 +4307,8 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		goto err_free_all;
 	lockdep_assert_held(&dentry->d_inode->i_mutex);
 
+	cgrp->serial_nr = atomic64_inc_return(&cgroup_serial_nr_cursor);
+
 	/* allocation complete, commit to creation */
 	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
 	list_add_tail_rcu(&cgrp->sibling, &cgrp->parent->children);
@@ -4344,6 +4396,10 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * removed.  This makes future css_tryget() and child creation
 	 * attempts fail thus maintaining the removal conditions verified
 	 * above.
+	 *
+	 * Note that CGRP_REMVOED clearing is depended upon by
+	 * cgroup_next_sibling() to resume iteration after dropping RCU
+	 * read lock.  See cgroup_next_sibling() for details.
 	 */
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
@@ -4717,7 +4773,15 @@ int __init cgroup_init(void)
 	/* Add init_css_set to the hash table */
 	key = css_set_hash(init_css_set.subsys);
 	hash_add(css_set_table, &init_css_set.hlist, key);
-	BUG_ON(!init_root_id(&rootnode));
+
+	/* allocate id for the dummy hierarchy */
+	mutex_lock(&cgroup_mutex);
+	mutex_lock(&cgroup_root_mutex);
+
+	BUG_ON(cgroup_init_root_id(&rootnode));
+
+	mutex_unlock(&cgroup_root_mutex);
+	mutex_unlock(&cgroup_mutex);
 
 	cgroup_kobj = kobject_create_and_add("cgroup", fs_kobj);
 	if (!cgroup_kobj) {
@@ -5468,7 +5532,7 @@ static int cgroup_css_links_read(struct cgroup *cont,
 		struct css_set *cg = link->cg;
 		struct task_struct *task;
 		int count = 0;
-		seq_printf(seq, "css_set %p\n", cg);
+		seq_printf(seq, "css_set %pK\n", cg);
 		list_for_each_entry(task, &cg->tasks, cg_list) {
 			if (count++ > MAX_TASKS_SHOWN_PER_CSS) {
 				seq_puts(seq, "  ...\n");

@@ -14,7 +14,7 @@
 #include <linux/prefetch.h>
 #include <asm/sstep.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cputable.h>
 
 extern char system_call_common[];
@@ -863,6 +863,19 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 			goto instr_done;
 #endif
 		case 19:	/* mfcr */
+			if ((instr >> 20) & 1) {
+				imm = 0xf0000000UL;
+				for (sh = 0; sh < 8; ++sh) {
+					if (instr & (0x80000 >> sh)) {
+						regs->gpr[rd] = regs->ccr & imm;
+						break;
+					}
+					imm >>= 4;
+				}
+
+				goto instr_done;
+			}
+
 			regs->gpr[rd] = regs->ccr;
 			regs->gpr[rd] &= 0xffffffffUL;
 			goto instr_done;

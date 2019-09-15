@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/times.h>
 #include <linux/uio.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
@@ -175,6 +175,9 @@ static void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 	__set_bit(WRITE_16, filter->write_ok);
 	__set_bit(WRITE_LONG, filter->write_ok);
 	__set_bit(WRITE_LONG_2, filter->write_ok);
+	__set_bit(WRITE_SAME, filter->write_ok);
+	__set_bit(WRITE_SAME_16, filter->write_ok);
+	__set_bit(WRITE_SAME_32, filter->write_ok);
 	__set_bit(ERASE, filter->write_ok);
 	__set_bit(GPCMD_MODE_SELECT_10, filter->write_ok);
 	__set_bit(MODE_SELECT, filter->write_ok);
@@ -233,7 +236,6 @@ static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 	 * fill in request structure
 	 */
 	rq->cmd_len = hdr->cmd_len;
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 
 	rq->timeout = msecs_to_jiffies(hdr->timeout);
 	if (!rq->timeout)
@@ -314,6 +316,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	rq = blk_get_request(q, writing ? WRITE : READ, GFP_KERNEL);
 	if (!rq)
 		return -ENOMEM;
+	blk_rq_set_block_pc(rq);
 
 	if (blk_fill_sghdr_rq(q, rq, hdr, mode)) {
 		blk_put_request(rq);
@@ -512,7 +515,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 	memset(sense, 0, sizeof(sense));
 	rq->sense = sense;
 	rq->sense_len = 0;
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(rq);
 
 	blk_execute_rq(q, disk, rq, 0);
 
@@ -544,7 +547,7 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
 	int err;
 
 	rq = blk_get_request(q, WRITE, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(rq);
 	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	rq->cmd[0] = cmd;
 	rq->cmd[4] = data;

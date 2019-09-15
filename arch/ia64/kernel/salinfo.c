@@ -48,7 +48,7 @@
 #include <linux/semaphore.h>
 
 #include <asm/sal.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 MODULE_AUTHOR("Jesse Barnes <jbarnes@sgi.com>");
 MODULE_DESCRIPTION("/proc interface to IA-64 SAL features");
@@ -568,7 +568,7 @@ static const struct file_operations salinfo_data_fops = {
 	.llseek  = default_llseek,
 };
 
-static int __cpuinit
+static int
 salinfo_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 {
 	unsigned int i, cpu = (unsigned long)hcpu;
@@ -609,7 +609,7 @@ salinfo_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu
 	return NOTIFY_OK;
 }
 
-static struct notifier_block salinfo_cpu_notifier __cpuinitdata =
+static struct notifier_block salinfo_cpu_notifier =
 {
 	.notifier_call = salinfo_cpu_callback,
 	.priority = 0,

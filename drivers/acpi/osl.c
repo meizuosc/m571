@@ -47,7 +47,7 @@
 #include <linux/semaphore.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
@@ -205,7 +205,7 @@ static int __init acpi_reserve_resources(void)
 
 	return 0;
 }
-device_initcall(acpi_reserve_resources);
+fs_initcall_sync(acpi_reserve_resources);
 
 void acpi_os_printf(const char *fmt, ...)
 {

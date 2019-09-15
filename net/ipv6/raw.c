@@ -32,7 +32,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/skbuff.h>
 #include <linux/compat.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 
 #include <net/net_namespace.h>
@@ -482,7 +482,7 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 			goto csum_copy_err;
 		err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 	} else {
-		err = skb_copy_and_csum_datagram_iovec(skb, 0, msg->msg_iov);
+		err = skb_copy_and_csum_datagram_iovec(skb, 0, msg->msg_iov, copied);
 		if (err == -EINVAL)
 			goto csum_copy_err;
 	}
@@ -578,8 +578,11 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 	}
 
 	offset += skb_transport_offset(skb);
-	if (skb_copy_bits(skb, offset, &csum, 2))
-		BUG();
+	err = skb_copy_bits(skb, offset, &csum, 2);
+	if (err < 0) {
+		ip6_flush_pending_frames(sk);
+		goto out;
+	}
 
 	/* in case cksum was not initialized */
 	if (unlikely(csum))
@@ -605,6 +608,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 			unsigned int flags)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct net *net = sock_net(sk);
 	struct ipv6hdr *iph;
 	struct sk_buff *skb;
 	int err;
@@ -616,6 +620,8 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 		ipv6_local_error(sk, EMSGSIZE, fl6, rt->dst.dev->mtu);
 		return -EMSGSIZE;
 	}
+	if (length < sizeof(struct ipv6hdr))
+		return -EINVAL;
 	if (flags&MSG_PROBE)
 		goto out;
 
@@ -628,8 +634,6 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-	skb_dst_set(skb, &rt->dst);
-	*dstp = NULL;
 
 	skb_put(skb, length);
 	skb_reset_network_header(skb);
@@ -639,24 +643,37 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 
 	skb->transport_header = skb->network_header;
 	err = memcpy_fromiovecend((void *)iph, from, 0, length);
-	if (err)
-		goto error_fault;
+	if (err) {
+		err = -EFAULT;
+		kfree_skb(skb);
+		goto error;
+	}
 
-	IP6_UPD_PO_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
+	skb_dst_set(skb, &rt->dst);
+	*dstp = NULL;
+
+	/* Acquire rcu_read_lock() in case we need to use rt->rt6i_idev
+	 * in the error path. Since skb has been freed, the dst could
+	 * have been queued for deletion.
+	 */
+	rcu_read_lock();
+	IP6_UPD_PO_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
 	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL,
 		      rt->dst.dev, dst_output);
 	if (err > 0)
 		err = net_xmit_errno(err);
-	if (err)
-		goto error;
+	if (err) {
+		IP6_INC_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
+		rcu_read_unlock();
+		goto error_check;
+	}
+	rcu_read_unlock();
 out:
 	return 0;
 
-error_fault:
-	err = -EFAULT;
-	kfree_skb(skb);
 error:
-	IP6_INC_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
+	IP6_INC_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
+error_check:
 	if (err == -ENOBUFS && !np->recverr)
 		err = 0;
 	return err;
@@ -726,6 +743,7 @@ static int rawv6_probe_proto_opt(struct flowi6 *fl6, struct msghdr *msg)
 static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		   struct msghdr *msg, size_t len)
 {
+	struct ipv6_txoptions *opt_to_free = NULL;
 	struct ipv6_txoptions opt_space;
 	struct sockaddr_in6 * sin6 = (struct sockaddr_in6 *) msg->msg_name;
 	struct in6_addr *daddr, *final_p, final;
@@ -759,7 +777,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	memset(&fl6, 0, sizeof(fl6));
 
 	fl6.flowi6_mark = sk->sk_mark;
-	fl6.flowi6_uid = sock_i_uid(sk);
+	fl6.flowi6_uid = sk->sk_uid;
 
 	if (sin6) {
 		if (addr_len < SIN6_LEN_RFC2133)
@@ -833,8 +851,10 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (!(opt->opt_nflen|opt->opt_flen))
 			opt = NULL;
 	}
-	if (opt == NULL)
-		opt = np->opt;
+	if (!opt) {
+		opt = txopt_get(np);
+		opt_to_free = opt;
+	}
 	if (flowlabel)
 		opt = fl6_merge_options(&opt_space, flowlabel, opt);
 	opt = ipv6_fixup_options(&opt_space, opt);
@@ -901,6 +921,7 @@ done:
 	dst_release(dst);
 out:
 	fl6_sock_release(flowlabel);
+	txopt_put(opt_to_free);
 	return err<0?err:len;
 do_confirm:
 	dst_confirm(dst);
@@ -1131,7 +1152,7 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		skb = skb_peek(&sk->sk_receive_queue);
 		if (skb != NULL)
-			amount = skb->tail - skb->transport_header;
+			amount = skb->len;
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 		return put_user(amount, (int __user *)arg);
 	}
@@ -1317,7 +1338,7 @@ void raw6_proc_exit(void)
 #endif	/* CONFIG_PROC_FS */
 
 /* Same as inet6_dgram_ops, sans udp_poll.  */
-static const struct proto_ops inet6_sockraw_ops = {
+const struct proto_ops inet6_sockraw_ops = {
 	.family		   = PF_INET6,
 	.owner		   = THIS_MODULE,
 	.release	   = inet6_release,

@@ -19,7 +19,7 @@
 #include <linux/scatterlist.h>
 #include <asm/unaligned.h>
 #include <linux/usb/ch9.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/mu3d/test_drv/mu3d_test_test.h>
 #include <linux/mu3d/test_drv/mu3d_test_unified.h>
 

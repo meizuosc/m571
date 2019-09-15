@@ -2,7 +2,6 @@ menu "Generic Driver Options"
 
 config UEVENT_HELPER_PATH
 	string "path to uevent helper"
-	depends on HOTPLUG
 	default ""
 	help
 	  Path to uevent helper program forked by the kernel for
@@ -23,7 +22,6 @@ config UEVENT_HELPER_PATH
 
 config DEVTMPFS
 	bool "Maintain a devtmpfs filesystem to mount at /dev"
-	depends on HOTPLUG
 	help
 	  This creates a tmpfs/ramfs filesystem instance early at bootup.
 	  In this filesystem, the kernel driver core maintains device
@@ -81,6 +79,11 @@ config FW_LOADER
 	  This option is provided for the case where none of the in-tree modules
 	  require userspace firmware loading support, but a module built
 	  out-of-tree does.
+
+config FW_CACHE
+       bool "Enable firmware caching during suspend"
+       depends on PM_SLEEP
+       default n
 
 config FIRMWARE_IN_KERNEL
 	bool "Include in-kernel firmware blobs in kernel binary"

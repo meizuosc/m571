@@ -9,7 +9,7 @@
 #include <asm/cpu.h>
 #include <asm/inst.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/branch.h>
 #include <asm/mipsregs.h>
 #include <asm/cacheflush.h>

@@ -25,7 +25,7 @@
 #include <linux/debugfs.h>
 #include <linux/spinlock.h>
 #include <asm/smp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <asm/lppaca.h>
 #include <asm/debug.h>

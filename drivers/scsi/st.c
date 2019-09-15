@@ -41,7 +41,7 @@ static const char *verstr = "20101219";
 #include <linux/delay.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/dma.h>
 
 #include <scsi/scsi.h>
@@ -484,7 +484,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	if (!req)
 		return DRIVER_ERROR << 24;
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(req);
 	req->cmd_flags |= REQ_QUIET;
 
 	mdata->null_mapped = 1;
@@ -1262,9 +1262,9 @@ static int st_open(struct inode *inode, struct file *filp)
 	spin_lock(&st_use_lock);
 	STp->in_use = 0;
 	spin_unlock(&st_use_lock);
-	scsi_tape_put(STp);
 	if (resumed)
 		scsi_autopm_put_device(STp->device);
+	scsi_tape_put(STp);
 	return retval;
 
 }

@@ -16,7 +16,7 @@
 #include <linux/completion.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 //#include <mach/mt_gpio.h>
 #include "tpd.h"
@@ -24,8 +24,8 @@
 
 #define __MSG_DMA_MODE__
 
-#define	FUNC_START		TPD_DEBUG("[%s] begin\n", __FUNCTION__);
-#define	FUNC_END		TPD_DEBUG("[%s] end  \n", __FUNCTION__);
+#define	FUNC_START		TPD_DEBUG("[%s] begin\n", __func__);
+#define	FUNC_END		TPD_DEBUG("[%s] end  \n", __func__);
 
 extern void tpd_hw_enable(void);
 extern void tpd_hw_disable(void);

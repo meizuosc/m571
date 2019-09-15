@@ -17,7 +17,7 @@
 #include <linux/wait.h>
 #include <linux/spinlock.h>
 #include <linux/semaphore.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include "yusu_android_speaker.h"
 

@@ -50,7 +50,7 @@
 #include <mach/mt_typedefs.h>
 #include <mach/mt_boot.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <cust_eint.h>
 
 #include "tpd.h"

@@ -74,7 +74,7 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/rfkill.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/dmi.h>
 #include <linux/jiffies.h>

@@ -755,7 +755,7 @@ static int do_rdma_config_l(DISP_MODULE_ENUM module, disp_ddp_path_config* pConf
 	
 	if(mode == RDMA_MODE_DIRECT_LINK &&
 		r_config->security != DISP_NORMAL_BUFFER) {
-		DDPERR("%s: rdma directlink BUT is sec ??!!\n", __FUNCTION__);
+		DDPERR("%s: rdma directlink BUT is sec ??!!\n", __func__);
 	}	
 
         	rdma_config(module, 
@@ -805,7 +805,7 @@ static int setup_rdma_sec(DISP_MODULE_ENUM module, disp_ddp_path_config* pConfig
 			int ret;
 			ret = cmdqRecCreate(CMDQ_SCENARIO_DISP_PRIMARY_DISABLE_SECURE_PATH, &(nonsec_switch_handle));
 			if(ret)
-				DDPAEE("[SVP]fail to create disable handle %s ret=%d\n", __FUNCTION__, ret);
+				DDPAEE("[SVP]fail to create disable handle %s ret=%d\n", __func__, ret);
 
 			cmdqRecReset(nonsec_switch_handle);
 			_cmdq_insert_wait_frame_done_token_mira(nonsec_switch_handle);

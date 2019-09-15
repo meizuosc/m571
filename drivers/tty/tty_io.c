@@ -874,9 +874,8 @@ void disassociate_ctty(int on_exit)
 	spin_lock_irq(&current->sighand->siglock);
 	put_pid(current->signal->tty_old_pgrp);
 	current->signal->tty_old_pgrp = NULL;
-	spin_unlock_irq(&current->sighand->siglock);
 
-	tty = get_current_tty();
+	tty = tty_kref_get(current->signal->tty);
 	if (tty) {
 		unsigned long flags;
 		spin_lock_irqsave(&tty->ctrl_lock, flags);
@@ -893,6 +892,7 @@ void disassociate_ctty(int on_exit)
 #endif
 	}
 
+        spin_unlock_irq(&current->sighand->siglock);
 	/* Now clear signal->tty under the lock */
 	read_lock(&tasklist_lock);
 	session_clear_tty(task_session(current));
@@ -992,8 +992,8 @@ EXPORT_SYMBOL(start_tty);
 /* We limit tty time update visibility to every 8 seconds or so. */
 static void tty_update_time(struct timespec *time)
 {
-	unsigned long sec = get_seconds() & ~7;
-	if ((long)(sec - time->tv_sec) > 0)
+	unsigned long sec = get_seconds();
+	if (abs(sec - time->tv_sec) & ~7)
 		time->tv_sec = sec;
 }
 
@@ -2570,6 +2570,28 @@ static int tiocsetd(struct tty_struct *tty, int __user *p)
 }
 
 /**
+ *	tiocgetd	-	get line discipline
+ *	@tty: tty device
+ *	@p: pointer to user data
+ *
+ *	Retrieves the line discipline id directly from the ldisc.
+ *
+ *	Locking: waits for ldisc reference (in case the line discipline
+ *		is changing or the tty is being hungup)
+ */
+
+static int tiocgetd(struct tty_struct *tty, int __user *p)
+{
+	struct tty_ldisc *ld;
+	int ret;
+
+	ld = tty_ldisc_ref_wait(tty);
+	ret = put_user(ld->ops->num, p);
+	tty_ldisc_deref(ld);
+	return ret;
+}
+
+/**
  *	send_break	-	performed time break
  *	@tty: device to break on
  *	@duration: timeout in mS
@@ -2783,7 +2805,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TIOCGSID:
 		return tiocgsid(tty, real_tty, p);
 	case TIOCGETD:
-		return put_user(tty->ldisc->ops->num, (int __user *)p);
+		return tiocgetd(tty, p);
 	case TIOCSETD:
 		return tiocsetd(tty, p);
 	case TIOCVHANGUP:

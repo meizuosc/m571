@@ -54,7 +54,7 @@
 #include <net/sock.h>
 #include <net/tcp_states.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_SYSCTL
 extern void ipx_register_sysctl(void);
@@ -1183,11 +1183,10 @@ static int ipxitf_ioctl(unsigned int cmd, void __user *arg)
 		sipx->sipx_network	= ipxif->if_netnum;
 		memcpy(sipx->sipx_node, ipxif->if_node,
 			sizeof(sipx->sipx_node));
-		rc = -EFAULT;
-		if (copy_to_user(arg, &ifr, sizeof(ifr)))
-			break;
-		ipxitf_put(ipxif);
 		rc = 0;
+		if (copy_to_user(arg, &ifr, sizeof(ifr)))
+			rc = -EFAULT;
+		ipxitf_put(ipxif);
 		break;
 	}
 	case SIOCAIPXITFCRT:

@@ -6,7 +6,7 @@
  *  proc root directory handling functions
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/errno.h>
 #include <linux/time.h>
@@ -92,6 +92,8 @@ static int proc_parse_options(char *options, struct pid_namespace *pid)
 int proc_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct pid_namespace *pid = sb->s_fs_info;
+
+	sync_filesystem(sb);
 	return !proc_parse_options(data, pid);
 }
 

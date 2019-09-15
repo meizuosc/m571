@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/pid_namespace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
@@ -96,6 +96,7 @@ void coda_destroy_inodecache(void)
 
 static int coda_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	*flags |= MS_NOATIME;
 	return 0;
 }

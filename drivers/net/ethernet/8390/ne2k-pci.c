@@ -56,7 +56,7 @@ static int options[MAX_UNITS];
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "8390.h"
 

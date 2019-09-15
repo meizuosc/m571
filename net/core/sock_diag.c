@@ -13,6 +13,18 @@ static const struct sock_diag_handler *sock_diag_handlers[AF_MAX];
 static int (*inet_rcv_compat)(struct sk_buff *skb, struct nlmsghdr *nlh);
 static DEFINE_MUTEX(sock_diag_table_mutex);
 
+static u64 sock_gen_cookie(struct sock *sk)
+{
+	while (1) {
+		u64 res = atomic64_read(&sk->sk_cookie);
+
+		if (res)
+			return res;
+		res = atomic64_inc_return(&sock_net(sk)->cookie_gen);
+		atomic64_cmpxchg(&sk->sk_cookie, 0, res);
+	}
+}
+
 int sock_diag_check_cookie(void *sk, __u32 *cookie)
 {
 	if ((cookie[0] != INET_DIAG_NOCOOKIE ||
@@ -135,7 +147,7 @@ void sock_diag_unregister(const struct sock_diag_handler *hnld)
 }
 EXPORT_SYMBOL_GPL(sock_diag_unregister);
 
-static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int __sock_diag_cmd(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err;
 	struct sock_diag_req *req = nlmsg_data(nlh);
@@ -155,8 +167,12 @@ static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	hndl = sock_diag_handlers[req->sdiag_family];
 	if (hndl == NULL)
 		err = -ENOENT;
-	else
+	else if (nlh->nlmsg_type == SOCK_DIAG_BY_FAMILY)
 		err = hndl->dump(skb, nlh);
+	else if (nlh->nlmsg_type == SOCK_DESTROY_BACKPORT && hndl->destroy)
+		err = hndl->destroy(skb, nlh);
+	else
+		err = -EOPNOTSUPP;
 	mutex_unlock(&sock_diag_table_mutex);
 
 	return err;
@@ -182,7 +198,8 @@ static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		return ret;
 	case SOCK_DIAG_BY_FAMILY:
-		return __sock_diag_rcv_msg(skb, nlh);
+	case SOCK_DESTROY_BACKPORT:
+		return __sock_diag_cmd(skb, nlh);
 	default:
 		return -EINVAL;
 	}
@@ -196,6 +213,18 @@ static void sock_diag_rcv(struct sk_buff *skb)
 	netlink_rcv_skb(skb, &sock_diag_rcv_msg);
 	mutex_unlock(&sock_diag_mutex);
 }
+
+int sock_diag_destroy(struct sock *sk, int err)
+{
+	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (!sk->sk_prot->diag_destroy)
+		return -EOPNOTSUPP;
+
+	return sk->sk_prot->diag_destroy(sk, err);
+}
+EXPORT_SYMBOL_GPL(sock_diag_destroy);
 
 static int __net_init diag_net_init(struct net *net)
 {

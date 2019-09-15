@@ -21,7 +21,7 @@
 #include <linux/ipc.h>
 
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cachectl.h>
 #include <asm/traps.h>
 #include <asm/unistd.h>

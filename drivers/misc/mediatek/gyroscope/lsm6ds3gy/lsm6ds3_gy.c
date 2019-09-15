@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -29,6 +29,7 @@
 #include <linux/hwmsen_dev.h>
 #include <linux/sensors_io.h>
 #include "lsm6ds3_gy.h"
+#include "lsm6ds3a.h"
 #include <linux/hwmsen_helper.h>
 #include <linux/kernel.h>
 #include <mach/mt_pm_ldo.h>
@@ -46,7 +47,7 @@
 #endif
 
 /*---------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 /*----------------------------------------------------------------------------*/
 #define CONFIG_LSM6DS3_LOWPASS   /*apply low pass filter on output*/       
 /*----------------------------------------------------------------------------*/
@@ -178,8 +179,8 @@ static bool enable_status = false;
 #define GYRO_TAG                  "[Gyroscope] "
 
 
-#define GYRO_FUN(f)               printk(KERN_INFO GYRO_TAG"%s\n", __FUNCTION__)
-#define GYRO_ERR(fmt, args...)    printk(KERN_ERR GYRO_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define GYRO_FUN(f)               printk(KERN_INFO GYRO_TAG"%s\n", __func__)
+#define GYRO_ERR(fmt, args...)    printk(KERN_ERR GYRO_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define GYRO_LOG(fmt, args...)    printk(KERN_INFO GYRO_TAG fmt, ##args)
 
 
@@ -338,6 +339,13 @@ static int LSM6DS3_CheckDeviceID(struct i2c_client *client)
 	return LSM6DS3_SUCCESS;
 }
 
+int lsm6ds3_gyro_mode(void)
+{
+	return sensor_power;
+}
+EXPORT_SYMBOL(lsm6ds3_gyro_mode);
+
+
 //----------------------------------------------------------------------------//
 static int LSM6DS3_gyro_SetPowerMode(struct i2c_client *client, bool enable)
 {
@@ -360,19 +368,22 @@ static int LSM6DS3_gyro_SetPowerMode(struct i2c_client *client, bool enable)
 	if(true == enable)
 	{
 		databuf[0] &= ~LSM6DS3_GYRO_ODR_MASK;//clear lsm6ds3 gyro ODR bits
-		databuf[0] |= LSM6DS3_GYRO_ODR_104HZ; //default set 100HZ for LSM6DS3 gyro
+		databuf[0] |= 0x58;/*2000dps*///LSM6DS3_GYRO_ODR_104HZ; //default set 100HZ for LSM6DS3 gyro
 
 
 	}
 	else
 	{
 		// do nothing
-		databuf[0] &= ~LSM6DS3_GYRO_ODR_MASK;//clear lsm6ds3 gyro ODR bits
-		databuf[0] |= LSM6DS3_GYRO_ODR_POWER_DOWN; //POWER DOWN
+		if (lsm6ds3_acc_mode() == false){
+			databuf[0] &= ~LSM6DS3_GYRO_ODR_MASK;//clear lsm6ds3 gyro ODR bits
+			databuf[0] |= LSM6DS3_GYRO_ODR_POWER_DOWN; //POWER DOWN
+		}
 	}
 	databuf[1] = databuf[0];
 	databuf[0] = LSM6DS3_CTRL2_G;	 
 	res = i2c_master_send(client, databuf, 0x2);
+
 	if(res <= 0)
 	{
 		GYRO_LOG("LSM6DS3 set power mode: ODR 100hz failed!\n");
@@ -428,21 +439,21 @@ static int LSM6DS3_gyro_SetFullScale(struct i2c_client *client, u8 gyro_fs)
 	int res = 0;
 	GYRO_FUN();     
 	
-	if(hwmsen_read_byte(client, LSM6DS3_CTRL2_G, databuf))
+	if(hwmsen_read_byte(client, LSM6DS3_CTRL1_XL, databuf))
 	{
-		GYRO_ERR("read LSM6DS3_CTRL2_G err!\n");
+		GYRO_ERR("read LSM6DS3_CTRL1_XL err!\n");
 		return LSM6DS3_ERR_I2C;
 	}
 	else
 	{
-		GYRO_LOG("read  LSM6DS3_CTRL2_G register: 0x%x\n", databuf[0]);
+		GYRO_LOG("read  LSM6DS3_CTRL1_XL register: 0x%x\n", databuf[0]);
 	}
 
 	databuf[0] &= ~LSM6DS3_GYRO_RANGE_MASK;//clear 
 	databuf[0] |= gyro_fs;
 	
 	databuf[1] = databuf[0];
-	databuf[0] = LSM6DS3_CTRL2_G; 
+	databuf[0] = LSM6DS3_CTRL1_XL; 
 	
 	
 	res = i2c_master_send(client, databuf, 0x2);
@@ -538,9 +549,9 @@ static int LSM6DS3_ReadGyroData(struct i2c_client *client, char *buf, int bufsiz
 		obj->data[LSM6DS3_AXIS_Z] = (long)(obj->data[LSM6DS3_AXIS_Z]) * LSM6DS3_GYRO_SENSITIVITY_2000DPS*3142/(180*1000*1000); 
 	#endif
 			/*report degree/s */
-		obj->data[LSM6DS3_AXIS_X] = (long)(obj->data[LSM6DS3_AXIS_X])*LSM6DS3_GYRO_SENSITIVITY_2000DPS*131/1000/1000;
-		obj->data[LSM6DS3_AXIS_Y] = (long)(obj->data[LSM6DS3_AXIS_Y])*LSM6DS3_GYRO_SENSITIVITY_2000DPS*131/1000/1000;
-		obj->data[LSM6DS3_AXIS_Z] = (long)(obj->data[LSM6DS3_AXIS_Z])*LSM6DS3_GYRO_SENSITIVITY_2000DPS*131/1000/1000; 
+		obj->data[LSM6DS3_AXIS_X] = (long)(obj->data[LSM6DS3_AXIS_X])*131/1000;
+		obj->data[LSM6DS3_AXIS_Y] = (long)(obj->data[LSM6DS3_AXIS_Y])*131/1000;
+		obj->data[LSM6DS3_AXIS_Z] = (long)(obj->data[LSM6DS3_AXIS_Z])*131/1000;
 
 		obj->data[LSM6DS3_AXIS_X] += obj->cali_sw[LSM6DS3_AXIS_X];
 		obj->data[LSM6DS3_AXIS_Y] += obj->cali_sw[LSM6DS3_AXIS_Y];
@@ -739,7 +750,7 @@ static int LSM6DS3_gyro_init_client(struct i2c_client *client, bool enable)
 	struct lsm6ds3_gyro_i2c_data *obj = i2c_get_clientdata(client);
 	int res = 0;
 	
-	GYRO_LOG("%s lsm6ds3 addr %x!\n", __FUNCTION__, client->addr);
+	GYRO_LOG("%s lsm6ds3 addr %x!\n", __func__, client->addr);
 	
 	res = LSM6DS3_CheckDeviceID(client);
 	if(res != LSM6DS3_SUCCESS)
@@ -856,7 +867,7 @@ static int lsm6ds3_gyro_get_data(int* x ,int* y,int* z, int* status)
 	}
 	if(atomic_read(&priv->trace) & GYRO_TRC_DATA)
 	{
-		GYRO_LOG("%s (%d),	\n",__FUNCTION__,__LINE__);
+		GYRO_LOG("%s (%d),	\n",__func__,__LINE__);
 	}
 	memset(buff, 0, sizeof(buff));
 	LSM6DS3_ReadGyroData(priv->client, buff, LSM6DS3_BUFSIZE);
@@ -1064,7 +1075,7 @@ static long lsm6ds3_gyro_compat_ioctl(struct file *file, unsigned int cmd, unsig
 			 break;	
 			 
 		 default:
-			 printk(KERN_ERR "%s not supported = 0x%04x", __FUNCTION__, cmd);
+			 printk(KERN_ERR "%s not supported = 0x%04x", __func__, cmd);
 			 return -ENOIOCTLCMD;
 			 break;
 	}
@@ -1549,7 +1560,7 @@ static int lsm6ds3_gyro_local_init(void)
 	}
 	if(lsm6ds3_gyro_init_flag == -1)
 	{
-		GYRO_ERR("%s init failed!\n", __FUNCTION__);
+		GYRO_ERR("%s init failed!\n", __func__);
 		return -1;
 	}
 	return 0;

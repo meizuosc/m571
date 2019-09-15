@@ -16,6 +16,7 @@
 #include <linux/sysfs.h>
 #include <linux/balloon_compaction.h>
 #include <linux/page-isolation.h>
+#include <linux/kasan.h>
 #include "internal.h"
 
 #if 0
@@ -65,6 +66,7 @@ static void map_pages(struct list_head *list)
 	list_for_each_entry(page, list, lru) {
 		arch_alloc_page(page, 0);
 		kernel_map_pages(page, 1, 1);
+		kasan_alloc_pages(page, 0);
 	}
 }
 
@@ -482,7 +484,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 	struct list_head *migratelist = &cc->migratepages;
 	isolate_mode_t mode = 0;
 	struct lruvec *lruvec;
-	unsigned long flags;
+	unsigned long flags = 0;
 	bool locked = false;
 	struct page *page = NULL, *valid_page = NULL;
 
@@ -900,7 +902,7 @@ static int compact_finished(struct zone *zone,
 			return COMPACT_PARTIAL;
 
 		/* Job done if allocation would set block type */
-		if (cc->order >= pageblock_order && area->nr_free)
+		if (order >= pageblock_order && area->nr_free)
 			return COMPACT_PARTIAL;
 	}
 
@@ -1294,7 +1296,7 @@ static struct early_suspend kick_compaction_early_suspend_desc = {
 
 static int __init compaction_init(void)
 {
-	printk("@@@@@@ [%s] Register early suspend callback @@@@@@\n",__FUNCTION__);
+	printk("@@@@@@ [%s] Register early suspend callback @@@@@@\n",__func__);
  #ifdef CONFIG_EARLYSUSPEND
 	register_early_suspend(&kick_compaction_early_suspend_desc);
  #endif
@@ -1302,7 +1304,7 @@ static int __init compaction_init(void)
 }
 static void __exit compaction_exit(void)
 {
-	printk("@@@@@@ [%s] Unregister early suspend callback @@@@@@\n",__FUNCTION__);
+	printk("@@@@@@ [%s] Unregister early suspend callback @@@@@@\n",__func__);
   #ifdef CONFIG_EARLYSUSPEND
 	unregister_early_suspend(&kick_compaction_early_suspend_desc);
   #endif

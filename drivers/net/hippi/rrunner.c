@@ -47,7 +47,7 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define rr_if_busy(dev)     netif_queue_stopped(dev)
 #define rr_if_running(dev)  netif_running(dev)
@@ -61,7 +61,8 @@ MODULE_AUTHOR("Jes Sorensen <jes@wildopensource.com>");
 MODULE_DESCRIPTION("Essential RoadRunner HIPPI driver");
 MODULE_LICENSE("GPL");
 
-static char version[] = "rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
+static const char version[] =
+"rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
 
 
 static const struct net_device_ops rr_netdev_ops = {

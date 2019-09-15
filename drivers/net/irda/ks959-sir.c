@@ -124,7 +124,7 @@
 
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/wrapper.h>

@@ -4,7 +4,7 @@
 #include <linux/kallsyms.h>
 #include <linux/utsname.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "prof_ctl.h"
 #include <linux/module.h>
 #include <linux/pid.h>

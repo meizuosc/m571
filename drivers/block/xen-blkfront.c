@@ -1197,7 +1197,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 			if (major != XENVBD_MAJOR) {
 				printk(KERN_INFO
 						"%s: HVM does not support vbd %d as xen block device\n",
-						__FUNCTION__, vdevice);
+						__func__, vdevice);
 				return -ENODEV;
 			}
 		}
@@ -1590,7 +1590,8 @@ static void blkback_changed(struct xenbus_device *dev,
 			break;
 		/* Missed the backend's Closing state -- fallthrough */
 	case XenbusStateClosing:
-		blkfront_closing(info);
+		if (info)
+			blkfront_closing(info);
 		break;
 	}
 }

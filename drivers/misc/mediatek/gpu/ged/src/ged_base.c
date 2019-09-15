@@ -20,7 +20,7 @@
 #endif
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 unsigned long ged_copy_to_user(void __user *pvTo, const void *pvFrom, unsigned long ulBytes)
 {

@@ -6,7 +6,7 @@
 #include <linux/utsname.h>
 #include <linux/jiffies.h>
 #include <linux/kernel_stat.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/tick.h>
 #include "prof_main.h"
 #include <linux/version.h>

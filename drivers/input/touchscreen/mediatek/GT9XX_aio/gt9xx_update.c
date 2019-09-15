@@ -46,7 +46,7 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include "cust_gpio_usage.h"
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #define GUP_FW_INFO
 #include "tpd_custom_gt9xx.h"
 

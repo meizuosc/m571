@@ -551,7 +551,7 @@ void unthrottle_offline_rt_rqs(struct rq *rq) {
 		 */
 		if (rt_rq_throttled(rt_rq)){
 			rt_rq->rt_throttled = 0;
-			printk_deferred("sched: RT throttling inactivated\n");
+			printk_deferred("sched: RT throttling inactivated cpu\n");
 		}
 	}
 }
@@ -1539,7 +1539,12 @@ select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 #endif
 		int target = find_lowest_rq(p);
 
-		if (target != -1)
+		/*
+		 * Don't bother moving it if the destination CPU is
+		 * not running a lower priority task.
+		 */
+		if (target != -1 &&
+                    p->prio < cpu_rq(target)->rt.highest_prio.curr)
 			cpu = target;
 
 		mt_sched_printf(sched_rt_info, "2. select_task_rq_rt %d:%s to cpu=%d", p->pid, p->comm, cpu);
@@ -2205,6 +2210,16 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 
 		lowest_rq = cpu_rq(cpu);
 
+		if (lowest_rq->rt.highest_prio.curr <= task->prio) {
+			/*
+			 * Target rq has tasks of equal or higher priority,
+			 * retrying does not release any lock and is unlikely
+			 * to yield a different result.
+			 */
+			lowest_rq = NULL;
+			break;
+		}
+
 		/* if the prio of this runqueue changed, try again */
 		if (double_lock_balance(rq, lowest_rq)) {
 			/*
@@ -2274,6 +2289,16 @@ static struct rq *find_lock_lowest_rq_mtk(struct task_struct *task, struct rq *r
 		return NULL;
 
 	lowest_rq = cpu_rq(cpu);
+
+	if (lowest_rq->rt.highest_prio.curr <= task->prio) {
+		/*
+		 * Target rq has tasks of equal or higher priority,
+		 * retrying does not release any lock and is unlikely
+		 * to yield a different result.
+		 */
+		lowest_rq = NULL;
+		break;
+	}
 
 	/* if the prio of this runqueue changed, try again */
 	if (double_lock_balance(rq, lowest_rq)) {

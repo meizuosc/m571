@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -42,7 +42,7 @@
 #include "mmc328x.h"
 #include <linux/hwmsen_helper.h>
 /*----------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 #define MMC328x_DEV_NAME         "mmc328x"
 #define DRIVER_VERSION          "1.0.0"
 /*----------------------------------------------------------------------------*/
@@ -1010,7 +1010,7 @@ static int mmc328x_ioctl(struct inode *inode, struct file *file, unsigned int cm
 			break;
 			
 		default:
-			printk(KERN_ERR "%s not supported = 0x%04x", __FUNCTION__, cmd);
+			printk(KERN_ERR "%s not supported = 0x%04x", __func__, cmd);
 			return -ENOIOCTLCMD;
 			break;		
 		}

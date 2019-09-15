@@ -33,7 +33,7 @@
 #include "disp_utils.h"
 #include "disp_drv_platform.h"
 #include "display_recorder.h"
-#include "fbconfig_kdebug_k2.h"
+#include <video/fbconfig_kdebug_k2.h>
 #include "primary_display.h"
 
 #include "ddp_hal.h"
@@ -3005,7 +3005,7 @@ static int _convert_disp_input_to_ovl(OVL_CONFIG_STRUCT *dst, disp_input_config 
 	if(!src || !dst)
 	{
 		DISP_FATAL_ERR("display", "%s src(0x%p) or dst(0x%p) is null\n",
-			__FUNCTION__, src, dst);
+			__func__, src, dst);
 		return -1;
 	}
 
@@ -3097,7 +3097,7 @@ static int _convert_disp_input_to_rdma(RDMA_CONFIG_STRUCT *dst, disp_input_confi
 	if(!src || !dst)
 	{
 		DISP_FATAL_ERR("display", "%s src(0x%p) or dst(0x%p) is null\n",
-			__FUNCTION__, src, dst);
+			__func__, src, dst);
 		return -1;
 	}
 

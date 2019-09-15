@@ -780,6 +780,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size)
 	q->limits.logical_block_size	= block_size;
 	q->limits.physical_block_size	= block_size;
 	set_bit(QUEUE_FLAG_NONROT,	&d->disk->queue->queue_flags);
+	clear_bit(QUEUE_FLAG_ADD_RANDOM, &d->disk->queue->queue_flags);
 	set_bit(QUEUE_FLAG_DISCARD,	&d->disk->queue->queue_flags);
 
 	blk_queue_flush(q, REQ_FLUSH|REQ_FUA);
@@ -1294,6 +1295,9 @@ static void cache_set_flush(struct closure *cl)
 	/* Shut down allocator threads */
 	set_bit(CACHE_SET_STOPPING_2, &c->flags);
 	wake_up(&c->alloc_wait);
+
+	if (!c)
+		closure_return(cl);
 
 	bch_cache_accounting_destroy(&c->accounting);
 
@@ -1959,8 +1963,10 @@ static int __init bcache_init(void)
 	closure_debug_init();
 
 	bcache_major = register_blkdev(0, "bcache");
-	if (bcache_major < 0)
+	if (bcache_major < 0) {
+		unregister_reboot_notifier(&reboot);
 		return bcache_major;
+	}
 
 	if (!(bcache_wq = create_workqueue("bcache")) ||
 	    !(bcache_kobj = kobject_create_and_add("bcache", fs_kobj)) ||

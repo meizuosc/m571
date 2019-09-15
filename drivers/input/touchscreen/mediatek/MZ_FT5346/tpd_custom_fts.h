@@ -27,7 +27,7 @@
 #include <linux/rtpm_prio.h>
 
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <mach/mt_pm_ldo.h>
 #include <mach/mt_typedefs.h>

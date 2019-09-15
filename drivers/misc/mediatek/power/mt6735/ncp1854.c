@@ -3,7 +3,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -689,6 +689,9 @@ static int __init ncp1854_init(void)
 
 static void __exit ncp1854_exit(void)
 {
+    if (new_client != NULL)
+        kfree(new_client);
+
     i2c_del_driver(&ncp1854_driver);
 }
 

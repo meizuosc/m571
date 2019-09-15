@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/poll.h>
 #include <asm/current.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/wait.h>
 #include <linux/time.h>
 #include <linux/delay.h>
@@ -56,7 +56,7 @@ extern unsigned int wmtCcciLogLvl;
 #endif
 
 #define WMT_CFG_FILE "WMT_SOC.cfg"
-#define WMT_CFG_FILE_PREFIX "/system/etc/firmware/"
+#define WMT_CFG_FILE_PREFIX "/vendor/etc/firmware/"
 
 /*******************************************************************************
 *                             D A T A   T Y P E S

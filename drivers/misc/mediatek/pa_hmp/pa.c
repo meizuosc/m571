@@ -9,7 +9,7 @@
 #include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cputime.h>
 #include <linux/tick.h>
 #include <linux/kernel_stat.h>

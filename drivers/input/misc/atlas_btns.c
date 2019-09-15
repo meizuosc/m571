@@ -28,7 +28,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <acpi/acpi_drivers.h>
 
 #define ACPI_ATLAS_NAME		"Atlas ACPI"

@@ -13,7 +13,7 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -629,6 +629,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 				.daddr = nh->nh_gw,
 				.flowi4_scope = cfg->fc_scope + 1,
 				.flowi4_oif = nh->nh_oif,
+				.flowi4_iif = LOOPBACK_IFINDEX,
 			};
 
 			/* It is not necessary, but requires a bit of thinking */
@@ -853,6 +854,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 				u32 val;
 
 				if (type > RTAX_MAX)
+					goto err_inval;
+				if (nla_len(nla) != sizeof(u32))
 					goto err_inval;
 				val = nla_get_u32(nla);
 				if (type == RTAX_ADVMSS && val > 65535 - 40)

@@ -8,9 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/fs.h>
 #include <linux/gfp.h>
-#include <linux/mm.h>
 #include <linux/export.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
@@ -19,6 +17,8 @@
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
+
+#include "internal.h"
 
 /*
  * Initialise a struct file's readahead state.  Assumes that the caller has
@@ -48,7 +48,7 @@ static void read_cache_pages_invalidate_page(struct address_space *mapping,
 		if (!trylock_page(page))
 			BUG();
 		page->mapping = mapping;
-		do_invalidatepage(page, 0);
+		do_invalidatepage(page, 0, PAGE_CACHE_SIZE);
 		page->mapping = NULL;
 		unlock_page(page);
 	}
@@ -149,8 +149,7 @@ out:
  *
  * Returns the number of pages requested, or the maximum amount of I/O allowed.
  */
-static int
-__do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 			pgoff_t offset, unsigned long nr_to_read,
 			unsigned long lookahead_size)
 {
@@ -186,6 +185,9 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 		if (!page)
 			break;
 		page->index = page_offset;
+
+		page->flags |= (1L << PG_readahead);
+
 		list_add(&page->lru, &page_pool);
 		if (page_idx == nr_to_read - lookahead_size)
 			SetPageReadahead(page);
@@ -220,7 +222,7 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
 	while (nr_to_read) {
 		int err;
 
-		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_CACHE_SIZE;
+		unsigned long this_chunk = (2097152) >> PAGE_CACHE_SHIFT;
 
 		if (this_chunk > nr_to_read)
 			this_chunk = nr_to_read;
@@ -244,21 +246,7 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
 unsigned long max_sane_readahead(unsigned long nr)
 {
 	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
-		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
-}
-
-/*
- * Submit IO for the read-ahead request in file_ra_state.
- */
-unsigned long ra_submit(struct file_ra_state *ra,
-		       struct address_space *mapping, struct file *filp)
-{
-	int actual;
-
-	actual = __do_page_cache_readahead(mapping, filp,
-					ra->start, ra->size, ra->async_size);
-
-	return actual;
+		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) >> 1);
 }
 
 /*
@@ -271,10 +259,10 @@ static unsigned long get_init_ra_size(unsigned long size, unsigned long max)
 {
 	unsigned long newsize = roundup_pow_of_two(size);
 
-	if (newsize <= max / 32)
-		newsize = newsize * 4;
-	else if (newsize <= max / 4)
-		newsize = newsize * 2;
+	if (newsize <= (max >> 5))
+		newsize = newsize << 2;
+	else if (newsize <= (max >> 2))
+		newsize = newsize << 1;
 	else
 		newsize = max;
 
@@ -291,10 +279,10 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
 	unsigned long cur = ra->size;
 	unsigned long newsize;
 
-	if (cur < max / 16)
-		newsize = 4 * cur;
+	if (cur < (max >> 4))
+		newsize = cur << 2;
 	else
-		newsize = 2 * cur;
+		newsize = cur << 1;
 
 	return min(newsize, max);
 }
@@ -371,10 +359,10 @@ static int try_context_readahead(struct address_space *mapping,
 	size = count_history_pages(mapping, ra, offset, max);
 
 	/*
-	 * no history pages:
+	 * not enough history pages:
 	 * it could be a random read
 	 */
-	if (!size)
+	if (size <= req_size)
 		return 0;
 
 	/*
@@ -382,11 +370,11 @@ static int try_context_readahead(struct address_space *mapping,
 	 * it is a strong indication of long-run stream (or whole-file-read)
 	 */
 	if (size >= offset)
-		size *= 2;
+		size <<= 1;
 
 	ra->start = offset;
-	ra->size = get_init_ra_size(size + req_size, max);
-	ra->async_size = ra->size;
+	ra->size = min(size + req_size, max);
+	ra->async_size = 1;
 
 	return 1;
 }

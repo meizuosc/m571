@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -1226,7 +1226,7 @@ static long s62x_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lo
 				break;
 
         default:
-                printk(KERN_ERR "S62X %s not supported = 0x%04x\n", __FUNCTION__, cmd);
+                printk(KERN_ERR "S62X %s not supported = 0x%04x\n", __func__, cmd);
                 return -ENOIOCTLCMD;
                 break;
         }

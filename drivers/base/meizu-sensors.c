@@ -13,7 +13,7 @@
 #include <linux/meizu-sys.h>
 #include <linux/meizu-sensors.h>
 
-#define MZ_SENSORS_DEBUG 1
+//#define MZ_SENSORS_DEBUG 1
 #ifdef MZ_SENSORS_DEBUG
 #define LOG_TAG_MZ_SENSORS "[mz_sensors]"
 #define pr_info(format, arg...)         printk(KERN_EMERG LOG_TAG_MZ_SENSORS format , ## arg)
@@ -28,7 +28,7 @@
 struct meizu_sensors_table {
 	struct device *dev;
 	struct meizu_sensors_ops *ops;
-	const char *name;
+	char *name;
 	struct device_attribute *attr;
 	int attr_cnt;
 } meizu_sensors_table[MEIZU_SENSOR_ID_MAX];

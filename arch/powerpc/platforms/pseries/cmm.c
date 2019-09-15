@@ -38,7 +38,7 @@
 #include <asm/hvcall.h>
 #include <asm/mmu.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/memory.h>
 
 #include "plpar_wrappers.h"

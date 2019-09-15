@@ -31,7 +31,7 @@
 #include "xhci.h"
 
 #ifdef CONFIG_MTK_XHCI
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/xhci/xhci-mtk-scheduler.h>
@@ -40,7 +40,7 @@
 
 #ifdef CONFIG_USBIF_COMPLIANCE
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/kobject.h>
 #include <linux/miscdevice.h>
@@ -179,7 +179,8 @@ static int xhci_start(struct xhci_hcd *xhci)
 				"waited %u microseconds.\n",
 				XHCI_MAX_HALT_USEC);
 	if (!ret)
-		xhci->xhc_state &= ~XHCI_STATE_HALTED;
+		/* clear state flags. Including dying, halted or removing */
+		xhci->xhc_state = 0;
 
 	return ret;
 }
@@ -719,7 +720,7 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_writel(xhci, temp, &xhci->op_regs->command);
 
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
-	xhci_dbg(xhci, "// Enabling event ring interrupter %p by writing 0x%x to irq_pending\n",
+	xhci_dbg(xhci, "// Enabling event ring interrupter %pK by writing 0x%x to irq_pending\n",
 			xhci->ir_set, (unsigned int) ER_IRQ_ENABLE(temp));
 	xhci_writel(xhci, ER_IRQ_ENABLE(temp),
 			&xhci->ir_set->irq_pending);
@@ -1343,6 +1344,11 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 
 	if (usb_endpoint_xfer_isoc(&urb->ep->desc))
 		size = urb->number_of_packets;
+	else if (usb_endpoint_is_bulk_out(&urb->ep->desc) &&
+	    urb->transfer_buffer_length > 0 &&
+	    urb->transfer_flags & URB_ZERO_PACKET &&
+	    !(urb->transfer_buffer_length % usb_endpoint_maxp(&urb->ep->desc)))
+		size = 2;
 	else
 		size = 1;
 
@@ -1435,7 +1441,7 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 exit:
 	return ret;
 dying:
-	xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for "
+	xhci_dbg(xhci, "Ep 0x%x: URB %pK submitted for "
 			"non-responsive xHCI host.\n",
 			urb->ep->desc.bEndpointAddress, urb);
 	ret = -ESHUTDOWN;
@@ -1540,7 +1546,9 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (temp == 0xffffffff || (xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_dbg(xhci, "HW died, freeing TD.\n");
 		urb_priv = urb->hcpriv;
-		for (i = urb_priv->td_cnt; i < urb_priv->length; i++) {
+		for (i = urb_priv->td_cnt;
+		     i < urb_priv->length && xhci->devs[urb->dev->slot_id];
+		     i++) {
 			td = urb_priv->td[i];
 			if (!list_empty(&td->td_list))
 				list_del_init(&td->td_list);
@@ -1556,7 +1564,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	}
 	if ((xhci->xhc_state & XHCI_STATE_DYING) ||
 			(xhci->xhc_state & XHCI_STATE_HALTED)) {
-		xhci_dbg(xhci, "Ep 0x%x: URB %p to be canceled on "
+		xhci_dbg(xhci, "Ep 0x%x: URB %pK to be canceled on "
 				"non-responsive xHCI host.\n",
 				urb->ep->desc.bEndpointAddress, urb);
 		/* Let the stop endpoint command watchdog timer (which set this
@@ -1578,7 +1586,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	urb_priv = urb->hcpriv;
 	i = urb_priv->td_cnt;
 	if (i < urb_priv->length)
-		xhci_dbg(xhci, "Cancel URB %p, dev %s, ep 0x%x, "
+		xhci_dbg(xhci, "Cancel URB %pK, dev %s, ep 0x%x, "
 				"starting at offset 0x%llx\n",
 				urb, urb->dev->devpath,
 				urb->ep->desc.bEndpointAddress,
@@ -1647,7 +1655,7 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	if (xhci->xhc_state & XHCI_STATE_DYING)
 		return -ENODEV;
 
-	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
+	xhci_dbg(xhci, "%s called for udev %pK\n", __func__, udev);
 	drop_flag = xhci_get_endpoint_flag(&ep->desc);
 	if (drop_flag == SLOT_FLAG || drop_flag == EP0_FLAG) {
 		xhci_dbg(xhci, "xHCI %s - can't drop slot or ep 0 %#x\n",
@@ -1667,7 +1675,7 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	     cpu_to_le32(EP_STATE_DISABLED)) ||
 	    le32_to_cpu(ctrl_ctx->drop_flags) &
 	    xhci_get_endpoint_flag(&ep->desc)) {
-		xhci_warn(xhci, "xHCI %s called with disabled ep %p\n",
+		xhci_warn(xhci, "xHCI %s called with disabled ep %pK\n",
 				__func__, ep);
 		return 0;
 	}
@@ -1813,7 +1821,7 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	 */
 	if (le32_to_cpu(ctrl_ctx->add_flags) &
 	    xhci_get_endpoint_flag(&ep->desc)) {
-		xhci_warn(xhci, "xHCI %s called with enabled ep %p\n",
+		xhci_warn(xhci, "xHCI %s called with enabled ep %pK\n",
 				__func__, ep);
 		return 0;
 	}
@@ -2821,10 +2829,11 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	if (ret <= 0)
 		return ret;
 	xhci = hcd_to_xhci(hcd);
-	if (xhci->xhc_state & XHCI_STATE_DYING)
+	if ((xhci->xhc_state & XHCI_STATE_DYING) ||
+		(xhci->xhc_state & XHCI_STATE_REMOVING))
 		return -ENODEV;
 
-	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
+	xhci_dbg(xhci, "%s called for udev %pK\n", __func__, udev);
 	virt_dev = xhci->devs[udev->slot_id];
 
 	/* See section 4.6.6 - A0 = 1; A1 = D0 = D1 = 0 */
@@ -2892,7 +2901,7 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		return;
 	xhci = hcd_to_xhci(hcd);
 
-	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
+	xhci_dbg(xhci, "%s called for udev %pK\n", __func__, udev);
 	virt_dev = xhci->devs[udev->slot_id];
 	/* Free any rings allocated for added endpoints */
 	for (i = 0; i < 31; ++i) {
@@ -2938,7 +2947,7 @@ static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 	if (addr == 0) {
 		xhci_warn(xhci, "WARN Cannot submit config ep after "
 				"reset ep command\n");
-		xhci_warn(xhci, "WARN deq seg = %p, deq ptr = %p\n",
+		xhci_warn(xhci, "WARN deq seg = %pK, deq ptr = %pK\n",
 				deq_state->new_deq_seg,
 				deq_state->new_deq_ptr);
 		return;
@@ -3492,6 +3501,9 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 			return -EINVAL;
 	}
 
+	if (virt_dev->tt_info)
+		old_active_eps = virt_dev->tt_info->active_eps;
+
 	if (virt_dev->udev != udev) {
 		/* If the virt_dev and the udev does not match, this virt_dev
 		 * may belong to another udev.
@@ -3920,7 +3932,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	}
 	temp_64 = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
 	xhci_dbg(xhci, "Op regs DCBAA ptr = %#016llx\n", temp_64);
-	xhci_dbg(xhci, "Slot ID %d dcbaa entry @%p = %#016llx\n",
+	xhci_dbg(xhci, "Slot ID %d dcbaa entry @%pK = %#016llx\n",
 		 udev->slot_id,
 		 &xhci->dcbaa->dev_context_ptrs[udev->slot_id],
 		 (unsigned long long)
@@ -4743,8 +4755,16 @@ int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
 	slot_ctx = xhci_get_slot_ctx(xhci, config_cmd->in_ctx);
 	slot_ctx->dev_info |= cpu_to_le32(DEV_HUB);
+	/*
+	 * refer to section 6.2.2: MTT should be 0 for full speed hub,
+	 * but it may be already set to 1 when setup an xHCI virtual
+	 * device, so clear it anyway.
+	 */
 	if (tt->multi)
 		slot_ctx->dev_info |= cpu_to_le32(DEV_MTT);
+	else if (hdev->speed == USB_SPEED_FULL)
+		slot_ctx->dev_info &= cpu_to_le32(~DEV_MTT);
+
 	if (xhci->hci_version > 0x95) {
 		xhci_dbg(xhci, "xHCI version %x needs hub "
 				"TT think time and number of ports\n",
@@ -4919,6 +4939,9 @@ static int xhci_hcd_driver_init(void)
 {
 	int retval;
 
+	if (usb_disabled())
+		return -ENODEV;
+
 	retval = xhci_register_pci();
 	if (retval < 0) {
 		printk(KERN_DEBUG "Problem registering PCI driver.");
@@ -4962,6 +4985,7 @@ static int xhci_hcd_driver_init(void)
 	BUILD_BUG_ON(sizeof(struct xhci_intr_reg) != 8*32/8);
 	/* xhci_run_regs has eight fields and embeds 128 xhci_intr_regs */
 	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
+
 	return 0;
 
 #ifdef CONFIG_MTK_XHCI
@@ -5100,6 +5124,9 @@ static int __init xhci_hcd_init(void)
 {
 	int retval;
 
+	if (usb_disabled())
+		return -ENODEV;
+
 	retval = xhci_register_pci();
 	if (retval < 0) {
 		printk(KERN_DEBUG "Problem registering PCI driver.");
@@ -5138,6 +5165,7 @@ static int __init xhci_hcd_init(void)
 	BUILD_BUG_ON(sizeof(struct xhci_intr_reg) != 8*32/8);
 	/* xhci_run_regs has eight fields and embeds 128 xhci_intr_regs */
 	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
+
 	return 0;
 
 #ifdef CONFIG_MTK_XHCI

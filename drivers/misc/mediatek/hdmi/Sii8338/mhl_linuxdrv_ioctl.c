@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/timer.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "mhl_linuxdrv.h"
 #include "sii_hal.h"
 #include "mhl_linuxdrv_ioctl.h"

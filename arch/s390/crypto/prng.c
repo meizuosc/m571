@@ -12,7 +12,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "crypt_s390.h"
 

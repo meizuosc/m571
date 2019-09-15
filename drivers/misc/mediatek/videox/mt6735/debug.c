@@ -970,29 +970,6 @@ else if (0 == strncmp(opt, "ata",3))
         	gTriggerDispMode=simple_strtoul(p, &p, 10);
         	DISPMSG("DDP: gTriggerDispMode=%d\n", gTriggerDispMode);    
     	}
-	    else if (0 == strncmp(opt, "regw:", 5))
-    {
-        char *p = (char *)opt + 5;
-        unsigned long addr = simple_strtoul(p, &p, 16);
-        unsigned long val  = simple_strtoul(p + 1, &p, 16);
-
-        if (addr) {
-            OUTREG32(addr, val);
-        } else {
-            return;
-        }
-    }
-    else if (0 == strncmp(opt, "regr:", 5))
-    {
-        char *p = (char *)opt + 5;
-        unsigned long addr = (unsigned int) simple_strtoul(p, &p, 16);
-
-        if (addr) {
-            printk("Read register 0x%lx: 0x%08x\n", addr, INREG32(addr));
-        } else {
-           return;
-        }
-    }
     else if (0 == strncmp(opt, "cmmva_dprec", 11))
     {
 		dprec_handle_option(0x7);
@@ -1236,29 +1213,6 @@ else if (0 == strncmp(opt, "ata",3))
     else if (0 == strncmp(opt, "layer", 5))
     {
         dump_layer_info();
-    }
-    else if (0 == strncmp(opt, "regw:", 5))
-    {
-        char *p = (char *)opt + 5;
-        unsigned long addr = simple_strtoul(p, &p, 16);
-        unsigned long val  = simple_strtoul(p + 1, &p, 16);
-
-        if (addr) {
-            OUTREG32(addr, val);
-        } else {
-            goto Error;
-        }
-    }
-    else if (0 == strncmp(opt, "regr:", 5))
-    {
-        char *p = (char *)opt + 5;
-        unsigned int addr = (unsigned int) simple_strtoul(p, &p, 16);
-
-        if (addr) {
-            pr_info("DISP/DBG " "Read register 0x%08x: 0x%08x\n", addr, INREG32(addr));
-        } else {
-            goto Error;
-        }
     }
     else if(0 == strncmp(opt, "dither:", 7))
     {
@@ -1595,8 +1549,8 @@ void DBG_Init(void)
     mtkfb_dbgfs = debugfs_create_file("mtkfb",
         S_IFREG|S_IRUGO, NULL, (void *)0, &debug_fops);
 
-    memset(&dbg_opt, sizeof(dbg_opt), 0);
-	memset(&fps, sizeof(fps), 0);
+    memset(&dbg_opt, 0, sizeof(dbg_opt));
+	memset(&fps, 0, sizeof(fps));
     dbg_opt.log_fps_wnd_size = DEFAULT_LOG_FPS_WND_SIZE;
 	// xuecheng, enable fps log by default
 	dbg_opt.en_fps_log = 1;

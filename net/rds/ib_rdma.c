@@ -593,7 +593,7 @@ static int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 
 			prepare_to_wait(&pool->flush_wait, &wait,
 					TASK_UNINTERRUPTIBLE);
-			if (llist_empty(&pool->clean_list))
+			if (llist_empty_relaxed(&pool->clean_list))
 				schedule();
 
 			ibmr = rds_ib_reuse_fmr(pool);
@@ -759,8 +759,10 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 	}
 
 	ibmr = rds_ib_alloc_fmr(rds_ibdev);
-	if (IS_ERR(ibmr))
+	if (IS_ERR(ibmr)) {
+		rds_ib_dev_put(rds_ibdev);
 		return ibmr;
+	}
 
 	ret = rds_ib_map_fmr(rds_ibdev, ibmr, sg, nents);
 	if (ret == 0)

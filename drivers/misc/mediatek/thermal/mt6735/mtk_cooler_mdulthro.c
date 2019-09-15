@@ -3,7 +3,7 @@
 #include <linux/types.h>
 #include <linux/kobject.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/err.h>
 #include <linux/syscalls.h>
 #include <linux/timer.h>
@@ -772,6 +772,8 @@ ssize_t mdulthro_pid_write( struct file *filp, const char __user *buf, unsigned 
 {
 	int ret = 0;
 	char tmp[MAX_LEN] = {0};
+
+	len = (len < (MAX_LEN-1)) ? len : MAX_LEN-1;
 
 	/* write data to the buffer */
 	if ( copy_from_user(tmp, buf, len) ) {

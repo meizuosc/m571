@@ -333,16 +333,11 @@ int xts_serpent_setkey(struct crypto_tfm *tfm, const u8 *key,
 		       unsigned int keylen)
 {
 	struct serpent_xts_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 	int err;
 
-	/* key consists of keys of equal size concatenated, therefore
-	 * the length must be even
-	 */
-	if (keylen % 2) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
+	err = xts_check_key(tfm, key, keylen);
+	if (err)
+		return err;
 
 	/* first half of xts-key is for crypt */
 	err = __serpent_setkey(&ctx->crypt_ctx, key, keylen / 2);
@@ -617,4 +612,4 @@ module_exit(serpent_exit);
 
 MODULE_DESCRIPTION("Serpent Cipher Algorithm, AVX optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("serpent");
+MODULE_ALIAS_CRYPTO("serpent");

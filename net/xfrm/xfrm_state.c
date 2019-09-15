@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/cache.h>
 #include <linux/audit.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ktime.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -648,7 +648,7 @@ void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si)
 {
 	spin_lock_bh(&xfrm_state_lock);
 	si->sadcnt = net->xfrm.state_num;
-	si->sadhcnt = net->xfrm.state_hmask;
+	si->sadhcnt = net->xfrm.state_hmask + 1;
 	si->sadhmcnt = xfrm_state_hashmax;
 	spin_unlock_bh(&xfrm_state_lock);
 }
@@ -1768,6 +1768,13 @@ int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen
 	u8 *data;
 	struct xfrm_mgr *km;
 	struct xfrm_policy *pol = NULL;
+
+	if (!optval && !optlen) {
+		xfrm_sk_policy_insert(sk, XFRM_POLICY_IN, NULL);
+		xfrm_sk_policy_insert(sk, XFRM_POLICY_OUT, NULL);
+		__sk_dst_reset(sk);
+		return 0;
+	}
 
 	if (optlen <= 0 || optlen > PAGE_SIZE)
 		return -EMSGSIZE;

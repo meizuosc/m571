@@ -285,7 +285,7 @@ static const struct file_operations config_proc_ops = {
 #ifdef VELOCITY_CUSTOM
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef TPD_VELOCITY_CUSTOM_X
 #define TPD_VELOCITY_CUSTOM_X 10
@@ -3043,7 +3043,7 @@ static int tpd_local_init(void)
     tpd->dev->id.product = tpd_info.pid;
     tpd->dev->id.version = tpd_info.vid;
 
-    GTP_INFO("end %s, %d\n", __FUNCTION__, __LINE__);
+    GTP_INFO("end %s, %d\n", __func__, __LINE__);
     tpd_type_cap = 1;
 
     return 0;

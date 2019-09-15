@@ -544,7 +544,7 @@ ssize_t mtk_rgu_pause_wdt_store(struct kobject *kobj, const char *buffer, size_t
 #endif /*__ENABLE_WDT_SYSFS__*/
 /*---------------------------------------------------------------------------*/
 
-static int __cpuinit wk_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+static int wk_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	int hotcpu = (unsigned long)hcpu;
 
@@ -569,7 +569,7 @@ static int __cpuinit wk_cpu_callback(struct notifier_block *nfb, unsigned long a
 		mpcore_wdt_restart(WD_TYPE_NORMAL);
 #endif
 
-		printk("[WDK]cpu %d plug on kick wdt\n", hotcpu);
+		/*printk("[WDK]cpu %d plug on kick wdt\n", hotcpu);*/
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 #ifdef CONFIG_LOCAL_WDT
@@ -590,7 +590,7 @@ static int __cpuinit wk_cpu_callback(struct notifier_block *nfb, unsigned long a
 		mpcore_wk_wdt_stop();
 #endif
 		wk_cpu_update_bit_flag(hotcpu, 0);
-		printk("[WDK]cpu %d plug off, kick wdt\n", hotcpu);
+		/*printk("[WDK]cpu %d plug off, kick wdt\n", hotcpu);*/
 		break;
 #endif				/* CONFIG_HOTPLUG_CPU */
 	}
@@ -598,7 +598,7 @@ static int __cpuinit wk_cpu_callback(struct notifier_block *nfb, unsigned long a
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cpu_nfb __cpuinitdata = {
+static struct notifier_block cpu_nfb = {
 	.notifier_call = wk_cpu_callback,
 	.priority = 6
 };

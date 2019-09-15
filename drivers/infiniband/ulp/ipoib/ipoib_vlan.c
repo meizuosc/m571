@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "ipoib.h"
 
@@ -165,10 +165,10 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 out:
 	mutex_unlock(&ppriv->vlan_mutex);
 
+	rtnl_unlock();
+
 	if (result)
 		free_netdev(priv->dev);
-
-	rtnl_unlock();
 
 	return result;
 }

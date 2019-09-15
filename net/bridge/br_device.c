@@ -19,7 +19,7 @@
 #include <linux/list.h>
 #include <linux/netfilter_bridge.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "br_private.h"
 
 /* net device transmit always called with BH disabled */

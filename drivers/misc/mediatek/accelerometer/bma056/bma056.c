@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -43,7 +43,7 @@
 /*----------------------------------------------------------------------------*/
 #define I2C_DRIVERID_BMA255 255
 /*----------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 /*----------------------------------------------------------------------------*/
 //#define CONFIG_BMA255_LOWPASS   /*apply low pass filter on output*/       
 #define SW_CALIBRATION
@@ -213,8 +213,8 @@ static GSENSOR_VECTOR3D gsensor_gain;
 
 /*----------------------------------------------------------------------------*/
 #define GSE_TAG                  "[Gsensor] "
-#define GSE_FUN(f)               printk(KERN_ERR"%s\n", __FUNCTION__)
-#define GSE_ERR(fmt, args...)    printk(KERN_ERR GSE_TAG"%s %d : "fmt, __FUNCTION__, __LINE__, ##args)
+#define GSE_FUN(f)               printk(KERN_ERR"%s\n", __func__)
+#define GSE_ERR(fmt, args...)    printk(KERN_ERR GSE_TAG"%s %d : "fmt, __func__, __LINE__, ##args)
 #define GSE_LOG(fmt, args...)    printk(KERN_ERR GSE_TAG fmt, ##args)
 /*----------------------------------------------------------------------------*/
 static struct data_resolution bma255_data_resolution[1] = {

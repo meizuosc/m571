@@ -56,7 +56,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/wait.h>
 #include <linux/firmware.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 #undef DEBUG
@@ -423,7 +423,7 @@ static int kaweth_download_firmware(struct kaweth_device *kaweth,
 		   kaweth->firmware_buf[2]);
 
 	netdev_dbg(kaweth->net,
-		   "Downloading firmware at %p to kaweth device at %p\n",
+		   "Downloading firmware at %pK to kaweth device at %pK\n",
 		   kaweth->firmware_buf, kaweth);
 	netdev_dbg(kaweth->net, "Firmware length: %d\n", data_len);
 
@@ -473,7 +473,7 @@ static int kaweth_reset(struct kaweth_device *kaweth)
 {
 	int result;
 
-	netdev_dbg(kaweth->net, "kaweth_reset(%p)\n", kaweth);
+	netdev_dbg(kaweth->net, "kaweth_reset(%pK)\n", kaweth);
 	result = usb_reset_configuration(kaweth->dev);
 	mdelay(10);
 
@@ -1018,7 +1018,7 @@ static int kaweth_probe(
 		le16_to_cpu(udev->descriptor.idProduct),
 		le16_to_cpu(udev->descriptor.bcdDevice));
 
-	dev_dbg(dev, "Device at %p\n", udev);
+	dev_dbg(dev, "Device at %pK\n", udev);
 
 	dev_dbg(dev, "Descriptor length: %x type: %x\n",
 		(int)udev->descriptor.bLength,
@@ -1031,6 +1031,7 @@ static int kaweth_probe(
 	kaweth = netdev_priv(netdev);
 	kaweth->dev = udev;
 	kaweth->net = netdev;
+	kaweth->intf = intf;
 
 	spin_lock_init(&kaweth->device_lock);
 	init_waitqueue_head(&kaweth->term_wait);
@@ -1140,8 +1141,6 @@ err_fw:
 	}
 
 	dev_dbg(dev, "Initializing net device.\n");
-
-	kaweth->intf = intf;
 
 	kaweth->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!kaweth->tx_urb)

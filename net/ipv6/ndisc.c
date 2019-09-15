@@ -859,6 +859,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 				    offsetof(struct nd_msg, opt));
 	struct ndisc_options ndopts;
 	struct net_device *dev = skb->dev;
+	struct inet6_dev *idev = __in6_dev_get(dev);
 	struct inet6_ifaddr *ifp;
 	struct neighbour *neigh;
 
@@ -877,6 +878,14 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		ND_PRINTK(2, warn, "NA: solicited NA is multicasted\n");
 		return;
 	}
+
+	/* For some 802.11 wireless deployments (and possibly other networks),
+	 * there will be a NA proxy and unsolicitd packets are attacks
+	 * and thus should not be accepted.
+	 */
+	if (!msg->icmph.icmp6_solicited && idev &&
+	    idev->cnf.drop_unsolicited_na)
+		return;
 
 	if (!ndisc_parse_options(msg->opt, ndoptlen, &ndopts)) {
 		ND_PRINTK(2, warn, "NS: invalid ND option\n");
@@ -1193,7 +1202,14 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	if (rt)
 		rt6_set_expires(rt, jiffies + (HZ * lifetime));
 	if (ra_msg->icmph.icmp6_hop_limit) {
-		in6_dev->cnf.hop_limit = ra_msg->icmph.icmp6_hop_limit;
+		/* Only set hop_limit on the interface if it is higher than
+		 * the current hop_limit.
+		 */
+		if (in6_dev->cnf.hop_limit < ra_msg->icmph.icmp6_hop_limit) {
+			in6_dev->cnf.hop_limit = ra_msg->icmph.icmp6_hop_limit;
+		} else {
+			ND_PRINTK(2, warn, "RA: Got route advertisement with lower hop_limit than current\n");
+		}
 		if (rt)
 			dst_metric_set(&rt->dst, RTAX_HOPLIMIT,
 				       ra_msg->icmph.icmp6_hop_limit);
@@ -1279,6 +1295,8 @@ skip_linkparms:
 			    ri->prefix_len == 0)
 				continue;
 #endif
+			if (ri->prefix_len < in6_dev->cnf.accept_ra_rt_info_min_plen)
+				continue;
 			if (ri->prefix_len > in6_dev->cnf.accept_ra_rt_info_max_plen)
 				continue;
 			rt6_route_rcv(skb->dev, (u8*)p, (p->nd_opt_len) << 3,
@@ -1325,35 +1343,12 @@ skip_routeinfo:
 		}
 	}
 
-#ifdef CONFIG_MTK_DHCPV6C_WIFI
-	if (in6_dev->if_flags & IF_RA_OTHERCONF){
-		printk(KERN_INFO "[mtk_net][ipv6]receive RA with o bit!\n");
-		in6_dev->cnf.ra_info_flag = 1;
-	} 
-	if(in6_dev->if_flags & IF_RA_MANAGED){
-		printk(KERN_INFO "[mtk_net][ipv6]receive RA with m bit!\n");
-		in6_dev->cnf.ra_info_flag = 2;
-	}
-	if(in6_dev->cnf.ra_info_flag == 0){
-		printk(KERN_INFO "[mtk_net][ipv6]receive RA neither O nor M bit is set!\n");
-		in6_dev->cnf.ra_info_flag = 4;
-	}
-#endif
-
 	if (ndopts.nd_useropts) {
 		struct nd_opt_hdr *p;
 		for (p = ndopts.nd_useropts;
 		     p;
 		     p = ndisc_next_useropt(p, ndopts.nd_useropts_end)) {
 			ndisc_ra_useropt(skb, p);
-#ifdef CONFIG_MTK_DHCPV6C_WIFI
-			/* only clear ra_info_flag when O bit is set */
-			if (p->nd_opt_type == ND_OPT_RDNSS &&
-					in6_dev->if_flags & IF_RA_OTHERCONF) {
-				printk(KERN_INFO "[mtk_net][ipv6]RDNSS, ignore RA with o bit!\n");
-				in6_dev->cnf.ra_info_flag = 0;
-			} 
-#endif
 		}
 	}
 
@@ -1564,10 +1559,9 @@ int ndisc_rcv(struct sk_buff *skb)
 		return 0;
 	}
 
-	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
-	
 	switch (msg->icmph.icmp6_type) {
 	case NDISC_NEIGHBOUR_SOLICITATION:
+		memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
 		ndisc_recv_ns(skb);
 		break;
 
@@ -1600,7 +1594,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 	switch (event) {
 	case NETDEV_CHANGEADDR:
 		neigh_changeaddr(&nd_tbl, dev);
-		fib6_run_gc(~0UL, net);
+		fib6_run_gc(0, net, false);
 		idev = in6_dev_get(dev);
 		if (!idev)
 			break;
@@ -1610,7 +1604,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 		break;
 	case NETDEV_DOWN:
 		neigh_ifdown(&nd_tbl, dev);
-		fib6_run_gc(~0UL, net);
+		fib6_run_gc(0, net, false);
 		break;
 	case NETDEV_NOTIFY_PEERS:
 		ndisc_send_unsol_na(dev);
@@ -1732,24 +1726,28 @@ int __init ndisc_init(void)
 	if (err)
 		goto out_unregister_pernet;
 #endif
-	err = register_netdevice_notifier(&ndisc_netdev_notifier);
-	if (err)
-		goto out_unregister_sysctl;
 out:
 	return err;
 
-out_unregister_sysctl:
 #ifdef CONFIG_SYSCTL
-	neigh_sysctl_unregister(&nd_tbl.parms);
 out_unregister_pernet:
-#endif
 	unregister_pernet_subsys(&ndisc_net_ops);
 	goto out;
+#endif
+}
+
+int __init ndisc_late_init(void)
+{
+	return register_netdevice_notifier(&ndisc_netdev_notifier);
+}
+
+void ndisc_late_cleanup(void)
+{
+	unregister_netdevice_notifier(&ndisc_netdev_notifier);
 }
 
 void ndisc_cleanup(void)
 {
-	unregister_netdevice_notifier(&ndisc_netdev_notifier);
 #ifdef CONFIG_SYSCTL
 	neigh_sysctl_unregister(&nd_tbl.parms);
 #endif

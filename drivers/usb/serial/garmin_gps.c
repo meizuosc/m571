@@ -415,7 +415,7 @@ static int gsp_rec_packet(struct garmin_data *garmin_data_p, int count)
 
 	/* sanity check, remove after test ... */
 	if ((__u8 *)&(usbdata[3]) != recpkt) {
-		dev_dbg(dev, "%s - ptr mismatch %p - %p\n", __func__,
+		dev_dbg(dev, "%s - ptr mismatch %pK - %pK\n", __func__,
 			&(usbdata[4]), recpkt);
 		return -EINVPKT;
 	}
@@ -1049,6 +1049,7 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 		   "%s - usb_submit_urb(write bulk) failed with status = %d\n",
 				__func__, status);
 		count = status;
+		kfree(buffer);
 	}
 
 	/* we are done with this urb, so let the host driver

@@ -38,7 +38,7 @@
 #include <asm/prom.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "spufs.h"
 
@@ -164,7 +164,7 @@ static void spufs_prune_dir(struct dentry *dir)
 	struct dentry *dentry, *tmp;
 
 	mutex_lock(&dir->d_inode->i_mutex);
-	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_u.d_child) {
+	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_child) {
 		spin_lock(&dentry->d_lock);
 		if (!(d_unhashed(dentry)) && dentry->d_inode) {
 			dget_dlock(dentry);

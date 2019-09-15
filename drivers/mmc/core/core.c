@@ -86,8 +86,8 @@ static const unsigned freqs[] = { 300000, 260000, 200000, 100000 };
  * performance cost, and for other reasons may not always be desired.
  * So we allow it it to be disabled.
  */
-bool use_spi_crc = 1;
-module_param(use_spi_crc, bool, 0);
+bool use_spi_crc = 0;
+module_param(use_spi_crc, bool, 0644);
 
 /*
  * We normally treat cards as removed during suspend if they are not
@@ -355,8 +355,10 @@ EXPORT_SYMBOL(mmc_start_bkops);
  */
 static void mmc_wait_data_done(struct mmc_request *mrq)
 {
-	mrq->host->context_info.is_done_rcv = true;
-	wake_up_interruptible(&mrq->host->context_info.wait);
+	struct mmc_context_info *context_info = &mrq->host->context_info;
+
+	context_info->is_done_rcv = true;
+	wake_up_interruptible(&context_info->wait);
 }
 
 static void mmc_wait_done(struct mmc_request *mrq)
@@ -1167,11 +1169,11 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 	/*
 	 * Some cards require longer data read timeout than indicated in CSD.
 	 * Address this by setting the read timeout to a "reasonably high"
-	 * value. For the cards tested, 300ms has proven enough. If necessary,
+	 * value. For the cards tested, 600ms has proven enough. If necessary,
 	 * this value can be increased if other problematic cards require this.
 	 */
 	if (mmc_card_long_read_time(card) && data->flags & MMC_DATA_READ) {
-		data->timeout_ns = 300000000;
+		data->timeout_ns = 600000000;
 		data->timeout_clks = 0;
 	}
 
@@ -1968,7 +1970,7 @@ int mmc_resume_bus(struct mmc_host *host)
 	if (!mmc_bus_needs_resume(host))
 		return -EINVAL;
 
-	printk("%s: Starting deferred resume\n", mmc_hostname(host));
+	pr_debug("%s: Starting deferred resume\n", mmc_hostname(host));
 	spin_lock_irqsave(&host->lock, flags);
 	host->bus_resume_flags &= ~MMC_BUSRESUME_NEEDS_RESUME;
 	host->rescan_disable = 0;
@@ -1985,7 +1987,7 @@ int mmc_resume_bus(struct mmc_host *host)
 		host->bus_ops->detect(host);
 
 	mmc_bus_put(host);
-	printk("%s: Deferred resume completed\n", mmc_hostname(host));
+	pr_debug("%s: Deferred resume completed\n", mmc_hostname(host));
 	return 0;
 }
 
@@ -2851,12 +2853,14 @@ void mmc_rescan(struct work_struct *work)
 
 void mmc_start_host(struct mmc_host *host)
 {
+	mmc_claim_host(host);
 	host->f_init = max(freqs[0], host->f_min);
 	host->rescan_disable = 0;
 	if (host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)
 		mmc_power_off(host);
 	else
 		mmc_power_up(host);
+	mmc_release_host(host);
 	mmc_detect_change(host, 0);
 }
 
@@ -3111,8 +3115,11 @@ int mmc_suspend_host(struct mmc_host *host)
 	}
 	mmc_bus_put(host);
 
-	if (!err && !mmc_card_keep_power(host))
+	if (!err && !mmc_card_keep_power(host)) {
+		mmc_claim_host(host);
 		mmc_power_off(host);
+		mmc_release_host(host);
+	}
 
 out:
 	return err;
@@ -3137,7 +3144,9 @@ int mmc_resume_host(struct mmc_host *host)
 
 	if (host->bus_ops && !host->bus_dead) {
 		if (!mmc_card_keep_power(host)) {
+			mmc_claim_host(host);
 			mmc_power_up(host);
+			mmc_release_host(host);
 			mmc_select_voltage(host, host->ocr);
 			/*
 			 * Tell runtime PM core we just powered up the card,

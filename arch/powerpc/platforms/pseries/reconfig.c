@@ -20,7 +20,7 @@
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu.h>
 
 /**

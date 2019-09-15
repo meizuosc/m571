@@ -414,21 +414,15 @@ static int sb_finish_set_opts(struct super_block *sb)
 		}
 	}
 
-	sbsec->flags |= (SE_SBINITIALIZED | SE_SBLABELSUPP);
-
 	if (sbsec->behavior > ARRAY_SIZE(labeling_behaviors))
 		printk(KERN_ERR "SELinux: initialized (dev %s, type %s), unknown behavior\n",
 		       sb->s_id, sb->s_type->name);
-	else
-		printk(KERN_DEBUG "SELinux: initialized (dev %s, type %s), %s\n",
-		       sb->s_id, sb->s_type->name,
-		       labeling_behaviors[sbsec->behavior-1]);
 
-	if (sbsec->behavior == SECURITY_FS_USE_GENFS ||
-	    sbsec->behavior == SECURITY_FS_USE_MNTPOINT ||
-	    sbsec->behavior == SECURITY_FS_USE_NONE ||
-	    sbsec->behavior > ARRAY_SIZE(labeling_behaviors))
-		sbsec->flags &= ~SE_SBLABELSUPP;
+	sbsec->flags |= SE_SBINITIALIZED;
+	if (sbsec->behavior == SECURITY_FS_USE_XATTR ||
+	    sbsec->behavior == SECURITY_FS_USE_TRANS ||
+	    sbsec->behavior == SECURITY_FS_USE_TASK)
+		sbsec->flags |= SE_SBLABELSUPP;
 
 	/* Special handling. Is genfs but also has in-core setxattr handler*/
 	if (!strcmp(sb->s_type->name, "sysfs") ||
@@ -699,10 +693,16 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	}
 
 	if (strcmp(sb->s_type->name, "proc") == 0)
-		sbsec->flags |= SE_SBPROC;
+		sbsec->flags |= SE_SBPROC | SE_SBGENFS;
+
+	if (!strcmp(sb->s_type->name, "debugfs") ||
+	    !strcmp(sb->s_type->name, "tracefs") ||
+	    !strcmp(sb->s_type->name, "sysfs") ||
+	    !strcmp(sb->s_type->name, "pstore"))
+		sbsec->flags |= SE_SBGENFS;
 
 	/* Determine the labeling behavior to use for this filesystem type. */
-	rc = security_fs_use((sbsec->flags & SE_SBPROC) ? "proc" : sb->s_type->name, &sbsec->behavior, &sbsec->sid);
+	rc = security_fs_use(sb->s_type->name, &sbsec->behavior, &sbsec->sid);
 	if (rc) {
 		printk(KERN_WARNING "%s: security_fs_use(%s) returned %d\n",
 		       __func__, sb->s_type->name, rc);
@@ -1152,8 +1152,6 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 		switch (protocol) {
 		case NETLINK_ROUTE:
 			return SECCLASS_NETLINK_ROUTE_SOCKET;
-		case NETLINK_FIREWALL:
-			return SECCLASS_NETLINK_FIREWALL_SOCKET;
 		case NETLINK_SOCK_DIAG:
 			return SECCLASS_NETLINK_TCPDIAG_SOCKET;
 		case NETLINK_NFLOG:
@@ -1162,14 +1160,28 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 			return SECCLASS_NETLINK_XFRM_SOCKET;
 		case NETLINK_SELINUX:
 			return SECCLASS_NETLINK_SELINUX_SOCKET;
+		case NETLINK_ISCSI:
+			return SECCLASS_NETLINK_ISCSI_SOCKET;
 		case NETLINK_AUDIT:
 			return SECCLASS_NETLINK_AUDIT_SOCKET;
-		case NETLINK_IP6_FW:
-			return SECCLASS_NETLINK_IP6FW_SOCKET;
+		case NETLINK_FIB_LOOKUP:
+			return SECCLASS_NETLINK_FIB_LOOKUP_SOCKET;
+		case NETLINK_CONNECTOR:
+			return SECCLASS_NETLINK_CONNECTOR_SOCKET;
+		case NETLINK_NETFILTER:
+			return SECCLASS_NETLINK_NETFILTER_SOCKET;
 		case NETLINK_DNRTMSG:
 			return SECCLASS_NETLINK_DNRT_SOCKET;
 		case NETLINK_KOBJECT_UEVENT:
 			return SECCLASS_NETLINK_KOBJECT_UEVENT_SOCKET;
+		case NETLINK_GENERIC:
+			return SECCLASS_NETLINK_GENERIC_SOCKET;
+		case NETLINK_SCSITRANSPORT:
+			return SECCLASS_NETLINK_SCSITRANSPORT_SOCKET;
+		case NETLINK_RDMA:
+			return SECCLASS_NETLINK_RDMA_SOCKET;
+		case NETLINK_CRYPTO:
+			return SECCLASS_NETLINK_CRYPTO_SOCKET;
 		default:
 			return SECCLASS_NETLINK_SOCKET;
 		}
@@ -1184,12 +1196,13 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 	return SECCLASS_SOCKET;
 }
 
-#ifdef CONFIG_PROC_FS
-static int selinux_proc_get_sid(struct dentry *dentry,
-				u16 tclass,
-				u32 *sid)
+static int selinux_genfs_get_sid(struct dentry *dentry,
+				 u16 tclass,
+				 u16 flags,
+				 u32 *sid)
 {
 	int rc;
+	struct super_block *sb = dentry->d_inode->i_sb;
 	char *buffer, *path;
 
 	buffer = (char *)__get_free_page(GFP_KERNEL);
@@ -1200,26 +1213,20 @@ static int selinux_proc_get_sid(struct dentry *dentry,
 	if (IS_ERR(path))
 		rc = PTR_ERR(path);
 	else {
-		/* each process gets a /proc/PID/ entry. Strip off the
-		 * PID part to get a valid selinux labeling.
-		 * e.g. /proc/1/net/rpc/nfs -> /net/rpc/nfs */
-		while (path[1] >= '0' && path[1] <= '9') {
-			path[1] = '/';
-			path++;
+		if (flags & SE_SBPROC) {
+			/* each process gets a /proc/PID/ entry. Strip off the
+			 * PID part to get a valid selinux labeling.
+			 * e.g. /proc/1/net/rpc/nfs -> /net/rpc/nfs */
+			while (path[1] >= '0' && path[1] <= '9') {
+				path[1] = '/';
+				path++;
+			}
 		}
-		rc = security_genfs_sid("proc", path, tclass, sid);
+		rc = security_genfs_sid(sb->s_type->name, path, tclass, sid);
 	}
 	free_page((unsigned long)buffer);
 	return rc;
 }
-#else
-static int selinux_proc_get_sid(struct dentry *dentry,
-				u16 tclass,
-				u32 *sid)
-{
-	return -EINVAL;
-}
-#endif
 
 /* The inode's security attributes must be initialized before first use. */
 static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dentry)
@@ -1374,7 +1381,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		/* Default to the fs superblock SID. */
 		isec->sid = sbsec->sid;
 
-		if ((sbsec->flags & SE_SBPROC) && !S_ISLNK(inode->i_mode)) {
+		if ((sbsec->flags & SE_SBGENFS) && !S_ISLNK(inode->i_mode)) {
 			/* We must have a dentry to determine the label on
 			 * procfs inodes */
 			if (opt_dentry)
@@ -1397,7 +1404,8 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			if (!dentry)
 				goto out_unlock;
 			isec->sclass = inode_mode_to_security_class(inode->i_mode);
-			rc = selinux_proc_get_sid(dentry, isec->sclass, &sid);
+			rc = selinux_genfs_get_sid(dentry, isec->sclass,
+						   sbsec->flags, &sid);
 			dput(dentry);
 			if (rc)
 				goto out_unlock;
@@ -1526,7 +1534,7 @@ static int cred_has_capability(const struct cred *cred,
 
 	rc = avc_has_perm_noaudit(sid, sid, sclass, av, 0, &avd);
 	if (audit == SECURITY_CAP_AUDIT) {
-		int rc2 = avc_audit(sid, sid, sclass, av, &avd, rc, &ad, 0);
+		int rc2 = avc_audit(sid, sid, sclass, av, &avd, rc, &ad);
 		if (rc2)
 			return rc2;
 	}
@@ -1549,8 +1557,7 @@ static int task_has_system(struct task_struct *tsk,
 static int inode_has_perm(const struct cred *cred,
 			  struct inode *inode,
 			  u32 perms,
-			  struct common_audit_data *adp,
-			  unsigned flags)
+			  struct common_audit_data *adp)
 {
 	struct inode_security_struct *isec;
 	u32 sid;
@@ -1569,7 +1576,7 @@ static int inode_has_perm(const struct cred *cred,
 		return -EINVAL;
 	}
 
-	return avc_has_perm_flags(sid, isec->sid, isec->sclass, perms, adp, flags);
+	return avc_has_perm(sid, isec->sid, isec->sclass, perms, adp);
 }
 
 /* Same as inode_has_perm, but pass explicit audit data containing
@@ -1584,7 +1591,7 @@ static inline int dentry_has_perm(const struct cred *cred,
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
-	return inode_has_perm(cred, inode, av, &ad, 0);
+	return inode_has_perm(cred, inode, av, &ad);
 }
 
 /* Same as inode_has_perm, but pass explicit audit data containing
@@ -1599,7 +1606,19 @@ static inline int path_has_perm(const struct cred *cred,
 
 	ad.type = LSM_AUDIT_DATA_PATH;
 	ad.u.path = *path;
-	return inode_has_perm(cred, inode, av, &ad, 0);
+	return inode_has_perm(cred, inode, av, &ad);
+}
+
+/* Same as path_has_perm, but uses the inode from the file struct. */
+static inline int file_path_has_perm(const struct cred *cred,
+				     struct file *file,
+				     u32 av)
+{
+	struct common_audit_data ad;
+
+	ad.type = LSM_AUDIT_DATA_PATH;
+	ad.u.path = file->f_path;
+	return inode_has_perm(cred, file_inode(file), av, &ad);
 }
 
 /* Check whether a task can use an open file descriptor to
@@ -1635,7 +1654,7 @@ static int file_has_perm(const struct cred *cred,
 	/* av is zero if only checking access to the descriptor. */
 	rc = 0;
 	if (av)
-		rc = inode_has_perm(cred, inode, av, &ad, 0);
+		rc = inode_has_perm(cred, inode, av, &ad);
 
 out:
 	return rc;
@@ -2255,14 +2274,14 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 			struct tty_file_private *file_priv;
 
 			/* Revalidate access to controlling tty.
-			   Use path_has_perm on the tty path directly rather
-			   than using file_has_perm, as this particular open
-			   file may belong to another process and we are only
-			   interested in the inode-based check here. */
+			   Use file_path_has_perm on the tty path directly
+			   rather than using file_has_perm, as this particular
+			   open file may belong to another process and we are
+			   only interested in the inode-based check here. */
 			file_priv = list_first_entry(&tty->tty_files,
 						struct tty_file_private, list);
 			file = file_priv->file;
-			if (path_has_perm(cred, &file->f_path, FILE__READ | FILE__WRITE))
+			if (file_path_has_perm(cred, file, FILE__READ | FILE__WRITE))
 				drop_tty = 1;
 		}
 		spin_unlock(&tty_files_lock);
@@ -2630,7 +2649,8 @@ static void selinux_inode_free_security(struct inode *inode)
 }
 
 static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
-				       const struct qstr *qstr, char **name,
+				       const struct qstr *qstr,
+				       const char **name,
 				       void **value, size_t *len)
 {
 	const struct task_security_struct *tsec = current_security();
@@ -2638,7 +2658,7 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	struct superblock_security_struct *sbsec;
 	u32 sid, newsid, clen;
 	int rc;
-	char *namep = NULL, *context;
+	char *context;
 
 	dsec = dir->i_security;
 	sbsec = dir->i_sb->s_security;
@@ -2674,19 +2694,13 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	if (!ss_initialized || !(sbsec->flags & SE_SBLABELSUPP))
 		return -EOPNOTSUPP;
 
-	if (name) {
-		namep = kstrdup(XATTR_SELINUX_SUFFIX, GFP_NOFS);
-		if (!namep)
-			return -ENOMEM;
-		*name = namep;
-	}
+	if (name)
+		*name = XATTR_SELINUX_SUFFIX;
 
 	if (value && len) {
 		rc = security_sid_to_context_force(newsid, &context, &clen);
-		if (rc) {
-			kfree(namep);
+		if (rc)
 			return rc;
-		}
 		*value = context;
 		*len = clen;
 	}
@@ -2828,7 +2842,8 @@ static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 			ATTR_ATIME_SET | ATTR_MTIME_SET | ATTR_TIMES_SET))
 		return dentry_has_perm(cred, dentry, FILE__SETATTR);
 
-	if (selinux_policycap_openperm && (ia_valid & ATTR_SIZE))
+	if (selinux_policycap_openperm && (ia_valid & ATTR_SIZE)
+			&& !(ia_valid & ATTR_FILE))
 		av |= FILE__OPEN;
 
 	return dentry_has_perm(cred, dentry, av);
@@ -3115,6 +3130,46 @@ static void selinux_file_free_security(struct file *file)
 	file_free_security(file);
 }
 
+/*
+ * Check whether a task has the ioctl permission and cmd
+ * operation to an inode.
+ */
+int ioctl_has_perm(const struct cred *cred, struct file *file,
+		u32 requested, u16 cmd)
+{
+	struct common_audit_data ad;
+	struct file_security_struct *fsec = file->f_security;
+	struct inode *inode = file_inode(file);
+	struct inode_security_struct *isec = inode->i_security;
+	struct lsm_ioctlop_audit ioctl;
+	u32 ssid = cred_sid(cred);
+	int rc;
+	u8 driver = cmd >> 8;
+	u8 xperm = cmd & 0xff;
+
+	ad.type = LSM_AUDIT_DATA_IOCTL_OP;
+	ad.u.op = &ioctl;
+	ad.u.op->cmd = cmd;
+	ad.u.op->path = file->f_path;
+
+	if (ssid != fsec->sid) {
+		rc = avc_has_perm(ssid, fsec->sid,
+				SECCLASS_FD,
+				FD__USE,
+				&ad);
+		if (rc)
+			goto out;
+	}
+
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+
+	rc = avc_has_extended_perms(ssid, isec->sid, isec->sclass,
+			requested, driver, xperm, &ad);
+out:
+	return rc;
+}
+
 static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
@@ -3157,7 +3212,7 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 	 * to the file's ioctl() function.
 	 */
 	default:
-		error = file_has_perm(cred, file, FILE__IOCTL);
+		error = ioctl_has_perm(cred, file, FILE__IOCTL, (u16) cmd);
 	}
 	return error;
 }
@@ -3370,7 +3425,7 @@ static int selinux_file_open(struct file *file, const struct cred *cred)
 	 * new inode label or new policy.
 	 * This check is not redundant - do not remove.
 	 */
-	return path_has_perm(cred, &file->f_path, open_file_to_av(file));
+	return file_path_has_perm(cred, file, open_file_to_av(file));
 }
 
 /* task security operations */
@@ -3497,6 +3552,38 @@ static int selinux_kernel_module_request(char *kmod_name)
 
 	return avc_has_perm(sid, SECINITSID_KERNEL, SECCLASS_SYSTEM,
 			    SYSTEM__MODULE_REQUEST, &ad);
+}
+
+static int selinux_kernel_module_from_file(struct file *file)
+{
+    struct common_audit_data ad;
+    struct inode_security_struct *isec;
+    struct file_security_struct *fsec;
+    struct inode *inode;
+    u32 sid = current_sid();
+    int rc;
+
+    /* init_module */
+    if (file == NULL)
+        return avc_has_perm(sid, sid, SECCLASS_SYSTEM,
+                    SYSTEM__MODULE_LOAD, NULL);
+
+    /* finit_module */
+    ad.type = LSM_AUDIT_DATA_PATH;
+    ad.u.path = file->f_path;
+
+    inode = file_inode(file);
+    isec = inode->i_security;
+    fsec = file->f_security;
+
+    if (sid != fsec->sid) {
+        rc = avc_has_perm(sid, fsec->sid, SECCLASS_FD, FD__USE, &ad);
+        if (rc)
+            return rc;
+    }
+
+    return avc_has_perm(sid, isec->sid, SECCLASS_SYSTEM,
+               SYSTEM__MODULE_LOAD, &ad);
 }
 
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)
@@ -3988,10 +4075,18 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		u32 sid, node_perm;
 
 		if (family == PF_INET) {
+			if (addrlen < sizeof(struct sockaddr_in)) {
+				err = -EINVAL;
+				goto out;
+			}
 			addr4 = (struct sockaddr_in *)address;
 			snum = ntohs(addr4->sin_port);
 			addrp = (char *)&addr4->sin_addr.s_addr;
 		} else {
+			if (addrlen < SIN6_LEN_RFC2133) {
+				err = -EINVAL;
+				goto out;
+			}
 			addr6 = (struct sockaddr_in6 *)address;
 			snum = ntohs(addr6->sin6_port);
 			addrp = (char *)&addr6->sin6_addr.s6_addr;
@@ -4659,10 +4754,10 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 	err = selinux_nlmsg_lookup(sksec->sclass, nlh->nlmsg_type, &perm);
 	if (err) {
 		if (err == -EINVAL) {
-			audit_log(current->audit_context, GFP_KERNEL, AUDIT_SELINUX_ERR,
-				  "SELinux:  unrecognized netlink message"
-				  " type=%hu for sclass=%hu\n",
-				  nlh->nlmsg_type, sksec->sclass);
+			printk(KERN_WARNING
+			       "SELinux: unrecognized netlink message:"
+			       " protocol=%hu nlmsg_type=%hu sclass=%hu\n",
+			       sk->sk_protocol, nlh->nlmsg_type, sksec->sclass);
 			if (!selinux_enforcing || security_get_allow_unknown())
 				err = 0;
 		}
@@ -5527,7 +5622,7 @@ static int selinux_setprocattr(struct task_struct *p,
 		return error;
 
 	/* Obtain a SID for the context, if one was specified. */
-	if (size && str[1] && str[1] != '\n') {
+	if (size && str[0] && str[0] != '\n') {
 		if (str[size-1] == '\n') {
 			str[size-1] = 0;
 			size--;
@@ -5826,6 +5921,7 @@ static struct security_operations selinux_ops = {
 	.kernel_act_as =		selinux_kernel_act_as,
 	.kernel_create_files_as =	selinux_kernel_create_files_as,
 	.kernel_module_request =	selinux_kernel_module_request,
+	.kernel_module_from_file =      selinux_kernel_module_from_file,
 	.task_setpgid =			selinux_task_setpgid,
 	.task_getpgid =			selinux_task_getpgid,
 	.task_getsid =			selinux_task_getsid,
@@ -5922,7 +6018,8 @@ static struct security_operations selinux_ops = {
 	.xfrm_policy_clone_security =	selinux_xfrm_policy_clone,
 	.xfrm_policy_free_security =	selinux_xfrm_policy_free,
 	.xfrm_policy_delete_security =	selinux_xfrm_policy_delete,
-	.xfrm_state_alloc_security =	selinux_xfrm_state_alloc,
+	.xfrm_state_alloc =		selinux_xfrm_state_alloc,
+	.xfrm_state_alloc_acquire =	selinux_xfrm_state_alloc_acquire,
 	.xfrm_state_free_security =	selinux_xfrm_state_free,
 	.xfrm_state_delete_security =	selinux_xfrm_state_delete,
 	.xfrm_policy_lookup =		selinux_xfrm_policy_lookup,

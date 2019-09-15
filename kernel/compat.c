@@ -28,7 +28,7 @@
 #include <linux/ptrace.h>
 #include <linux/gfp.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Get/set struct timeval with struct timespec on the native side

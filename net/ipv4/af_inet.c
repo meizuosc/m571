@@ -89,8 +89,9 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/random.h>
 #include <linux/slab.h>
+#include <linux/netfilter/xt_qtaguid.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/inet.h>
 #include <linux/igmp.h>
@@ -132,6 +133,8 @@ static inline int current_has_network(void)
 	return 1;
 }
 #endif
+
+int sysctl_reserved_port_bind __read_mostly = 1;
 
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
@@ -297,12 +300,18 @@ static int inet_create(struct net *net, struct socket *sock, int protocol,
 	int try_loading_module = 0;
 	int err;
 
+	if (protocol < 0 || protocol >= IPPROTO_MAX)
+		return -EINVAL;
+
 	if (!current_has_network())
 		return -EACCES;
 
 	if (unlikely(!inet_ehash_secret))
 		if (sock->type != SOCK_RAW && sock->type != SOCK_DGRAM)
 			build_ehash_secret();
+
+	if (protocol < 0 || protocol >= IPPROTO_MAX)
+		return -EINVAL;
 
 	sock->state = SS_UNCONNECTED;
 
@@ -443,6 +452,9 @@ int inet_release(struct socket *sock)
 	if (sk) {
 		long timeout;
 
+#ifdef CONFIG_NETFILTER_XT_MATCH_QTAGUID
+		qtaguid_untag(sock, true);
+#endif
 		sock_rps_reset_flow(sk);
 
 		/* Applications forget to leave groups before exiting */
@@ -1066,7 +1078,7 @@ static struct inet_protosw inetsw_array[] =
 		.type =       SOCK_DGRAM,
 		.protocol =   IPPROTO_ICMP,
 		.prot =       &ping_prot,
-		.ops =        &inet_dgram_ops,
+		.ops =        &inet_sockraw_ops,
 		.no_check =   UDP_CSUM_DEFAULT,
 		.flags =      INET_PROTOSW_REUSE,
        },

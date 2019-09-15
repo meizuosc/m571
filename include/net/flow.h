@@ -12,6 +12,14 @@
 #include <linux/atomic.h>
 #include <linux/uidgid.h>
 
+/*
+ * ifindex generation is per-net namespace, and loopback is
+ * always the 1st device in ns (see net_dev_init), thus any
+ * loopback device should get ifindex 1
+ */
+
+#define LOOPBACK_IFINDEX	1
+
 struct flowi_common {
 	int	flowic_oif;
 	int	flowic_iif;
@@ -24,7 +32,7 @@ struct flowi_common {
 #define FLOWI_FLAG_CAN_SLEEP		0x02
 #define FLOWI_FLAG_KNOWN_NH		0x04
 	__u32	flowic_secid;
-	kuid_t	flowic_uid;
+	kuid_t  flowic_uid;
 };
 
 union flowi_uli {
@@ -85,7 +93,7 @@ static inline void flowi4_init_output(struct flowi4 *fl4, int oif,
 				      kuid_t uid)
 {
 	fl4->flowi4_oif = oif;
-	fl4->flowi4_iif = 0;
+	fl4->flowi4_iif = LOOPBACK_IFINDEX;
 	fl4->flowi4_mark = mark;
 	fl4->flowi4_tos = tos;
 	fl4->flowi4_scope = scope;

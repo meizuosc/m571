@@ -19,7 +19,7 @@
  */
 
 #include <asm/hexagon_vm.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 EXPORT_SYMBOL(__copy_from_user_hexagon);
 EXPORT_SYMBOL(__copy_to_user_hexagon);

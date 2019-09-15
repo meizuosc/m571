@@ -32,7 +32,7 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/proc_fs.h>	/*proc */
 
 #include <asm/ioctl.h>

@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -31,6 +31,7 @@
 #include <linux/hwmsen_dev.h>
 #include <linux/sensors_io.h>
 #include "lsm6ds3.h"
+#include "lsm6ds3gy.h"
 #include <linux/hwmsen_helper.h>
 #include <linux/kernel.h>
 #include <mach/mt_pm_ldo.h>
@@ -79,7 +80,7 @@
 #define CUST_EINT_LSM6DS3_TYPE CUST_EINT_ALS_TYPE	//eint trigger type
 #endif
 /*---------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 /*----------------------------------------------------------------------------*/
 #define CONFIG_LSM6DS3_LOWPASS   /*apply low pass filter on output*/       
 /*----------------------------------------------------------------------------*/
@@ -277,9 +278,9 @@ static bool tilt_enable_status = false;
 
 #define GSE_TAG                  "[accel] "
 
-#define GSE_FUN(f)               printk(KERN_INFO GSE_TAG"%s\n", __FUNCTION__)
-#define GSE_ERR(fmt, args...)    printk(KERN_ERR GSE_TAG "%s %d : " fmt, __FUNCTION__, __LINE__, ##args)
-#define GSE_LOG(fmt, args...)    printk(KERN_INFO GSE_TAG "%s %d : " fmt, __FUNCTION__, __LINE__, ##args)
+#define GSE_FUN(f)               printk(KERN_INFO GSE_TAG"%s\n", __func__)
+#define GSE_ERR(fmt, args...)    printk(KERN_ERR GSE_TAG "%s %d : " fmt, __func__, __LINE__, ##args)
+#define GSE_LOG(fmt, args...)    printk(KERN_INFO GSE_TAG "%s %d : " fmt, __func__, __LINE__, ##args)
 
 /*----------------------------------------------------------------------------*/
 
@@ -563,6 +564,12 @@ static int LSM6DS3_enable_pedo(struct i2c_client *client, bool enable)
 }
 #endif
 
+int lsm6ds3_acc_mode(void)
+{
+	return sensor_power;
+}
+EXPORT_SYMBOL(lsm6ds3_acc_mode);
+
 static int LSM6DS3_acc_SetPowerMode(struct i2c_client *client, bool enable)
 {
 	u8 databuf[2] = {0};    
@@ -591,8 +598,10 @@ static int LSM6DS3_acc_SetPowerMode(struct i2c_client *client, bool enable)
 	else
 	{
 		// do nothing
-		databuf[0] &= ~LSM6DS3_ACC_ODR_MASK;//clear lsm6ds3 acc ODR bits
-		databuf[0] |= LSM6DS3_ACC_ODR_POWER_DOWN;
+		if (lsm6ds3_gyro_mode() == false){
+			databuf[0] &= ~LSM6DS3_ACC_ODR_MASK;//clear lsm6ds3 acc ODR bits
+			databuf[0] |= LSM6DS3_ACC_ODR_POWER_DOWN;
+		}
 	}
 	databuf[1] = databuf[0];
 	databuf[0] = LSM6DS3_CTRL1_XL;    
@@ -622,7 +631,7 @@ static int LSM6DS3_acc_SetFullScale(struct i2c_client *client, u8 acc_fs)
 	
 	GSE_FUN();     
 		
-	if(hwmsen_read_byte(client, LSM6DS3_CTRL1_XL, databuf))
+	if(hwmsen_read_byte(client, LSM6DS3_CTRL2_G, databuf))
 	{
 		GSE_ERR("read LSM6DS3_CTRL1_XL err!\n");
 		return LSM6DS3_ERR_I2C;
@@ -636,7 +645,7 @@ static int LSM6DS3_acc_SetFullScale(struct i2c_client *client, u8 acc_fs)
 	databuf[0] |= acc_fs;
 	
 	databuf[1] = databuf[0];
-	databuf[0] = LSM6DS3_CTRL1_XL; 
+	databuf[0] = LSM6DS3_CTRL2_G; 
 	
 	res = i2c_master_send(client, databuf, 0x2);
 	if(res <= 0)
@@ -703,7 +712,7 @@ static int LSM6DS3_acc_SetSampleRate(struct i2c_client *client, u8 sample_rate)
 		return res;
 	}
 
-	if(hwmsen_read_byte(client, LSM6DS3_CTRL1_XL, databuf))
+	if(hwmsen_read_byte(client, LSM6DS3_CTRL2_G, databuf))
 	{
 		GSE_ERR("read acc data format register err!\n");
 		return LSM6DS3_ERR_I2C;
@@ -717,7 +726,7 @@ static int LSM6DS3_acc_SetSampleRate(struct i2c_client *client, u8 sample_rate)
 	databuf[0] |= sample_rate;
 	
 	databuf[1] = databuf[0];
-	databuf[0] = LSM6DS3_CTRL1_XL; 
+	databuf[0] = LSM6DS3_CTRL2_G; 
 		
 	res = i2c_master_send(client, databuf, 0x2);
 	if(res <= 0)
@@ -1727,7 +1736,7 @@ static int lsm6ds3_enable_nodata(int en)
 		err = LSM6DS3_acc_SetPowerMode( priv->client, enable_status);					
 	}
 
-    GSE_LOG("%s OK!\n",__FUNCTION__);
+    GSE_LOG("%s OK!\n",__func__);
     return err;
 }
 
@@ -1778,7 +1787,7 @@ static int lsm6ds3_set_delay(u64 ns)
 		atomic_set(&priv->filter, 1);
 	}
 
-    GSE_LOG("%s (%d), chip only use 1024HZ \n",__FUNCTION__, value);
+    GSE_LOG("%s (%d), chip only use 1024HZ \n",__func__, value);
     return 0;
 }
 
@@ -1794,7 +1803,7 @@ static int lsm6ds3_get_data(int* x ,int* y,int* z, int* status)
 	}
 	if(atomic_read(&priv->trace) & ACCEL_TRC_DATA)
 	{
-		GSE_LOG("%s (%d),  \n",__FUNCTION__,__LINE__);
+		GSE_LOG("%s (%d),  \n",__func__,__LINE__);
 	}
 	memset(buff, 0, sizeof(buff));
 	LSM6DS3_ReadAccData(priv->client, buff, LSM6DS3_BUFSIZE);
@@ -2741,7 +2750,7 @@ static int lsm6ds3_local_init(void)
 	if(lsm6ds3_acc_init_flag == -1)
 	{
 		mutex_unlock(&lsm6ds3_init_mutex);
-		GSE_ERR("%s init failed!\n", __FUNCTION__);
+		GSE_ERR("%s init failed!\n", __func__);
 		return -1;
 	}
 	else
@@ -2785,7 +2794,7 @@ static int lsm6ds3_local_init(void)
 	mutex_unlock(&lsm6ds3_init_mutex);
 	return 0;
 lsm6ds3_local_init_failed:
-	GSE_ERR("%s init failed\n", __FUNCTION__);
+	GSE_ERR("%s init failed\n", __func__);
 	mutex_unlock(&lsm6ds3_init_mutex);
 	return res;
 
@@ -2854,7 +2863,7 @@ static int lsm6ds3_tilt_local_init(void)
 	if(lsm6ds3_acc_init_flag == -1)
 	{
 		mutex_unlock(&lsm6ds3_init_mutex);
-		GSE_ERR("%s init failed!\n", __FUNCTION__);
+		GSE_ERR("%s init failed!\n", __func__);
 		return -1;
 	}
 	else
@@ -2871,7 +2880,7 @@ static int lsm6ds3_tilt_local_init(void)
 	
 lsm6ds3_tilt_local_init_failed:
 	mutex_unlock(&lsm6ds3_init_mutex);
-	GSE_ERR("%s init failed!\n", __FUNCTION__);
+	GSE_ERR("%s init failed!\n", __func__);
 	return -1;
 }
 static int lsm6ds3_tilt_local_uninit(void)
@@ -2907,7 +2916,7 @@ static int lsm6ds3_step_c_local_init(void)
 	if(lsm6ds3_acc_init_flag == -1)
 	{
 		mutex_unlock(&lsm6ds3_init_mutex);
-		GSE_ERR("%s init failed!\n", __FUNCTION__);
+		GSE_ERR("%s init failed!\n", __func__);
 		return -1;
 	}
 	else
@@ -2946,7 +2955,7 @@ static int lsm6ds3_step_c_local_init(void)
 	
 lsm6ds3_step_c_local_init_failed:
 	mutex_unlock(&lsm6ds3_init_mutex);
-	GSE_ERR("%s init failed!\n", __FUNCTION__);
+	GSE_ERR("%s init failed!\n", __func__);
 	return res;
 
 }

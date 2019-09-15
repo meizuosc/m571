@@ -343,7 +343,7 @@ static int adb_create_bulk_endpoints(struct adb_dev *dev,
 	struct usb_ep *ep;
 	int i;
 
-	DBG(cdev, "%s %s %d: create_bulk_endpoints dev: %p\n", __FILE__, __func__, __LINE__, dev);
+	DBG(cdev, "%s %s %d: create_bulk_endpoints dev: %pK\n", __FILE__, __func__, __LINE__, dev);
 
 	ep = usb_ep_autoconfig(cdev->gadget, in_desc);
 	/* __ADB_DEBUG__ start */
@@ -473,13 +473,13 @@ static ssize_t adb_read(struct file *fp, char __user *buf, size_t count, loff_t 
 			}
 		}
 
-		pr_err("%s %s %d: failed to queue req %p (%d)\n",
+		pr_err("%s %s %d: failed to queue req %pK (%d)\n",
 		       __FILE__, __func__, __LINE__, req, ret);
 		r = -EIO;
 		dev->error = 1;
 		goto done;
 	} else {
-		pr_debug("%s %s %d: rx %p queue\n", __FILE__, __func__, __LINE__, req);
+		pr_debug("%s %s %d: rx %pK queue\n", __FILE__, __func__, __LINE__, req);
 	}
 
 	/* wait for a request to complete */
@@ -496,7 +496,7 @@ static ssize_t adb_read(struct file *fp, char __user *buf, size_t count, loff_t 
 		if (req->actual == 0)
 			goto requeue_req;
 
-		pr_debug("%s %s %d: rx %p %d\n", __FILE__, __func__, __LINE__, req, req->actual);
+		pr_debug("%s %s %d: rx %pK %d\n", __FILE__, __func__, __LINE__, req, req->actual);
 		xfer = (req->actual < count) ? req->actual : count;
 
 		/* __ADB_DEBUG__ start */
@@ -730,7 +730,7 @@ static int adb_open(struct inode *ip, struct file *fp)
 
 	spin_lock_irqsave(&open_lock, flags);
 
-	pr_debug("[adb]adb_open start, adb_open: %p check adb_release %p, open_release_pair: %d\n",
+	pr_debug("[adb]adb_open start, adb_open: %pK check adb_release %pK, open_release_pair: %d\n",
 		 adb_fops.open, adb_fops.release, open_release_pair);
 
 	if (!_adb_dev) {
@@ -773,7 +773,7 @@ static int adb_release(struct inode *ip, struct file *fp)
 	spin_lock_irqsave(&open_lock, flags);
 
 	pr_debug
-	    ("[adb]adb_release start, adb_open: %p check adb_release %p, open_release_pair: %d\n",
+	    ("[adb]adb_release start, adb_open: %pK check adb_release %pK, open_release_pair: %d\n",
 	     adb_fops.open, adb_fops.release, open_release_pair);
 
 	if (open_release_pair < 1) {
@@ -805,7 +805,7 @@ static int adb_function_bind(struct usb_configuration *c, struct usb_function *f
 	int ret;
 
 	dev->cdev = cdev;
-	DBG(cdev, "%s %s %d: dev: %p\n", __FILE__, __func__, __LINE__, dev);
+	DBG(cdev, "%s %s %d: dev: %pK\n", __FILE__, __func__, __LINE__, dev);
 
 	/* allocate interface ID(s) */
 	id = usb_interface_id(c, f);
@@ -897,7 +897,7 @@ static void adb_function_disable(struct usb_function *f)
 	struct adb_dev *dev = func_to_adb(f);
 	struct usb_composite_dev *cdev = dev->cdev;
 
-	DBG(cdev, "%s %s %d: cdev %p\n", __FILE__, __func__, __LINE__, cdev);
+	DBG(cdev, "%s %s %d: cdev %pK\n", __FILE__, __func__, __LINE__, cdev);
 	dev->online = 0;
 	dev->error = 1;
 	usb_ep_disable(dev->ep_in);

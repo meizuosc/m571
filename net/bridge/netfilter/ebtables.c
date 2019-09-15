@@ -23,7 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <net/sock.h>
@@ -327,10 +327,7 @@ find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
 		char name[EBT_FUNCTION_MAXNAMELEN];
 	} *e;
 
-	*error = mutex_lock_interruptible(mutex);
-	if (*error != 0)
-		return NULL;
-
+	mutex_lock(mutex);
 	list_for_each_entry(e, head, list) {
 		if (strcmp(e->name, name) == 0)
 			return e;
@@ -1203,10 +1200,7 @@ ebt_register_table(struct net *net, const struct ebt_table *input_table)
 
 	table->private = newinfo;
 	rwlock_init(&table->lock);
-	ret = mutex_lock_interruptible(&ebt_mutex);
-	if (ret != 0)
-		goto free_chainstack;
-
+	mutex_lock(&ebt_mutex);
 	list_for_each_entry(t, &net->xt.tables[NFPROTO_BRIDGE], list) {
 		if (strcmp(t->name, table->name) == 0) {
 			ret = -EEXIST;
@@ -1501,6 +1495,8 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)))
 		return -EFAULT;
+
+	tmp.name[sizeof(tmp.name) - 1] = '\0';
 
 	t = find_table_lock(net, tmp.name, &ret, &ebt_mutex);
 	if (!t)
@@ -2010,7 +2006,9 @@ static int ebt_size_mwt(struct compat_ebt_entry_mwt *match32,
 		if (match_kern)
 			match_kern->match_size = ret;
 
-		WARN_ON(type == EBT_COMPAT_TARGET && size_left);
+		if (WARN_ON(type == EBT_COMPAT_TARGET && size_left))
+			return -EINVAL;
+
 		match32 = (struct compat_ebt_entry_mwt *) buf;
 	}
 
@@ -2067,6 +2065,15 @@ static int size_entry_mwt(struct ebt_entry *entry, const unsigned char *base,
 	 *
 	 * offsets are relative to beginning of struct ebt_entry (i.e., 0).
 	 */
+	for (i = 0; i < 4 ; ++i) {
+		if (offsets[i] >= *total)
+			return -EINVAL;
+		if (i == 0)
+			continue;
+		if (offsets[i-1] > offsets[i])
+			return -EINVAL;
+	}
+
 	for (i = 0, j = 1 ; j < 4 ; j++, i++) {
 		struct compat_ebt_entry_mwt *match32;
 		unsigned int size;
@@ -2316,6 +2323,8 @@ static int compat_do_ebt_get_ctl(struct sock *sk, int cmd,
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)))
 		return -EFAULT;
+
+	tmp.name[sizeof(tmp.name) - 1] = '\0';
 
 	t = find_table_lock(net, tmp.name, &ret, &ebt_mutex);
 	if (!t)

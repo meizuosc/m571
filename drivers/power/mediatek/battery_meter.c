@@ -23,7 +23,7 @@
 #include <linux/of_address.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <mach/mt_typedefs.h>
 #include <mach/hardware.h>
 #include <mach/mt_boot.h>
@@ -47,15 +47,12 @@
 
 static DEFINE_MUTEX(FGADC_mutex);
 
-int Enable_FGADC_LOG = 1;
+int Enable_FGADC_LOG = 0;
 
 /* ============================================================ // */
 /* global variable */
 /* ============================================================ // */
 BATTERY_METER_CONTROL battery_meter_ctrl = NULL;
-
-/* static struct proc_dir_entry *proc_entry_fgadc; */
-static char proc_fgadc_data[32];
 
 kal_bool gFG_Is_Charging = KAL_FALSE;
 kal_int32 g_auxadc_solution = 0;
@@ -2646,17 +2643,10 @@ kal_int32 get_dynamic_period(int first_use, int first_wakeup_time, int battery_c
 	static kal_int32 last_time=0;
 
 	kal_int32 ret_val = -1;
-	int check_fglog = 0;
 	kal_int32 I_sleep = 0;
 	kal_int32 new_time = 0;
 	kal_int32 vbat_val = 0;
 	int ret = 0;
-
-	check_fglog = Enable_FGADC_LOG;
-	if (check_fglog == 0) {
-		/* Enable_FGADC_LOG=1; */
-	}
-
 
 	vbat_val = g_sw_vbat_temp;
 
@@ -2664,9 +2654,6 @@ kal_int32 get_dynamic_period(int first_use, int first_wakeup_time, int battery_c
 
 	ret = battery_meter_ctrl(BATTERY_METER_CMD_GET_HW_FG_CAR, &car_instant);
 
-	if (check_fglog == 0) {
-		/* Enable_FGADC_LOG=0; */
-	}
 	if (car_instant < 0) {
 		car_instant = car_instant - (car_instant * 2);
 	}
@@ -2686,16 +2673,8 @@ kal_int32 get_dynamic_period(int first_use, int first_wakeup_time, int battery_c
 		I_sleep = ((car_wakeup - car_sleep) * 3600) / last_time;	/* unit: second */
 
 		if (I_sleep == 0) {
-			if (check_fglog == 0) {
-				/* Enable_FGADC_LOG=1; */
-			}
-
 			ret = battery_meter_ctrl(BATTERY_METER_CMD_GET_HW_FG_CURRENT, &I_sleep);
-
 			I_sleep = I_sleep / 10;
-			if (check_fglog == 0) {
-				/* Enable_FGADC_LOG=0; */
-			}
 		}
 
 		if (I_sleep == 0) {
@@ -3291,17 +3270,20 @@ kal_int32 battery_meter_get_VSense(void)
 static ssize_t fgadc_log_write(struct file *filp, const char __user *buff,
 			       size_t len, loff_t *data)
 {
-	if (copy_from_user(&proc_fgadc_data, buff, len)) {
+
+	char proc_fgadc_data;
+
+	if ((len <= 0) || copy_from_user(&proc_fgadc_data, buff, 1)) {
 		bm_print(BM_LOG_CRTI, "fgadc_log_write error.\n");
 		return -EFAULT;
 	}
 
-	if (proc_fgadc_data[0] == '1') {
+	if (proc_fgadc_data == '1') {
 		bm_print(BM_LOG_CRTI, "enable FGADC driver log system\n");
-		Enable_FGADC_LOG = 1;
-	} else if (proc_fgadc_data[0] == '2') {
+		Enable_FGADC_LOG = BM_LOG_CRTI;
+	} else if (proc_fgadc_data == '2') {
 		bm_print(BM_LOG_CRTI, "enable FGADC driver log system:2\n");
-		Enable_FGADC_LOG = 2;
+		Enable_FGADC_LOG = BM_LOG_FULL;
 	} else {
 		bm_print(BM_LOG_CRTI, "Disable FGADC driver log system\n");
 		Enable_FGADC_LOG = 0;

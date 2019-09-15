@@ -29,7 +29,6 @@ ifneq ($(CONFIG_MTK_GIC),y)
 obj-y   += irq/
 endif
 
-obj-$(CONFIG_MTK_CPU_STRESS)	+= cpu_stress/
 obj-$(CONFIG_MTK_LASTPC)	    += lastpc/
 obj-$(CONFIG_MTK_DBG_DUMP) += dbg_dump/
 
@@ -48,8 +47,6 @@ obj-y	+= aee/
 obj-$(CONFIG_MTK_EMI_MPU)	+= emi_mpu/
 obj-$(CONFIG_MTK_EMI_BWL)	+= emi_bwl/
 
-obj-$(CONFIG_MTK_FMRADIO)	+= fmradio/
-obj-$(CONFIG_MTK_GPS)	    += gps/
 
 obj-y	+= m4u/
 #obj-y	+= mhl/
@@ -160,13 +157,12 @@ obj-$(CONFIG_MTK_CCCI_EXT)     +=  dual_ccci/
 obj-$(CONFIG_MTK_ECCCI_DRIVER) +=  eccci/
 obj-$(CONFIG_MTK_EEMCS_DRIVER) +=  eemcs/
 obj-$(CONFIG_MTK_IRTX) += irtx/
-obj-$(CONFIG_MTK_NFC) += nfc/
 obj-$(CONFIG_ZRAM)	+= mlog/
 
 #obj-y	+= cam_cal/src/$(MTK_PLATFORM)/dummy_eeprom/
 
-obj-$(CONFIG_MTK_CAM_CAL_S5K3L2XXOTP_SUPPORT) += cam_cal/src/$(MTK_PLATFORM)/s5k3l2xxotp/
-obj-$(CONFIG_MTK_CAM_CAL_OV5670OTP_SUPPORT) += cam_cal/src/$(MTK_PLATFORM)/ov5670otp/
+obj-$(CONFIG_MTK_CAM_CAL_S5K3L2XXOTP_SUPPORT) += cam_cal/src/mt6735/s5k3l2xxotp/
+obj-$(CONFIG_MTK_CAM_CAL_OV5670OTP_SUPPORT) += cam_cal/src/mt6735/ov5670otp/
 obj-y	+= lens/
 obj-y	+= imgsensor/src/
 
@@ -240,7 +236,7 @@ endif
 obj-y	+= power/
 obj-y	+= i2c/
 obj-y	+= pwm/
-obj-$(CONFIG_MTK_SMI)	+= smi/
+obj-$(CONFIG_MTK_SMI_EXT)	+= smi/
 obj-$(CONFIG_MTK_BTCVSD) += btcvsd/
 obj-$(CONFIG_MTK_SOUND)	+= sound/
 obj-$(CONFIG_MTK_SPI)	+= spi/
@@ -260,8 +256,6 @@ obj-y	+= freqhopping/
 obj-y	+= selinux_warning/
 # MTK PASR SW flow
 obj-$(CONFIG_MTKPASR)	+= mtkpasr/
-
-obj-$(CONFIG_MTK_TC1_FEATURE)	+= tc1_interface/
 
 obj-$(CONFIG_MTK_SWITCH_TX_POWER) += sw_tx_power/
 

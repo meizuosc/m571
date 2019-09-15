@@ -41,7 +41,7 @@
 #include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/tlbflush.h>
@@ -807,7 +807,7 @@ void __init early_init_mmu(void)
 }
 
 #ifdef CONFIG_SMP
-void __cpuinit early_init_mmu_secondary(void)
+void early_init_mmu_secondary(void)
 {
 	/* Initialize hash table for that CPU */
 	if (!firmware_has_feature(FW_FEATURE_LPAR))

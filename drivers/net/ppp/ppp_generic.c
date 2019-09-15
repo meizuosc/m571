@@ -716,10 +716,8 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			val &= 0xffff;
 		}
 		vj = slhc_init(val2+1, val+1);
-		if (!vj) {
-			netdev_err(ppp->dev,
-				   "PPP: no memory (VJ compressor)\n");
-			err = -ENOMEM;
+		if (IS_ERR(vj)) {
+			err = PTR_ERR(vj);
 			break;
 		}
 		ppp_lock(ppp);
@@ -754,7 +752,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_PPP_FILTER
 	case PPPIOCSPASS:
 	{
-		struct sock_filter *code;
+		struct sock_filter *code = NULL;
 		err = get_filter(argp, &code);
 		if (err >= 0) {
 			ppp_lock(ppp);
@@ -768,7 +766,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case PPPIOCSACTIVE:
 	{
-		struct sock_filter *code;
+		struct sock_filter *code = NULL;
 		err = get_filter(argp, &code);
 		if (err >= 0) {
 			ppp_lock(ppp);
@@ -2222,7 +2220,7 @@ int ppp_register_net_channel(struct net *net, struct ppp_channel *chan)
 
 	pch->ppp = NULL;
 	pch->chan = chan;
-	pch->chan_net = net;
+	pch->chan_net = get_net(net);
 	chan->ppp = pch;
 	init_ppp_file(&pch->file, CHANNEL);
 	pch->file.hdrlen = chan->hdrlen;
@@ -2319,6 +2317,8 @@ ppp_unregister_channel(struct ppp_channel *chan)
 	spin_lock_bh(&pn->all_channels_lock);
 	list_del(&pch->list);
 	spin_unlock_bh(&pn->all_channels_lock);
+	put_net(pch->chan_net);
+	pch->chan_net = NULL;
 
 	pch->file.dead = 1;
 	wake_up_interruptible(&pch->file.rwait);
@@ -2925,6 +2925,9 @@ ppp_disconnect_channel(struct channel *pch)
  */
 static void ppp_destroy_channel(struct channel *pch)
 {
+	put_net(pch->chan_net);
+	pch->chan_net = NULL;
+
 	atomic_dec(&channel_count);
 
 	if (!pch->file.dead) {

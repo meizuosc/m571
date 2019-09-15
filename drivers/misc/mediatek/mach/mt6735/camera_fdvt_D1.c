@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
@@ -54,7 +54,7 @@
 
 #define MT6573FDVT_PARM
 #ifdef MT6573FDVT_PARM
-#define LOG_DBG(fmt,arg...) printk("[CAMERAFDVT]" "%s() - "  fmt, __FUNCTION__  ,##arg)
+#define LOG_DBG(fmt,arg...) printk("[CAMERAFDVT]" "%s() - "  fmt, __func__  ,##arg)
 #else
 #define LOG_DBG(fmt,arg...)
 #endif

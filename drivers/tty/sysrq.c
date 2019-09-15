@@ -55,10 +55,11 @@ static bool __read_mostly sysrq_always_enabled;
 unsigned short platform_sysrq_reset_seq[] __weak = { KEY_RESERVED };
 int sysrq_reset_downtime_ms __weak;
 
-static bool sysrq_on(void)
+bool sysrq_on(void)
 {
 	return sysrq_enabled || sysrq_always_enabled;
 }
+EXPORT_SYMBOL(sysrq_on);
 
 /*
  * A value of 1 means 'all', other nonzero values are an op mask:
@@ -352,7 +353,7 @@ static struct sysrq_key_op sysrq_term_op = {
 
 static void moom_callback(struct work_struct *ignored)
 {
-	out_of_memory(node_zonelist(first_online_node, GFP_KERNEL), GFP_KERNEL,
+	out_of_memory(node_zonelist(first_memory_node, GFP_KERNEL), GFP_KERNEL,
 		      0, NULL, true);
 }
 
@@ -881,8 +882,8 @@ static const struct input_device_id sysrq_ids[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_KEYBIT,
-		.evbit = { BIT_MASK(EV_KEY) },
-		.keybit = { BIT_MASK(KEY_LEFTALT) },
+		.evbit = { [BIT_WORD(EV_KEY)] = BIT_MASK(EV_KEY) },
+		.keybit = { [BIT_WORD(KEY_LEFTALT)] = BIT_MASK(KEY_LEFTALT) },
 	},
 	{ },
 };

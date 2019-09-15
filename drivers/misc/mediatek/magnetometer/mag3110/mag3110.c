@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -83,7 +83,7 @@ enum {
 
 /*----------------------------------------------------------------------------*/
 #define I2C_DRIVERID_MAG3110 304
-#define DEBUG 1
+//#define DEBUG 1
 #define MAG3110_DEV_NAME         "mag3110"
 #define DRIVER_VERSION          "1.0.6.11"
 /*-----------------------------------------------------------------------------*/
@@ -104,8 +104,8 @@ enum {
 #define MAG3110_AXES_NUM          3
 /*----------------------------------------------------------------------------*/
 #define MSE_TAG                  "MSENSOR"
-#define MSE_FUN(f)               printk(MSE_TAG" %s\r\n", __FUNCTION__)
-#define MSE_ERR(fmt, args...)    printk(MSE_TAG" %s %d : \r\n"fmt, __FUNCTION__, __LINE__, ##args)
+#define MSE_FUN(f)               printk(MSE_TAG" %s\r\n", __func__)
+#define MSE_ERR(fmt, args...)    printk(MSE_TAG" %s %d : \r\n"fmt, __func__, __LINE__, ##args)
 #define MSE_LOG(fmt, args...)    printk(MSE_TAG fmt, ##args)
 #define MSE_VER(fmt, args...)   ((void)0)
 /*----------------------------------------------------------------------------*/
@@ -980,7 +980,7 @@ static int mag3110_unlocked_ioctl(struct file *file, unsigned int cmd,unsigned l
 			break;
 		    
 		default:
-			MSE_ERR("%s not supported = 0x%04x", __FUNCTION__, cmd);
+			MSE_ERR("%s not supported = 0x%04x", __func__, cmd);
 			retval = -ENOIOCTLCMD;
 			break;
 		}

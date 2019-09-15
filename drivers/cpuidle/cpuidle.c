@@ -121,6 +121,11 @@ int cpuidle_idle_call(void)
 	struct cpuidle_driver *drv;
 	int next_state, entered_state;
 
+	if (need_resched()) {
+		local_irq_enable();
+		return 0;
+	}
+
 	if (off)
 		return -ENODEV;
 
@@ -135,6 +140,9 @@ int cpuidle_idle_call(void)
 
 	/* ask the governor for the next state */
 	next_state = cpuidle_curr_governor->select(drv, dev);
+	if (next_state < 0)
+		return -EBUSY;
+
 	if (need_resched()) {
 		dev->last_residency = 0;
 		/* give the governor an opportunity to reflect on the outcome */
@@ -527,11 +535,6 @@ EXPORT_SYMBOL_GPL(cpuidle_register);
 
 #ifdef CONFIG_SMP
 
-static void smp_callback(void *v)
-{
-	/* we already woke the CPU up, nothing more to do */
-}
-
 /*
  * This function gets called when a part of the kernel has a new latency
  * requirement.  This means we need to get all processors out of their C-state,
@@ -541,7 +544,6 @@ static void smp_callback(void *v)
 static int cpuidle_latency_notify(struct notifier_block *b,
 		unsigned long l, void *v)
 {
-	smp_call_function(smp_callback, NULL, 1);
 	return NOTIFY_OK;
 }
 

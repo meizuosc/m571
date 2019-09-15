@@ -32,7 +32,7 @@
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fcntl.h>
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/mm.h>
@@ -805,6 +805,9 @@ static int ax25_create(struct net *net, struct socket *sock, int protocol,
 {
 	struct sock *sk;
 	ax25_cb *ax25;
+
+	if (protocol < 0 || protocol > SK_PROTOCOL_MAX)
+		return -EINVAL;
 
 	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;

@@ -29,7 +29,7 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/spinlock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
 #include <linux/ctype.h>

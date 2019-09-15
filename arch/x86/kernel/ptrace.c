@@ -25,7 +25,7 @@
 #include <linux/export.h>
 #include <linux/context_tracking.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
@@ -1496,7 +1496,7 @@ long syscall_trace_enter(struct pt_regs *regs)
 		regs->flags |= X86_EFLAGS_TF;
 
 	/* do the secure computing check first */
-	if (secure_computing(regs->orig_ax)) {
+	if (secure_computing()) {
 		/* seccomp failures shouldn't expose any additional code. */
 		ret = -1L;
 		goto out;

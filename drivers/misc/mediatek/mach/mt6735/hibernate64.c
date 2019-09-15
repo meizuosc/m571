@@ -12,7 +12,7 @@
 #include <linux/suspend.h>
 #include <linux/mm.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/system_misc.h>

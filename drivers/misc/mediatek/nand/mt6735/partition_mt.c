@@ -33,7 +33,7 @@
 
 #include <asm/io.h>
 #include <asm/cacheflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <mach/mt_typedefs.h>
 #include <mach/mt_clkmgr.h>

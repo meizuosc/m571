@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
+#include <linux/string.h>
 
 #include <asm/cacheflush.h>
 
@@ -179,13 +180,34 @@ static inline struct page *
 alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
 					unsigned long vaddr)
 {
-	return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
+	return __alloc_zeroed_user_highpage(__GFP_MOVABLE | __GFP_CMA, vma, vaddr);
 }
 
 static inline void clear_highpage(struct page *page)
 {
 	void *kaddr = kmap_atomic(page);
 	clear_page(kaddr);
+	kunmap_atomic(kaddr);
+}
+
+static inline void sanitize_highpage(struct page *page)
+{
+	void *kaddr;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	kaddr = kmap_atomic(page);
+	clear_page(kaddr);
+	kunmap_atomic(kaddr);
+	local_irq_restore(flags);
+}
+
+static inline void sanitize_highpage_verify(struct page *page)
+{
+	void *kaddr;
+
+	kaddr = kmap_atomic(page);
+	BUG_ON(memchr_inv(kaddr, 0, PAGE_SIZE));
 	kunmap_atomic(kaddr);
 }
 

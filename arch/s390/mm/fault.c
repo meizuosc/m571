@@ -244,6 +244,12 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 				do_no_context(regs);
 			else
 				pagefault_out_of_memory();
+		} else if (fault & VM_FAULT_SIGSEGV) {
+			/* Kernel mode? Handle exceptions or die */
+			if (!user_mode(regs))
+				do_no_context(regs);
+			else
+				do_sigsegv(regs, SEGV_MAPERR);
 		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!user_mode(regs))
@@ -641,7 +647,7 @@ out:
 	put_task_struct(tsk);
 }
 
-static int __cpuinit pfault_cpu_notify(struct notifier_block *self,
+static int pfault_cpu_notify(struct notifier_block *self,
 				       unsigned long action, void *hcpu)
 {
 	struct thread_struct *thread, *next;

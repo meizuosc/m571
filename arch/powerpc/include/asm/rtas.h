@@ -255,6 +255,7 @@ extern void rtas_power_off(void);
 extern void rtas_halt(void);
 extern void rtas_os_term(char *str);
 extern int rtas_get_sensor(int sensor, int index, int *state);
+extern int rtas_get_sensor_fast(int sensor, int index, int *state);
 extern int rtas_get_power_level(int powerdomain, int *level);
 extern int rtas_set_power_level(int powerdomain, int level, int *setlevel);
 extern bool rtas_indicator_present(int token, int *maxindex);
@@ -350,8 +351,8 @@ static inline u32 rtas_config_addr(int busno, int devfn, int reg)
 			(devfn << 8) | (reg & 0xff);
 }
 
-extern void __cpuinit rtas_give_timebase(void);
-extern void __cpuinit rtas_take_timebase(void);
+extern void rtas_give_timebase(void);
+extern void rtas_take_timebase(void);
 
 #ifdef CONFIG_PPC_RTAS
 static inline int page_is_rtas_user_buf(unsigned long pfn)

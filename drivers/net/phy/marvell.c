@@ -36,7 +36,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define MII_MARVELL_PHY_PAGE		22
 
@@ -655,8 +655,6 @@ static int marvell_read_status(struct phy_device *phydev)
 		adv = phy_read(phydev, MII_ADVERTISE);
 		if (adv < 0)
 			return adv;
-
-		lpa &= adv;
 
 		if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
 			phydev->duplex = DUPLEX_FULL;

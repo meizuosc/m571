@@ -9,7 +9,7 @@
 #include <linux/init.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/delay.h>
 #include <asm/head.h>
 #include <asm/dma.h>

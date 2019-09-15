@@ -221,8 +221,12 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 
 static void qdisc_list_add(struct Qdisc *q)
 {
-	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS))
-		list_add_tail(&q->list, &qdisc_dev(q)->qdisc->list);
+	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
+		struct Qdisc *root = qdisc_dev(q)->qdisc;
+
+		WARN_ON_ONCE(root == &noop_qdisc);
+		list_add_tail(&q->list, &root->list);
+	}
 }
 
 void qdisc_list_del(struct Qdisc *q)
@@ -752,10 +756,8 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 		if (dev->flags & IFF_UP)
 			dev_deactivate(dev);
 
-		if (new && new->ops->attach) {
-			new->ops->attach(new);
-			num_q = 0;
-		}
+		if (new && new->ops->attach)
+			goto skip;
 
 		for (i = 0; i < num_q; i++) {
 			struct netdev_queue *dev_queue = dev_ingress_queue(dev);
@@ -771,12 +773,16 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 				qdisc_destroy(old);
 		}
 
+skip:
 		if (!ingress) {
 			notify_and_destroy(net, skb, n, classid,
 					   dev->qdisc, new);
 			if (new && !new->ops->attach)
 				atomic_inc(&new->refcnt);
 			dev->qdisc = new ? : &noop_qdisc;
+
+			if (new && new->ops->attach)
+				new->ops->attach(new);
 		} else {
 			notify_and_destroy(net, skb, n, classid, old, new);
 		}

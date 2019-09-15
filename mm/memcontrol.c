@@ -59,7 +59,7 @@
 #include <net/ip.h>
 #include <net/tcp_memcontrol.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <trace/events/vmscan.h>
 
@@ -1812,8 +1812,8 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 	 * select it.  The goal is to allow it to allocate so that it may
 	 * quickly exit and free its memory.
 	 */
-	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
-		set_thread_flag(TIF_MEMDIE);
+	if (fatal_signal_pending(current) || task_will_free_mem(current)) {
+		mark_tsk_oom_victim(current);
 		return;
 	}
 
@@ -1847,13 +1847,18 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 				break;
 			};
 			points = oom_badness(task, memcg, NULL, totalpages);
-			if (points > chosen_points) {
-				if (chosen)
-					put_task_struct(chosen);
-				chosen = task;
-				chosen_points = points;
-				get_task_struct(chosen);
-			}
+			if (!points || points < chosen_points)
+				continue;
+			/* Prefer thread group leaders for display purposes */
+			if (points == chosen_points &&
+			    thread_group_leader(chosen))
+				continue;
+
+			if (chosen)
+				put_task_struct(chosen);
+			chosen = task;
+			chosen_points = points;
+			get_task_struct(chosen);
 		}
 		cgroup_iter_end(cgroup, &it);
 	}
@@ -2456,7 +2461,7 @@ static void drain_stock(struct memcg_stock_pcp *stock)
  */
 static void drain_local_stock(struct work_struct *dummy)
 {
-	struct memcg_stock_pcp *stock = &__get_cpu_var(memcg_stock);
+	struct memcg_stock_pcp *stock = this_cpu_ptr(&memcg_stock);
 	drain_stock(stock);
 	clear_bit(FLUSHING_CACHED_CHARGE, &stock->flags);
 }
@@ -2580,7 +2585,7 @@ static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
 	spin_unlock(&memcg->pcp_counter_lock);
 }
 
-static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
+static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
 					unsigned long action,
 					void *hcpu)
 {
@@ -2713,7 +2718,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 	 * in system level. So, allow to go ahead dying process in addition to
 	 * MEMDIE process.
 	 */
-	if (unlikely(test_thread_flag(TIF_MEMDIE)
+	if (unlikely(test_thread_flag_relaxed(TIF_MEMDIE)
 		     || fatal_signal_pending(current)))
 		goto bypass;
 
@@ -4110,7 +4115,7 @@ static void mem_cgroup_do_uncharge(struct mem_cgroup *memcg,
 	 * because we want to do uncharge as soon as possible.
 	 */
 
-	if (!batch->do_batch || test_thread_flag(TIF_MEMDIE))
+	if (!batch->do_batch || test_thread_flag_relaxed(TIF_MEMDIE))
 		goto direct_uncharge;
 
 	if (nr_pages > 1)
@@ -4673,8 +4678,10 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 		}
 		mutex_unlock(&set_limit_mutex);
 
-		if (!ret)
+		if (!ret) {
+			vmpressure_update_mem_limit(memcg, val);
 			break;
+		}
 
 		mem_cgroup_reclaim(memcg, GFP_KERNEL,
 				   MEM_CGROUP_RECLAIM_SHRINK);
@@ -5805,16 +5812,17 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 swap_buffers:
 	/* Swap primary and spare array */
 	thresholds->spare = thresholds->primary;
-	/* If all events are unregistered, free the spare array */
-	if (!new) {
-		kfree(thresholds->spare);
-		thresholds->spare = NULL;
-	}
 
 	rcu_assign_pointer(thresholds->primary, new);
 
 	/* To be sure that nobody uses thresholds */
 	synchronize_rcu();
+
+	/* If all events are unregistered, free the spare array */
+	if (!new) {
+		kfree(thresholds->spare);
+		thresholds->spare = NULL;
+	}
 unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 }
@@ -6296,7 +6304,7 @@ mem_cgroup_css_alloc(struct cgroup *cont)
 	memcg->move_charge_at_immigrate = 0;
 	mutex_init(&memcg->thresholds_lock);
 	spin_lock_init(&memcg->move_lock);
-	vmpressure_init(&memcg->vmpressure);
+	vmpressure_init(&memcg->vmpressure, cont->parent == NULL);
 
 	return &memcg->css;
 
@@ -6810,12 +6818,6 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
 	return ret;
 }
 
-static int mem_cgroup_allow_attach(struct cgroup *cgroup,
-				   struct cgroup_taskset *tset)
-{
-	return subsys_cgroup_allow_attach(cgroup, tset);
-}
-
 static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
 				     struct cgroup_taskset *tset)
 {
@@ -6984,11 +6986,6 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
 {
 	return 0;
 }
-static int mem_cgroup_allow_attach(struct cgroup *cgroup,
-				   struct cgroup_taskset *tset)
-{
-	return 0;
-}
 static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
 				     struct cgroup_taskset *tset)
 {
@@ -6998,6 +6995,23 @@ static void mem_cgroup_move_task(struct cgroup *cont,
 {
 }
 #endif
+
+static int mem_cgroup_allow_attach(struct cgroup *cgrp,
+				 struct cgroup_taskset *tset)
+{
+	const struct cred *cred = current_cred(), *tcred;
+	struct task_struct *task;
+
+	cgroup_taskset_for_each(task, cgrp, tset) {
+		tcred = __task_cred(task);
+
+		if ((current != task) && !capable(CAP_SYS_ADMIN) &&
+		    cred->euid != tcred->uid && cred->euid != tcred->suid)
+			return -EACCES;
+	}
+
+	return 0;
+}
 
 /*
  * Cgroup retains root cgroups across [un]mount cycles making it necessary

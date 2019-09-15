@@ -28,7 +28,7 @@
 #include <linux/ctype.h>
 #include <linux/edac.h>
 #include <linux/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/edac.h>
 #include "edac_core.h"
@@ -968,7 +968,7 @@ static void edac_inc_ue_error(struct mem_ctl_info *mci,
 	mci->ue_mc += count;
 
 	if (!enable_per_layer_report) {
-		mci->ce_noinfo_count += count;
+		mci->ue_noinfo_count += count;
 		return;
 	}
 

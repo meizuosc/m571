@@ -36,7 +36,7 @@
 #define DYNAMIC_CHANGE_MTD_WRITEABLE
 #ifdef DYNAMIC_CHANGE_MTD_WRITEABLE //wschen 2011-01-05
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 static struct mtd_info *my_mtd = NULL;
 int mtd_writeable_proc_write(struct file *file, const char *buffer, unsigned long count, void *data);
 
@@ -653,8 +653,10 @@ int add_mtd_partitions(struct mtd_info *master,
 
 	for (i = 0; i < nbparts; i++) {
 		slave = allocate_partition(master, parts + i, i, cur_offset);
-		if (IS_ERR(slave))
+		if (IS_ERR(slave)) {
+			del_mtd_partitions(master);
 			return PTR_ERR(slave);
+		}
 
 		mutex_lock(&mtd_partitions_mutex);
 		list_add(&slave->list, &mtd_partitions);

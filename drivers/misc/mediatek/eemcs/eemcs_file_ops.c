@@ -6,7 +6,7 @@
 #include <linux/mm.h>
 #include <linux/namei.h>
 #include <asm/segment.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct file* file_open(const char* path, int flags, int rights) {
     struct file* filp = NULL;

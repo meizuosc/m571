@@ -55,7 +55,7 @@
 #include <linux/sched.h>	/* cond_resched() */
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 #include "smapi.h"
 #include "mwavedd.h"

@@ -36,7 +36,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 	 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 	 
 #include "musbfsh_core.h"
 #include "musbfsh_host.h"

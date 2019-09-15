@@ -417,7 +417,7 @@ static ssize_t scan_sleep_millisecs_store(struct kobject *kobj,
 	unsigned long msecs;
 	int err;
 
-	err = strict_strtoul(buf, 10, &msecs);
+	err = kstrtoul(buf, 10, &msecs);
 	if (err || msecs > UINT_MAX)
 		return -EINVAL;
 
@@ -444,7 +444,7 @@ static ssize_t alloc_sleep_millisecs_store(struct kobject *kobj,
 	unsigned long msecs;
 	int err;
 
-	err = strict_strtoul(buf, 10, &msecs);
+	err = kstrtoul(buf, 10, &msecs);
 	if (err || msecs > UINT_MAX)
 		return -EINVAL;
 
@@ -470,7 +470,7 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
 	int err;
 	unsigned long pages;
 
-	err = strict_strtoul(buf, 10, &pages);
+	err = kstrtoul(buf, 10, &pages);
 	if (err || !pages || pages > UINT_MAX)
 		return -EINVAL;
 
@@ -538,7 +538,7 @@ static ssize_t khugepaged_max_ptes_none_store(struct kobject *kobj,
 	int err;
 	unsigned long max_ptes_none;
 
-	err = strict_strtoul(buf, 10, &max_ptes_none);
+	err = kstrtoul(buf, 10, &max_ptes_none);
 	if (err || max_ptes_none > HPAGE_PMD_NR-1)
 		return -EINVAL;
 
@@ -1235,6 +1235,18 @@ out_unlock:
 	return ret;
 }
 
+/*
+ * foll_force can write to even unwritable pmd's, but only
+ * after we've gone through a cow cycle and they are dirty.
+ */
+static inline bool can_follow_write_pmd(pmd_t pmd, struct page *page,
+					unsigned int flags)
+{
+	return pmd_write(pmd) ||
+		((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
+		 page && PageAnon(page));
+}
+
 struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
 				   unsigned long addr,
 				   pmd_t *pmd,
@@ -1245,15 +1257,16 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
 
 	assert_spin_locked(&mm->page_table_lock);
 
-	if (flags & FOLL_WRITE && !pmd_write(*pmd))
-		goto out;
-
 	/* Avoid dumping huge zero page */
 	if ((flags & FOLL_DUMP) && is_huge_zero_pmd(*pmd))
 		return ERR_PTR(-EFAULT);
 
 	page = pmd_page(*pmd);
 	VM_BUG_ON(!PageHead(page));
+
+	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, page, flags))
+		return NULL;
+
 	if (flags & FOLL_TOUCH) {
 		pmd_t _pmd;
 		/*
@@ -1447,7 +1460,7 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
 {
 	int ret = 0;
 	pmd_t pmd;
-
+	bool force_flush = false;
 	struct mm_struct *mm = vma->vm_mm;
 
 	if ((old_addr & ~HPAGE_PMD_MASK) ||
@@ -1468,8 +1481,12 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
 	ret = __pmd_trans_huge_lock(old_pmd, vma);
 	if (ret == 1) {
 		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+		if (pmd_present(pmd))
+			force_flush = true;
 		VM_BUG_ON(!pmd_none(*new_pmd));
 		set_pmd_at(mm, new_addr, new_pmd, pmd);
+		if (force_flush)
+			flush_tlb_range(vma, old_addr, old_addr + PMD_SIZE);
 		spin_unlock(&mm->page_table_lock);
 	}
 out:

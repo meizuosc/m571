@@ -28,7 +28,7 @@
 #include <asm/oplib.h>
 #include <asm/smp.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int show_unhandled_signals = 1;
 
@@ -252,6 +252,8 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGSEGV)
+			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();

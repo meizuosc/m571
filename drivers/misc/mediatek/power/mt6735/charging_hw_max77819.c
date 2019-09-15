@@ -186,7 +186,9 @@ static kal_uint32 charging_dump_register(void *data)
 {
     kal_uint32 status = STATUS_OK;
 
+    #ifndef CONFIG_MEIZU_CLOSE_MTK_LOG
     battery_log(BAT_LOG_CRTI, " charging_dump_register\n");
+    #endif
 
     max77819_charger_dump_register();
 

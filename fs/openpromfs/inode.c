@@ -16,7 +16,7 @@
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static DEFINE_MUTEX(op_mutex);
 
@@ -375,6 +375,7 @@ static struct inode *openprom_iget(struct super_block *sb, ino_t ino)
 
 static int openprom_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	*flags |= MS_NOATIME;
 	return 0;
 }

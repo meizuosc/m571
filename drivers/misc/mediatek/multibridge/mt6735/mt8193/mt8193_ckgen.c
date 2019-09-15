@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/earlysuspend.h>
 #include <linux/cdev.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <mach/mt_gpio.h>
 #include <linux/delay.h>
 

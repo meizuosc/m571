@@ -1,3 +1,4 @@
+#include <linux/cpufreq.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/tsacct_kern.h>
@@ -149,6 +150,9 @@ void account_user_time(struct task_struct *p, cputime_t cputime,
 
 	/* Account for user time used */
 	acct_account_cputime(p);
+
+	/* Account power usage for user time */
+	acct_update_power(p, cputime);
 }
 
 /*
@@ -199,6 +203,9 @@ void __account_system_time(struct task_struct *p, cputime_t cputime,
 
 	/* Account for system time used */
 	acct_account_cputime(p);
+
+	/* Account power usage for system time */
+	acct_update_power(p, cputime);
 }
 
 /*
@@ -258,16 +265,22 @@ static __always_inline bool steal_account_process_tick(void)
 {
 #ifdef CONFIG_PARAVIRT
 	if (static_key_false(&paravirt_steal_enabled)) {
-		u64 steal, st = 0;
+		u64 steal;
+		cputime_t steal_ct;
 
 		steal = paravirt_steal_clock(smp_processor_id());
 		steal -= this_rq()->prev_steal_time;
 
-		st = steal_ticks(steal);
-		this_rq()->prev_steal_time += st * TICK_NSEC;
+		/*
+		 * cputime_t may be less precise than nsecs (eg: if it's
+		 * based on jiffies). Lets cast the result to cputime
+		 * granularity and account the rest on the next rounds.
+		 */
+		steal_ct = nsecs_to_cputime(steal);
+		this_rq()->prev_steal_time += cputime_to_nsecs(steal_ct);
 
-		account_steal_time(st);
-		return st;
+		account_steal_time(steal_ct);
+		return steal_ct;
 	}
 #endif
 	return false;
@@ -288,18 +301,12 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 	times->sum_exec_runtime = sig->sum_sched_runtime;
 
 	rcu_read_lock();
-	/* make sure we can trust tsk->thread_group list */
-	if (!likely(pid_alive(tsk)))
-		goto out;
-
-	t = tsk;
-	do {
+	for_each_thread(tsk, t) {
 		task_cputime(t, &utime, &stime);
 		times->utime += utime;
 		times->stime += stime;
 		times->sum_exec_runtime += task_sched_runtime(t);
-	} while_each_thread(tsk, t);
-out:
+	}
 	rcu_read_unlock();
 }
 
@@ -768,6 +775,9 @@ cputime_t task_gtime(struct task_struct *t)
 {
 	unsigned int seq;
 	cputime_t gtime;
+
+	if (!context_tracking_is_enabled())
+		return t->gtime;
 
 	do {
 		seq = read_seqbegin(&t->vtime_seqlock);

@@ -34,7 +34,7 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/processor.h>
 #include <asm/sstep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Stores the breakpoints currently in use on each breakpoint address
@@ -228,8 +228,10 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	rcu_read_lock();
 
 	bp = __get_cpu_var(bp_per_reg);
-	if (!bp)
+	if (!bp) {
+		rc = NOTIFY_DONE;
 		goto out;
+	}
 	info = counter_arch_bp(bp);
 
 	/*

@@ -19,7 +19,7 @@
 #include <linux/compat.h>
 #include "internal.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 typedef ssize_t (*io_fn_t)(struct file *, char __user *, size_t, loff_t *);
@@ -391,7 +391,7 @@ ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, lof
 	kiocb.ki_left = len;
 	kiocb.ki_nbytes = len;
 
-	ret = filp->f_op->aio_write(&kiocb, &iov, 1, kiocb.ki_pos);
+	ret = filp->f_op->aio_write(&kiocb, &iov, 1, *ppos);
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&kiocb);
 	*ppos = kiocb.ki_pos;

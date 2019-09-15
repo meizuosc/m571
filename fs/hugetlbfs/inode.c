@@ -33,7 +33,7 @@
 #include <linux/magic.h>
 #include <linux/migrate.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static const struct super_operations hugetlbfs_ops;
 static const struct address_space_operations hugetlbfs_aops;
@@ -169,7 +169,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		addr = ALIGN(addr, huge_page_size(h));
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
@@ -482,7 +482,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 		/*
 		 * The policy is initialized here even if we are creating a
 		 * private inode because initialization simply creates an
-		 * an empty rb tree and calls spin_lock_init(), later when we
+		 * an empty rb tree and calls rwlock_init(), later when we
 		 * call mpol_free_shared_policy() it will just return because
 		 * the rb tree will still be empty.
 		 */

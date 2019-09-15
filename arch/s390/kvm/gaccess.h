@@ -15,7 +15,7 @@
 
 #include <linux/compiler.h>
 #include <linux/kvm_host.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "kvm-s390.h"
 
 static inline void __user *__gptr_to_uptr(struct kvm_vcpu *vcpu,

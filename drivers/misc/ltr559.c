@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <asm/setup.h>
 #include <linux/version.h>
@@ -62,8 +62,8 @@
 #define dev_notice(dev, format, arg...) printk(KERN_EMERG LOG_TAG_LTR559 format , ## arg)
 #endif
 
-#define LTR559_DEBUG_PUSH_TIME 0
-#if LTR559_DEBUG_PUSH_TIME
+//#define LTR559_DEBUG_PUSH_TIME 0
+#ifdef LTR559_DEBUG_PUSH_TIME
 static struct timespec ltr559_time_before, ltr559_time_after;
 static int ltr559_push_time_debug;
 #endif
@@ -3594,7 +3594,7 @@ static void mz_light_iio_func(struct work_struct *work)
 		dev_dbg(mz_light->dev, "%s: push buffer\n", __func__);
 		#endif
 		iio_push_to_buffers(mz_light->indio_dev, mz_light->iio_buffer_data);
-		#if LTR559_DEBUG_PUSH_TIME
+		#ifdef LTR559_DEBUG_PUSH_TIME
 		if (ltr559_push_time_debug) {
 			ltr559_push_time_debug = 0;
 			get_monotonic_boottime(&ltr559_time_after);
@@ -3621,7 +3621,7 @@ int mz_light_trig_set_state(struct iio_trigger *trig, bool state)
 
 	dev_info(mz_light->dev, "%s: enter, state: %d\n", __func__, state);
 	if (state) {
-		#if LTR559_DEBUG_PUSH_TIME
+		#ifdef LTR559_DEBUG_PUSH_TIME
 		ltr559_push_time_debug = 1;
 		get_monotonic_boottime(&ltr559_time_before);
 		#endif

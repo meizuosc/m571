@@ -305,40 +305,40 @@ extern u32 spm_irq_7;
 	SPM_WAKE_SRC(31, APSRC_SLEEP)	\
 }
 #else
-#define SPM_WAKE_SRC_LIST	{	\                                   
-	SPM_WAKE_SRC(0, SPM_MERGE),	/* PCM timer, TWAM or CPU */	\   
-	SPM_WAKE_SRC(1, MD32_WDT),	\                                 
-	SPM_WAKE_SRC(2, KP),		\                                     
-	SPM_WAKE_SRC(3, WDT),		\                                     
-	SPM_WAKE_SRC(4, GPT),		\                                     
-	SPM_WAKE_SRC(5, CONN2AP),	\                                   
-	SPM_WAKE_SRC(6, EINT),		\                                   
-	SPM_WAKE_SRC(7, CONN_WDT),	\                                 
-	SPM_WAKE_SRC(8, CCIF0_MD),	\                                 
-	SPM_WAKE_SRC(9, LOW_BAT),	\                                   
-	SPM_WAKE_SRC(10, MD32_SPM),	\                                 
-	SPM_WAKE_SRC(11, F26M_WAKE),	\                               
-	SPM_WAKE_SRC(12, F26M_SLEEP),	\                               
-	SPM_WAKE_SRC(13, PCM_WDT),	\                                 
-	SPM_WAKE_SRC(14, USB_CD),	\                                   
-	SPM_WAKE_SRC(15, USB_PDN),	\                                 
-	SPM_WAKE_SRC(16, LTE_WAKE),	\                                 
-	SPM_WAKE_SRC(17, LTE_SLEEP),	\                               
-	SPM_WAKE_SRC(18, CCIF1_MD),	\                                 
-	SPM_WAKE_SRC(19, UART0),	\                                   
-	SPM_WAKE_SRC(20, AFE),		\                                   
-	SPM_WAKE_SRC(21, THERM),	\                                   
-	SPM_WAKE_SRC(22, CIRQ),		\                                   
-	SPM_WAKE_SRC(23, MD2_WDT),	\                                 
-	SPM_WAKE_SRC(24, SYSPWREQ),	\                                 
-	SPM_WAKE_SRC(25, MD_WDT),	\                                   
-	SPM_WAKE_SRC(26, CLDMA_MD),	\                                 
-	SPM_WAKE_SRC(27, SEJ),		\                                   
-	SPM_WAKE_SRC(28, ALL_MD32),	\                                 
-	SPM_WAKE_SRC(29, CPU_IRQ),	\                                 
-	SPM_WAKE_SRC(30, APSRC_WAKE),	\                               
-	SPM_WAKE_SRC(31, APSRC_SLEEP)	\                               
-}                                                               
+#define SPM_WAKE_SRC_LIST	{	\
+	SPM_WAKE_SRC(0, SPM_MERGE),	/* PCM timer, TWAM or CPU */	\
+	SPM_WAKE_SRC(1, MD32_WDT),	\
+	SPM_WAKE_SRC(2, KP),		\
+	SPM_WAKE_SRC(3, WDT),		\
+	SPM_WAKE_SRC(4, GPT),		\
+	SPM_WAKE_SRC(5, CONN2AP),	\
+	SPM_WAKE_SRC(6, EINT),		\
+	SPM_WAKE_SRC(7, CONN_WDT),	\
+	SPM_WAKE_SRC(8, CCIF0_MD),	\
+	SPM_WAKE_SRC(9, LOW_BAT),	\
+	SPM_WAKE_SRC(10, MD32_SPM),	\
+	SPM_WAKE_SRC(11, F26M_WAKE),	\
+	SPM_WAKE_SRC(12, F26M_SLEEP),	\
+	SPM_WAKE_SRC(13, PCM_WDT),	\
+	SPM_WAKE_SRC(14, USB_CD),	\
+	SPM_WAKE_SRC(15, USB_PDN),	\
+	SPM_WAKE_SRC(16, LTE_WAKE),	\
+	SPM_WAKE_SRC(17, LTE_SLEEP),	\
+	SPM_WAKE_SRC(18, CCIF1_MD),	\
+	SPM_WAKE_SRC(19, UART0),	\
+	SPM_WAKE_SRC(20, AFE),		\
+	SPM_WAKE_SRC(21, THERM),	\
+	SPM_WAKE_SRC(22, CIRQ),		\
+	SPM_WAKE_SRC(23, MD2_WDT),	\
+	SPM_WAKE_SRC(24, SYSPWREQ),	\
+	SPM_WAKE_SRC(25, MD_WDT),	\
+	SPM_WAKE_SRC(26, CLDMA_MD),	\
+	SPM_WAKE_SRC(27, SEJ),		\
+	SPM_WAKE_SRC(28, ALL_MD32),	\
+	SPM_WAKE_SRC(29, CPU_IRQ),	\
+	SPM_WAKE_SRC(30, APSRC_WAKE),	\
+	SPM_WAKE_SRC(31, APSRC_SLEEP)	\
+} 
 #endif
 /* define WAKE_SRC_XXX */
 #undef SPM_WAKE_SRC

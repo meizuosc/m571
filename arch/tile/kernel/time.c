@@ -159,7 +159,7 @@ static DEFINE_PER_CPU(struct clock_event_device, tile_timer) = {
 	.set_mode = tile_timer_set_mode,
 };
 
-void __cpuinit setup_tile_timer(void)
+void setup_tile_timer(void)
 {
 	struct clock_event_device *evt = &__get_cpu_var(tile_timer);
 
@@ -215,8 +215,8 @@ void do_timer_interrupt(struct pt_regs *regs, int fault_num)
  */
 unsigned long long sched_clock(void)
 {
-	return clocksource_cyc2ns(get_cycles(),
-				  sched_clock_mult, SCHED_CLOCK_SHIFT);
+	return mult_frac(get_cycles(),
+			 sched_clock_mult, 1ULL << SCHED_CLOCK_SHIFT);
 }
 
 int setup_profiling_timer(unsigned int multiplier)

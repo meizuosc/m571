@@ -57,7 +57,7 @@
 #include <linux/kdev_t.h>
 #include <linux/cdev.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/slab.h>

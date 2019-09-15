@@ -41,7 +41,7 @@
 #include <linux/sysctl.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/net_namespace.h>
 #include <net/neighbour.h>
 #include <net/dst.h>

@@ -130,7 +130,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 {
 	struct flowi6 *fl6 = &fl->u.ip6;
 	int onlyproto = 0;
-	u16 offset = skb_network_header_len(skb);
+	u32 offset = skb_network_header_len(skb);
 	const struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct ipv6_opt_hdr *exthdr;
 	const unsigned char *nh = skb_network_header(skb);
@@ -284,7 +284,7 @@ static struct dst_ops xfrm6_dst_ops = {
 	.destroy =		xfrm6_dst_destroy,
 	.ifdown =		xfrm6_dst_ifdown,
 	.local_out =		__ip6_local_out,
-	.gc_thresh =		1024,
+	.gc_thresh =		32768,
 };
 
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {

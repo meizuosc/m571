@@ -156,28 +156,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	static const struct super_operations default_op;
 
 	if (s) {
-		if (security_sb_alloc(s)) {
-			/*
-			 * We cannot call security_sb_free() without
-			 * security_sb_alloc() succeeding. So bail out manually
-			 */
-			kfree(s);
-			s = NULL;
-			goto out;
-		}
-#ifdef CONFIG_SMP
-		s->s_files = alloc_percpu(struct list_head);
-		if (!s->s_files)
-			goto err_out;
-		else {
-			int i;
+		if (security_sb_alloc(s))
+			goto out_free_sb;
 
-			for_each_possible_cpu(i)
-				INIT_LIST_HEAD(per_cpu_ptr(s->s_files, i));
-		}
-#else
-		INIT_LIST_HEAD(&s->s_files);
-#endif
 		if (init_sb_writers(s, type))
 			goto err_out;
 		s->s_flags = flags;
@@ -227,11 +208,8 @@ out:
 	return s;
 err_out:
 	security_sb_free(s);
-#ifdef CONFIG_SMP
-	if (s->s_files)
-		free_percpu(s->s_files);
-#endif
 	destroy_sb_writers(s);
+out_free_sb:
 	kfree(s);
 	s = NULL;
 	goto out;
@@ -245,9 +223,6 @@ err_out:
  */
 static inline void destroy_super(struct super_block *s)
 {
-#ifdef CONFIG_SMP
-	free_percpu(s->s_files);
-#endif
 	destroy_sb_writers(s);
 	security_sb_free(s);
 	WARN_ON(!list_empty(&s->s_mounts));
@@ -417,6 +392,11 @@ void generic_shutdown_super(struct super_block *sb)
 		fsnotify_unmount_inodes(&sb->s_inodes);
 
 		evict_inodes(sb);
+
+		if (sb->s_dio_done_wq) {
+			destroy_workqueue(sb->s_dio_done_wq);
+			sb->s_dio_done_wq = NULL;
+		}
 
 		if (sop->put_super)
 			sop->put_super(sb);
@@ -697,7 +677,8 @@ rescan:
 }
 
 /**
- *	do_remount_sb - asks filesystem to change mount options.
+ *	do_remount_sb2 - asks filesystem to change mount options.
+ *	@mnt:   mount we are looking at
  *	@sb:	superblock in question
  *	@flags:	numeric part of options
  *	@data:	the rest of options
@@ -705,7 +686,7 @@ rescan:
  *
  *	Alters the mount options of a mounted file system.
  */
-int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
+int do_remount_sb2(struct vfsmount *mnt, struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
 	int remount_ro;
@@ -729,7 +710,8 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	   make sure there are no rw files opened */
 	if (remount_ro) {
 		if (force) {
-			mark_files_ro(sb);
+			sb->s_readonly_remount = 1;
+			smp_wmb();
 		} else {
 			retval = sb_prepare_remount_readonly(sb);
 			if (retval)
@@ -737,7 +719,16 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 		}
 	}
 
-	if (sb->s_op->remount_fs) {
+	if (mnt && sb->s_op->remount_fs2) {
+		retval = sb->s_op->remount_fs2(mnt, sb, &flags, data);
+		if (retval) {
+			if (!force)
+				goto cancel_readonly;
+			/* If forced remount, go ahead despite any errors */
+			WARN(1, "forced remount of a %s fs returned %i\n",
+			     sb->s_type->name, retval);
+		}
+	} else if (sb->s_op->remount_fs) {
 		retval = sb->s_op->remount_fs(sb, &flags, data);
 		if (retval) {
 			if (!force)
@@ -769,12 +760,17 @@ cancel_readonly:
 	return retval;
 }
 
+int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
+{
+	return do_remount_sb2(NULL, sb, flags, data, force);
+}
+
 static void do_emergency_remount(struct work_struct *work)
 {
 	struct super_block *sb, *p = NULL;
 
 	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
+	list_for_each_entry_reverse(sb, &super_blocks, s_list) {
 		if (hlist_unhashed(&sb->s_instances))
 			continue;
 		sb->s_count++;
@@ -1088,7 +1084,7 @@ struct dentry *mount_single(struct file_system_type *fs_type,
 EXPORT_SYMBOL(mount_single);
 
 struct dentry *
-mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
+mount_fs(struct file_system_type *type, int flags, const char *name, struct vfsmount *mnt, void *data)
 {
 	struct dentry *root;
 	struct super_block *sb;
@@ -1105,7 +1101,10 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 			goto out_free_secdata;
 	}
 
-	root = type->mount(type, flags, name, data);
+	if (type->mount2)
+		root = type->mount2(mnt, type, flags, name, data);
+	else
+		root = type->mount(type, flags, name, data);
 	if (IS_ERR(root)) {
 		error = PTR_ERR(root);
 		goto out_free_secdata;
@@ -1352,8 +1351,8 @@ int freeze_super(struct super_block *sb)
 		}
 	}
 	/*
-	 * This is just for debugging purposes so that fs can warn if it
-	 * sees write activity when frozen is set to SB_FREEZE_COMPLETE.
+	 * For debugging purposes so that fs can warn if it sees write activity
+	 * when frozen is set to SB_FREEZE_COMPLETE, and for thaw_super().
 	 */
 	sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 	up_write(&sb->s_umount);
@@ -1372,7 +1371,7 @@ int thaw_super(struct super_block *sb)
 	int error;
 
 	down_write(&sb->s_umount);
-	if (sb->s_writers.frozen == SB_UNFROZEN) {
+	if (sb->s_writers.frozen != SB_FREEZE_COMPLETE) {
 		up_write(&sb->s_umount);
 		return -EINVAL;
 	}

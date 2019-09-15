@@ -141,7 +141,6 @@ config S390
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
 	select SYSCTL_EXCEPTION_TRACE
-	select USE_GENERIC_SMP_HELPERS if SMP
 	select VIRT_CPU_ACCOUNTING
 
 config SCHED_OMIT_FRAME_POINTER
@@ -303,7 +302,6 @@ config HOTPLUG_CPU
 	def_bool y
 	prompt "Support for hot-pluggable CPUs"
 	depends on SMP
-	select HOTPLUG
 	help
 	  Say Y here to be able to turn CPUs off and on. CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
